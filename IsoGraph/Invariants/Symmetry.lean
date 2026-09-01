@@ -87,11 +87,11 @@ def finAdj (e : G.V ≃ Fin n) : Fin n → Fin n → Bool := fun i j ↦ G.Adj (
 /-- **The `Fin n` model of `G`, tabulated.**  An array rather than a function, for the reason in
 the header: what the entry points below pass to the search is `matLookup n (G.finAdjArray e)`, a
 closure holding this table. -/
-def finAdjArray (e : G.V ≃ Fin n) : Array (Array Bool) := adjArray n (G.finAdj e)
+def finAdjArray (e : G.V ≃ Fin n) : Array (Array Bool) := symmAdjArray n (G.finAdj e)
 
 @[simp] theorem matLookup_finAdjArray (e : G.V ≃ Fin n) :
     matLookup n (G.finAdjArray e) = G.finAdj e :=
-  matLookup_adjArray_eq n (G.finAdj e)
+  matLookup_symmAdjArray_eq n fun _ _ ↦ G.symm _ _
 
 /-- An automorphism of the `Fin n` model is an automorphism of `G`. -/
 def autoOfFin (e : G.V ≃ Fin n) (σ : autGroup n (G.finAdj e)) : G ≃cg G :=

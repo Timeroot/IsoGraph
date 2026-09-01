@@ -263,27 +263,121 @@ instance (q : ℕ) : Nonempty (paley (q + 1)).V := inferInstanceAs (Nonempty (Fi
 /-- The number of coordinates at which two bit-strings differ, counted along `List.finRange n`
 instead of by building the `Finset` of them.  The same number, and the cheaper one to ask for:
 the two cube families below ask it on every adjacency query, and the `Finset` they would build
-is thrown away as soon as its cardinality has been read off. -/
+is thrown away as soon as its cardinality has been read off.  `hammingBelow` below is cheaper
+still, and this lemma is the bridge the proofs cross to reach the `Finset` form. -/
 theorem card_filter_ne_eq_countP {n : ℕ} (x y : Fin n → Bool) :
     (Finset.univ.filter fun i ↦ x i ≠ y i).card = (List.finRange n).countP fun i ↦ x i != y i := by
   rw [← List.toFinset_finRange n, (List.nodup_finRange n).card_eq_countP]
   exact List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
+
+/-- The number of coordinates below `m` at which `x` and `y` differ, counted by descending on the
+index.
+
+`((List.finRange n).take m).countP` is the same number — `hammingBelow_eq` — and at `m = n` it is
+the form everything below states the distance in, but it builds the list of indices in order to
+walk it.  The list is not free: over the 256 vertices of `Q₈`, a full sweep of the hypercube's
+adjacency function costs 30 ms counting along it and 25 ms counting down.  `hammingCapped` below
+is cheaper still, and is what the two cube families actually ask. -/
+def hammingBelow {n : ℕ} (x y : Fin n → Bool) : ℕ → ℕ
+  | 0 => 0
+  | m + 1 =>
+    (if h : m < n then (if x ⟨m, h⟩ != y ⟨m, h⟩ then 1 else 0) else 0) + hammingBelow x y m
+
+theorem hammingBelow_eq {n : ℕ} (x y : Fin n → Bool) :
+    ∀ m, m ≤ n → hammingBelow x y m = ((List.finRange n).take m).countP fun i ↦ x i != y i
+  | 0, _ => by simp [hammingBelow]
+  | m + 1, h => by
+    have hm : m < n := h
+    rw [hammingBelow, hammingBelow_eq x y m (Nat.le_of_lt hm), List.take_add_one,
+      List.countP_append, dif_pos hm]
+    rw [show (List.finRange n)[m]? = some ⟨m, hm⟩ by
+      rw [List.getElem?_eq_getElem (by simpa using hm)]; simp]
+    simp [List.countP_cons, Nat.add_comm]
+
+/-- The Hamming distance, as everything states it. -/
+theorem hammingBelow_self {n : ℕ} (x y : Fin n → Bool) :
+    hammingBelow x y n = (List.finRange n).countP fun i ↦ x i != y i := by
+  rw [hammingBelow_eq x y n le_rfl, List.take_of_length_le (by simp)]
+
+theorem hammingBelow_le {n : ℕ} (x y : Fin n → Bool) : ∀ m, hammingBelow x y m ≤ m
+  | 0 => le_rfl
+  | m + 1 => by
+    have := hammingBelow_le x y m
+    rw [hammingBelow]
+    split_ifs <;> omega
+
+/-- The distance again, this time abandoned as soon as it reaches two.
+
+Neither cube ever asks what the distance *is*; both ask whether it is one, and one is a question
+two bit-strings usually answer in the first few coordinates.  Counting the whole way is counting
+past the answer: two strings drawn at random differ twice within four coordinates, whatever `n`
+is, so the scan the cube pays for grows with the dimension and the scan it needs does not.  Over
+the 256 vertices of `Q₈`, a full sweep of the hypercube's adjacency costs 25 ms counting down and
+13 ms stopping at two.
+
+`hammingCapped_eq` is `min 2` of the distance, which is all that survives the cap, and
+`hammingCapped_self` is the only consequence of it anyone wants. -/
+def hammingCapped {n : ℕ} (x y : Fin n → Bool) (c : ℕ) : ℕ → ℕ
+  | 0 => c
+  | m + 1 =>
+    if 2 ≤ c then c
+    else hammingCapped x y
+      (c + (if h : m < n then (if x ⟨m, h⟩ != y ⟨m, h⟩ then 1 else 0) else 0)) m
+
+theorem hammingCapped_eq {n : ℕ} (x y : Fin n → Bool) :
+    ∀ (m c : ℕ), c ≤ 2 → hammingCapped x y c m = min 2 (c + hammingBelow x y m)
+  | 0, c, hc => by simp [hammingCapped, hammingBelow, Nat.min_eq_right hc]
+  | m + 1, c, hc => by
+    rw [hammingCapped]
+    split
+    · next h => omega
+    · next h =>
+      rw [hammingCapped_eq x y m _ (by split_ifs <;> omega), hammingBelow]
+      omega
+
+/-- Stopping at two still tells one from everything else, which is what the hypercube asks. -/
+theorem hammingCapped_self {n : ℕ} (x y : Fin n → Bool) :
+    (hammingCapped x y 0 n == 1) = (hammingBelow x y n == 1) := by
+  rw [hammingCapped_eq x y n 0 (by omega), Nat.zero_add]
+  rcases Nat.lt_or_ge (hammingBelow x y n) 2 with h | h
+  · rw [Nat.min_eq_right (le_of_lt h)]
+  · rw [Nat.min_eq_left h]
+    show false = _
+    exact (beq_eq_false_iff_ne.2 (by omega)).symm
+
+/-- Whether `x` and `y` differ at every coordinate below `m`, i.e. whether their distance is `m`
+— `hammingFull_eq`.  The folded cube's second disjunct, and the cheap half of it: `&&`
+short-circuits, so this abandons at the first coordinate the two strings share, and two strings
+drawn at random share one within two coordinates. -/
+def hammingFull {n : ℕ} (x y : Fin n → Bool) : ℕ → Bool
+  | 0 => true
+  | m + 1 => (if h : m < n then x ⟨m, h⟩ != y ⟨m, h⟩ else false) && hammingFull x y m
+
+theorem hammingFull_eq {n : ℕ} (x y : Fin n → Bool) :
+    ∀ m, hammingFull x y m = (hammingBelow x y m == m)
+  | 0 => rfl
+  | m + 1 => by
+    have := hammingBelow_le x y m
+    rw [hammingFull, hammingFull_eq x y m, hammingBelow]
+    split_ifs <;> simp_all [bne_iff_ne, Nat.add_comm] <;> omega
 
 /-- The hypercube `Q_n`: bit-strings of length `n`, adjacent when they differ in exactly one
 place.  This is the `n`-fold cartesian product of `complete 2`, but written directly, so that a
 vertex is a bit-string rather than the nested pair the recursion would give.
 
 `hypercube_adj` states adjacency with the `Finset` of differing coordinates, which is what the
-proofs want; the definition counts them along a list, which is what a query wants. -/
+proofs want; the definition counts them with `hammingCapped`, which is what a query wants. -/
 @[toIsoGraph]
 def hypercube (n : ℕ) : CGraph where
   V := Fin n → Bool
-  Adj x y := ((List.finRange n).countP fun i ↦ x i != y i) == 1
+  Adj x y := hammingCapped x y 0 n == 1
   symm x y := by
+    rw [hammingCapped_self, hammingCapped_self, hammingBelow_self, hammingBelow_self]
     congr 1
     exact List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
   loopless x := by
-    rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
+    rw [hammingCapped_self, hammingBelow_self,
+      show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
       List.countP_eq_zero.2 fun i _ ↦ by simp]
     simp
 
@@ -291,8 +385,8 @@ instance (n : ℕ) : Nonempty (hypercube n).V := inferInstanceAs (Nonempty (Fin 
 
 @[simp] theorem hypercube_adj (n : ℕ) (x y : Fin n → Bool) :
     (hypercube n).Adj x y = ((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) := by
-  rw [card_filter_ne_eq_countP]
-  rfl
+  rw [card_filter_ne_eq_countP, ← hammingBelow_self]
+  exact hammingCapped_self x y
 
 theorem hypercube_eq_ofRel (n : ℕ) :
     hypercube n = ofRel (Fin n → Bool) fun x y ↦
@@ -303,6 +397,23 @@ theorem hypercube_eq_ofRel (n : ℕ) :
     simp only [hypercube_adj, ← h, Bool.or_self]
 
 /-! ## The funnier ones -/
+
+/-- How many elements of `s` also lie in `t`.
+
+`(s ∩ t).card` is the same number — `interCard_eq` — and is the form the two subset families below
+state their adjacency in, but building the intersection in order to read its size off and throw it
+away is not what one wants on every query.  Deciding membership is the expensive half of it, and
+`Multiset.count` decides it with a `BEq` scan and nothing else: over the 252 vertices of `K(10, 5)`,
+a full sweep of the Kneser adjacency costs 25 ms through the intersection, 24 ms counting the
+elements of `s` that satisfy `· ∈ t`, and 9 ms counting them this way. -/
+def interCard {α : Type*} [DecidableEq α] (s t : Finset α) : ℕ :=
+  Multiset.countP (fun x ↦ t.val.count x ≠ 0) s.val
+
+@[simp] theorem interCard_eq {α : Type*} [DecidableEq α] (s t : Finset α) :
+    interCard s t = (s ∩ t).card := by
+  rw [interCard, Multiset.countP_congr (p' := (· ∈ t)) rfl fun x _ ↦ by simp,
+    Multiset.countP_eq_card_filter, ← Finset.filter_mem_eq_inter]
+  rfl
 
 /-- The Kneser graph `K(n, k)`: the `k`-element subsets of `Fin n`, adjacent when disjoint.
 `kneser 5 2` is the Petersen graph.
@@ -315,15 +426,16 @@ in the form one wants to reason with. -/
 @[toIsoGraph]
 def kneser (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
-  Adj s t := (k != 0) && ((s.1 ∩ t.1).card == 0)
-  symm s t := by rw [Finset.inter_comm]
+  Adj s t := (k != 0) && (interCard s.1 t.1 == 0)
+  symm s t := by rw [interCard_eq, interCard_eq, Finset.inter_comm]
   loopless s := by
-    rw [Finset.inter_self, s.2]
+    rw [interCard_eq, Finset.inter_self, s.2]
     simp
 
 @[simp] theorem kneser_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
     (kneser n k).Adj s t = (decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)) := by
-  show ((k != 0) && ((s.1 ∩ t.1).card == 0)) = _
+  show ((k != 0) && (interCard s.1 t.1 == 0)) = _
+  rw [interCard_eq]
   by_cases hd : s.1 ∩ t.1 = ∅
   · rcases Nat.eq_zero_or_pos k with rfl | hk
     · have hst : s = t :=
@@ -352,17 +464,18 @@ states the relation in the form one wants to reason with. -/
 @[toIsoGraph]
 def johnson (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
-  Adj s t := (k != 0) && ((s.1 ∩ t.1).card == k - 1)
-  symm s t := by rw [Finset.inter_comm]
+  Adj s t := (k != 0) && (interCard s.1 t.1 == k - 1)
+  symm s t := by rw [interCard_eq, interCard_eq, Finset.inter_comm]
   loopless s := by
-    rw [Finset.inter_self, s.2, Bool.and_eq_true]
+    rw [interCard_eq, Finset.inter_self, s.2, Bool.and_eq_true]
     rintro ⟨hk, hkk⟩
     simp only [bne_iff_ne, ne_eq, beq_iff_eq] at hk hkk
     omega
 
 @[simp] theorem johnson_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
     (johnson n k).Adj s t = (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) := by
-  show ((k != 0) && ((s.1 ∩ t.1).card == k - 1)) = _
+  show ((k != 0) && (interCard s.1 t.1 == k - 1)) = _
+  rw [interCard_eq]
   by_cases hst : s = t
   · subst hst
     rw [Finset.inter_self, s.2]
@@ -389,6 +502,21 @@ theorem johnson_eq_ofRel (n k : ℕ) :
   rw [FinEnum.card_eq_fintypeCard']
   simp [Fintype.card_finset_len]
 
+/-- Whether two bit-strings differ in exactly one coordinate or in all `n` of them, which is the
+folded cube's adjacency once the empty case is out of the way.
+
+The distance decides both disjuncts and the obvious thing to do is to compute it once and ask
+twice, but neither disjunct needs the distance itself: the first needs it capped at two and the
+second only needs to know whether some coordinate agrees.  Both give up early where counting
+cannot, and the pair of them cost less than the one count — over the 256 vertices of `Q₈` a full
+sweep of the folded cube's adjacency costs 26 ms counting and 19 ms this way. -/
+def foldedNear {n : ℕ} (x y : Fin n → Bool) : Bool :=
+  (hammingCapped x y 0 n == 1) || hammingFull x y n
+
+theorem foldedNear_eq {n : ℕ} (x y : Fin n → Bool) :
+    foldedNear x y = ((hammingBelow x y n == 1) || (hammingBelow x y n == n)) := by
+  rw [foldedNear, hammingCapped_self, hammingFull_eq]
+
 /-- The folded cube: `Qₙ` with each pair of antipodal vertices joined, i.e. bit-strings of length
 `n` adjacent when they differ in exactly one place *or* in all `n` of them.  Identifying antipodes
 instead would halve the vertex count; this is the double cover of that, and is the folded
@@ -396,15 +524,17 @@ instead would halve the vertex count; this is the double cover of that, and is t
 @[toIsoGraph]
 def foldedCube (n : ℕ) : CGraph where
   V := Fin n → Bool
-  Adj x y := (n != 0) && ((((List.finRange n).countP fun i ↦ x i != y i) == 1) ||
-    (((List.finRange n).countP fun i ↦ x i != y i) == n))
+  Adj x y := (n != 0) && foldedNear x y
   symm x y := by
-    have h : ((List.finRange n).countP fun i ↦ x i != y i)
-        = (List.finRange n).countP fun i ↦ y i != x i :=
-      List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
-    rw [h]
+    show ((n != 0) && _) = ((n != 0) && _)
+    rw [foldedNear_eq, foldedNear_eq, hammingBelow_self, hammingBelow_self,
+      show ((List.finRange n).countP fun i ↦ x i != y i)
+          = (List.finRange n).countP fun i ↦ y i != x i from
+        List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl]
   loopless x := by
-    rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
+    show ((n != 0) && _) = true → False
+    rw [foldedNear_eq, hammingBelow_self,
+      show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
       List.countP_eq_zero.2 fun i _ ↦ by simp, Bool.and_eq_true]
     rintro ⟨hn, hc⟩
     simp only [bne_iff_ne, ne_eq] at hn
@@ -417,6 +547,7 @@ def foldedCube (n : ℕ) : CGraph where
         ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))) := by
   rw [card_filter_ne_eq_countP]
   show ((n != 0) && _) = _
+  rw [foldedNear_eq, hammingBelow_self]
   by_cases hxy : x = y
   · subst hxy
     rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from

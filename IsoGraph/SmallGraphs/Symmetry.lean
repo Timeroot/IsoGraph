@@ -221,6 +221,11 @@ theorem countP_xor_eq (n : ℕ) (d x y : Fin n → Bool) :
       = (List.finRange n).countP fun i ↦ x i != y i :=
   List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> cases d i <;> rfl
 
+/-- The same again, in the form the two `Adj` fields are actually written in. -/
+theorem hammingBelow_xor (n : ℕ) (d x y : Fin n → Bool) :
+    hammingBelow (fun i ↦ x i ^^ d i) (fun i ↦ y i ^^ d i) n = hammingBelow x y n := by
+  rw [hammingBelow_self, hammingBelow_self, countP_xor_eq]
+
 theorem isVertexTransitive_hypercube (n : ℕ) : (hypercube n).IsVertexTransitive := by
   rw [hypercube_eq_ofRel]
   refine isVertexTransitive_ofRel _ _ fun u v ↦

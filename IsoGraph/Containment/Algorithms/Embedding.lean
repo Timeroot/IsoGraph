@@ -381,6 +381,13 @@ theorem and_mask_ne_zero_iff (hgs : ∀ v, v ∈ gs) {a b : List G.V} :
   obtain ⟨u, hu, hku⟩ := hka
   exact ⟨u, hu, mem_of_testBit_mask hgs (by rw [of_decide_eq_true hku]; exact hkb)⟩
 
+/-- **Two masks share no bit exactly when the lists are disjoint.** -/
+theorem and_mask_eq_zero_iff (hgs : ∀ v, v ∈ gs) {a b : List G.V} :
+    mask G gs a &&& mask G gs b = 0 ↔ ∀ u ∈ a, u ∉ b := by
+  rw [← not_ne_iff (a := mask G gs a &&& mask G gs b), and_mask_ne_zero_iff hgs]
+  push Not
+  rfl
+
 /-- **One mask covers another exactly when one list covers the other.** -/
 theorem and_mask_eq_self_iff {a : List G.V} {b : ℕ} :
     mask G gs a &&& b = mask G gs a ↔ ∀ u ∈ a, b.testBit (gs.idxOf u) = true := by

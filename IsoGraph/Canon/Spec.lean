@@ -89,6 +89,91 @@ theorem matLookup_adjArray_eq (n : Nat) (adj : Fin n → Fin n → Bool) :
     matLookup n (adjArray n adj) = adj :=
   funext fun i ↦ funext fun j ↦ matLookup_adjArray n adj i j
 
+/-! ### Half of the sweep
+
+An adjacency function is symmetric, so half of the matrix is the other half read backwards and
+only the `n(n+1)/2` pairs `i ≤ j` have to be asked about.  The fill below asks about exactly
+those and mirrors the rest, which is the difference between one sweep of the adjacency function
+and half of one.  It is worth having wherever a query does real work: on the Kneser graph
+`K(10, 5)`, whose 252 vertices are `Finset`s and whose adjacency intersects two of them, the fill
+is 46 ms one way and 25 the other, and the fill is most of what a search there costs.
+
+Mirroring is a second pass rather than a read back into the array being built, so both passes are
+a map over something already in hand and neither needs a loop invariant to reason about.
+`symmMatOfArray_eq` is an equality of *arrays*, so every lemma about the full fill applies to this
+one by rewriting along it, and every caller that has its graph's `symm` in hand can switch fills
+without touching anything downstream. -/
+
+/-- The matrix of `f` over `xs`. -/
+def matOfArray {α : Type} (xs : Array α) (f : α → α → Bool) : Array (Array Bool) :=
+  xs.map fun x ↦ xs.map fun y ↦ f x y
+
+/-- The triangle: row `i` holds `f xs[i] xs[j]` for the `j ≥ i`, at offset `j - i`. -/
+private def triRows {α : Type} (xs : Array α) (f : α → α → Bool) : Array (Array Bool) :=
+  xs.mapFinIdx fun i x _ ↦ (xs.extract i xs.size).map (f x)
+
+private theorem getD_triRows {α : Type} {xs : Array α} {f : α → α → Bool} {i j : Nat}
+    (hi : i < xs.size) (hj : j < xs.size) (hij : i ≤ j) :
+    ((triRows xs f).getD i #[]).getD (j - i) false = f xs[i] xs[j] := by
+  have ht : i < (triRows xs f).size := by simpa [triRows] using hi
+  rw [← Array.getElem_eq_getD (h := ht)]
+  have hrow : (triRows xs f)[i] = (xs.extract i xs.size).map (f xs[i]) :=
+    Array.getElem_mapFinIdx ht
+  rw [hrow]
+  have hlt : j - i < ((xs.extract i xs.size).map (f xs[i])).size := by
+    simp only [Array.size_map, Array.size_extract, Nat.min_self]
+    omega
+  rw [← Array.getElem_eq_getD (h := hlt), Array.getElem_map, Array.getElem_extract]
+  congr 2
+  omega
+
+/-- The full matrix read off a triangle: entry `(i, j)` is the triangle's `(min i j, |i - j|)`. -/
+private def mirror {α : Type} (xs : Array α) (t : Array (Array Bool)) : Array (Array Bool) :=
+  xs.mapFinIdx fun i _ _ ↦ xs.mapFinIdx fun j _ _ ↦
+    if i ≤ j then (t.getD i #[]).getD (j - i) false else (t.getD j #[]).getD (i - j) false
+
+/-- **The matrix of a symmetric `f`**, with `f` called only on the pairs `i ≤ j`. -/
+def symmMatOfArray {α : Type} (xs : Array α) (f : α → α → Bool) : Array (Array Bool) :=
+  mirror xs (triRows xs f)
+
+/-- **Half a sweep is the whole matrix**, when `f` is symmetric. -/
+theorem symmMatOfArray_eq {α : Type} (xs : Array α) {f : α → α → Bool}
+    (hs : ∀ x y, f x y = f y x) : symmMatOfArray xs f = matOfArray xs f := by
+  refine Array.ext (by simp [symmMatOfArray, mirror, matOfArray]) fun i h₁ h₂ ↦ ?_
+  have hi : i < xs.size := by simpa [symmMatOfArray, mirror] using h₁
+  simp only [symmMatOfArray, mirror, matOfArray, Array.getElem_mapFinIdx, Array.getElem_map]
+  refine Array.ext (by simp) fun j h₃ h₄ ↦ ?_
+  have hj : j < xs.size := by simpa using h₃
+  simp only [Array.getElem_mapFinIdx, Array.getElem_map]
+  by_cases hij : i ≤ j
+  · rw [if_pos hij, getD_triRows hi hj hij]
+  · rw [if_neg hij, getD_triRows hj hi (Nat.le_of_lt (Nat.lt_of_not_le hij)), hs]
+
+/-- The `Fin n`, in order. -/
+def finArray (n : Nat) : Array (Fin n) := Array.ofFn id
+
+/-- `adjArray` is `matOfArray` over the indices, which is what lets the half sweep replace it. -/
+theorem matOfArray_finArray (n : Nat) (adj : Fin n → Fin n → Bool) :
+    matOfArray (finArray n) adj = adjArray n adj := by
+  simp [matOfArray, finArray, adjArray, Array.map_ofFn, Function.comp_def]
+
+/-- **`adjArray` for a symmetric `adj`**, at half the calls to `adj`. -/
+def symmAdjArray (n : Nat) (adj : Fin n → Fin n → Bool) : Array (Array Bool) :=
+  symmMatOfArray (finArray n) adj
+
+theorem symmAdjArray_eq (n : Nat) {adj : Fin n → Fin n → Bool} (hs : ∀ i j, adj i j = adj j i) :
+    symmAdjArray n adj = adjArray n adj :=
+  (symmMatOfArray_eq _ hs).trans (matOfArray_finArray n adj)
+
+@[simp] theorem matLookup_symmAdjArray (n : Nat) {adj : Fin n → Fin n → Bool}
+    (hs : ∀ i j, adj i j = adj j i) (i j : Fin n) :
+    matLookup n (symmAdjArray n adj) i j = adj i j := by
+  rw [symmAdjArray_eq n hs, matLookup_adjArray]
+
+theorem matLookup_symmAdjArray_eq (n : Nat) {adj : Fin n → Fin n → Bool}
+    (hs : ∀ i j, adj i j = adj j i) : matLookup n (symmAdjArray n adj) = adj := by
+  rw [symmAdjArray_eq n hs, matLookup_adjArray_eq]
+
 /-- Adjacency oracle on `{0, …, n-1}` coming from an adjacency function on `Fin n`. -/
 def oracleOfFin (n : Nat) (adj : Fin n → Fin n → Bool) (v w : Nat) : Bool :=
   if hv : v < n then if hw : w < n then adj ⟨v, hv⟩ ⟨w, hw⟩ else false else false

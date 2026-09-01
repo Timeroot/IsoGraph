@@ -88,16 +88,16 @@ private theorem xor_eq_decide_of_filter_eq {n : ℕ} {x y : Fin n → Bool} {i�
 /-- Adding a fixed bit-string is an automorphism of the hypercube. -/
 def cubeXor (n : ℕ) (d : Fin n → Bool) : hypercube n ≃cg hypercube n :=
   autoOfPerm (G := hypercube n) ((xorPerm_involutive n d).toPerm _) fun x y ↦ by
-    show (((List.finRange n).countP fun i ↦ (x i ^^ d i) != (y i ^^ d i)) == 1) = _
-    rw [countP_xor_eq]
-    rfl
+    show (hammingCapped (fun i ↦ x i ^^ d i) (fun i ↦ y i ^^ d i) 0 n == 1) = _
+    rw [hammingCapped_self, hammingBelow_xor]
+    exact (hammingCapped_self x y).symm
 
 /-- Permuting the coordinates is an automorphism of the hypercube: it does not change *how many*
 coordinates two strings differ in. -/
 def cubeCoord (n : ℕ) (τ : Equiv.Perm (Fin n)) : hypercube n ≃cg hypercube n :=
   autoOfPerm (G := hypercube n) (Equiv.arrowCongr τ (Equiv.refl Bool)) fun x y ↦ by
-    show (((List.finRange n).countP fun i ↦ x (τ.symm i) != y (τ.symm i)) == 1) = _
-    rw [← card_filter_ne_eq_countP, hypercube_adj]
+    show (hammingCapped (fun i ↦ x (τ.symm i)) (fun i ↦ y (τ.symm i)) 0 n == 1) = _
+    rw [hammingCapped_self, hammingBelow_self, ← card_filter_ne_eq_countP, hypercube_adj]
     congr 1
     exact Finset.card_equiv τ.symm (by simp)
 
@@ -129,11 +129,9 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
   intro u v
   refine ⟨autoOfPerm (G := foldedCube n)
     ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _) fun x y ↦ ?_, ?_⟩
-  · show ((n != 0) &&
-      ((((List.finRange n).countP fun i ↦ (x i ^^ _) != (y i ^^ _)) == 1) ||
-        (((List.finRange n).countP fun i ↦ (x i ^^ _) != (y i ^^ _)) == n))) = _
-    rw [countP_xor_eq]
-    rfl
+  · show ((n != 0) && foldedNear (fun i ↦ x i ^^ (u i ^^ v i)) (fun i ↦ y i ^^ (u i ^^ v i)))
+        = ((n != 0) && foldedNear x y)
+    rw [foldedNear_eq, foldedNear_eq, hammingBelow_xor]
   · funext i
     show (u i ^^ (u i ^^ v i)) = v i
     simp

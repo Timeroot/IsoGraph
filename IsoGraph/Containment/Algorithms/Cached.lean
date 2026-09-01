@@ -6,6 +6,7 @@ import IsoGraph.Containment.Algorithms.Minor
 import IsoGraph.Containment.Algorithms.Subgraph
 import IsoGraph.Containment.Algorithms.TopMinor
 import IsoGraph.Cache
+import IsoGraph.Invariants.Symmetry
 
 -- A `CGraph` carries its vertex type as a field, so unification only sees `Gᶜ.V` as `G.V`
 -- by unfolding the operation; see the note after `CGraph.enum` in `IsoGraph/Basic.lean`.
@@ -26,19 +27,24 @@ is the one built by `CGraph.ofEdges`, and caching the other side buys nothing ov
 fill.  Caching the host alone gets 87 of the quotient's 902 ms and the pattern alone gets 888;
 for `tutte → K₃` it is the other way round.  `testing/CacheBench.lean`, cases `api-sub`,
 `api-minor`, `api-con`, `api-con-self`, `api-sub-kneser`, `api-hom`, `api-quot`, `api-indminor`;
-best of three interleaved rounds, in milliseconds, both fills included on the right:
+best of five interleaved rounds, in milliseconds, both fills included on the right:
 
 | job                           | `find…` | `…Of?` |
 | ----------------------------- | ------- | ------ |
-| `C₄` a quotient of `tutte`    | 868     | 74     |
-| `C₆ ⊆ K(10,5)`                | 187     | 99     |
-| `C₄ ⋏ tutte` (contraction)    | 127     | 13     |
-| `tutte → K₃` (3-colouring)    | 29      | 2      |
-| `K₄` induced minor of `tutte` | 13      | 2      |
-| `K₄ ≼ tutte` (minor)          | 12      | 3      |
-| `mcgee ⋏ mcgee`               | 11      | 2      |
-| `C₈ ⊆ tutte`                  | 3       | 2      |
-| `mcgee → K₂`                  | 3       | <1     |
+| `C₄` a quotient of `tutte`    | 894     | 19     |
+| `C₆ ⊆ K(10,5)`                | 163     | 46     |
+| `tutte → K₃` (3-colouring)    | 39      | 2      |
+| `C₄ ⋏ tutte` (contraction)    | 38      | 4      |
+| `mcgee ⋏ mcgee`               | 20      | 9      |
+| `K₄ ≼ tutte` (minor)          | 18      | 2      |
+| `K₄` induced minor of `tutte` | 12      | 2      |
+| `C₈ ⊆ tutte`                  | 5       | 1      |
+| `mcgee → K₂`                  | 4       | <1     |
+
+The quotient row carries one thing besides the fill: `CGraph.quotientOf?` and `CGraph.homOf?` also
+hand the search the automorphisms of its host, which take that row from 72 ms to 19 and the
+colouring row nowhere at all.  `### The symmetry the two homomorphism searches break`, below, is
+where they come from and why the other seven searches have no such clause.
 
 The `…Of?` entry points here are the ones to reach for; the underlying `find…` take a `Roster` and
 run on whatever vertex type they are given, which is what to use when the graphs are already
@@ -157,15 +163,51 @@ def contractionOf? : Option (H.ContractionOf G) :=
   (findContraction H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
+/-! ### The symmetry the two homomorphism searches break
+
+`Algorithms/Hom.lean` prunes a node by the automorphisms of the *host* of the search, and takes
+them as an argument because it cannot know what they cost to come by.  Here they are computed, by
+the canonical labelling search of `Invariants/Symmetry.lean` — but only when the host is small,
+which is exactly when they pay:
+
+* the host of `CGraph.homOf? H G` is `G`, and the case this is for is a colouring, where `G` is
+  `complete k` and the `k!` relabellings of a colouring collapse to one;
+* the host of `CGraph.quotientOf? H G` is `H`, which is small whenever the question is interesting
+  — a quotient onto something as big as `G` is an isomorphism.
+
+Against a large host a run of the canonical labelling search costs more than the whole of some of
+the searches above (about 2 ms on `tutte`, which is the entire `tutte → K₃` job), so `autThreshold`
+turns it off there.  Nothing about correctness turns on either constant: the search is right for
+any list of automorphisms of its host, including none, so both may be tuned freely. -/
+
+/-- How big a host is worth computing the automorphisms of. -/
+private def autThreshold : ℕ := 20
+
+/-- How many of them to carry.  Every element costs a machine word at each node and about 15 µs to
+have, so a group as big as `S₅` is not worth taking whole; any subset of it prunes soundly. -/
+private def autCap : ℕ := 32
+
+/-- **The symmetry a search hosted by `X` may break**, for a graph already indexed by `e`.  Taking
+the indexed copy as an argument rather than making one is what keeps `CGraph.homOf?` below to a
+single `cacheFin` fill of each side. -/
+def searchAutData (X : CGraph) {n : ℕ} (e : X.V ≃ Fin n) (rX : Roster X.V) :
+    AutData X rX.toList :=
+  autData X rX <|
+    if n ≤ autThreshold then autClosure X rX (X.autGens e).toList autCap else []
+
 /-- **Is there a homomorphism `H → G`?**  Returns one if so.  Against `complete k` this is
 `k`-colourability of `H`, with the colouring. -/
 def homOf? : Option (H →cg G) :=
-  (findHom H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+  let Gc := G.cacheFin
+  let rG : Roster Gc.V := Roster.fin _
+  (findHom H.cacheFin Gc (Roster.fin _) rG (searchAutData Gc G.cacheFinEquiv rG)).map
     (homCongr · H.isoCacheFin.symm G.isoCacheFin.symm)
 
 /-- **Is `H` a quotient of `G`?**  Returns the surjection if so. -/
 def quotientOf? : Option (H.QuotientOf G) :=
-  (findQuotient H.cacheFin G.cacheFin (Roster.fin _) (Roster.fin _)).map
+  let Hc := H.cacheFin
+  let rH : Roster Hc.V := Roster.fin _
+  (findQuotient Hc G.cacheFin rH (Roster.fin _) (searchAutData Hc H.cacheFinEquiv rH)).map
     (·.congr H.isoCacheFin.symm G.isoCacheFin.symm)
 
 /-! ## Completeness

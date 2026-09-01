@@ -57,9 +57,11 @@ def canonSum (G : CGraph) : String :=
 `CGraph.canonOfArray` tabulates the adjacency before it runs the search — `canonOfArrayTab`, a
 `@[csimp]` implementation of it — so the search reads an array rather than calling `G.Adj`.  The
 `raw` line below is the same computation written the way it ran before, straight off
-`G.adjOfArray`; the `entry` line is `CGraph.canon`.  The fill is inside the timed thunk, so the
-two are directly comparable, and the gap between them is also the check that the `@[csimp]` really
-fired. -/
+`G.adjOfArray`; the `entry` line is `CGraph.canon`; the `full` line between them is the tabulated
+search off a full `adjArray` rather than the half sweep it uses, so the three together separate
+"tabulate at all" from "tabulate half".  The fill is inside the timed thunk, so all three are
+directly comparable, and the gap between `raw` and `entry` is also the check that the `@[csimp]`
+really fired. -/
 
 /-- The number of ordered adjacent pairs of an adjacency matrix. -/
 def matSum (n : ℕ) (c : IsoGraph.Canon.AdjMatrix n) : String :=
@@ -83,6 +85,19 @@ def massRaw (n hi : ℕ) : String :=
 def massEntry (n hi : ℕ) : String :=
   toString ((List.range hi).countP fun c ↦ (Enum.graphOfCode n c).canon.get 0 1)
 
+/-- `CGraph.canonOfArrayTab` written with the *full* fill, so the `full` lines below A/B the half
+sweep against the sweep it replaced with everything after the fill held fixed. -/
+def canonFull (G : CGraph) : IsoGraph.Canon.AdjMatrix (FinEnum.card G.V) :=
+  let a := (FinEnum.toList G.V).toArray
+  (IsoGraph.Canon.canonMatrix a.size
+    (IsoGraph.Canon.matLookup a.size
+      (IsoGraph.Canon.adjArray a.size (G.adjOfArray a)))).reindex (FinEnum.card G.V)
+
+def canonFullSum (G : CGraph) : String := matSum _ (canonFull G)
+
+def massFull (n hi : ℕ) : String :=
+  toString ((List.range hi).countP fun c ↦ (canonFull (Enum.graphOfCode n c)).get 0 1)
+
 /-- Force the automorphism group: the number of generators the stabiliser chain produces.  The
 relabelling onto `Fin` is the one the enumeration supplies, so this runs on any vertex type. -/
 def autCount (G : CGraph) : String :=
@@ -96,12 +111,96 @@ def pairCount (G : CGraph) : String :=
   let vs := FinEnum.toList G.V
   toString ((vs.map fun a ↦ (vs.filter fun b ↦ G.Adj a b).length).sum)
 
+/-- Force a filled matrix: the number of `true` entries.  The `fill` case below is the fill and
+this count and nothing else, so it separates the sweep of the adjacency function from every search
+that reads what it leaves. -/
+def fillSum (a : Array (Array Bool)) : String :=
+  toString (a.foldl (fun s r ↦ s + r.foldl (fun t b ↦ if b then t + 1 else t) 0) 0)
+
+/-! ## Reading a coordinate of a function-typed vertex
+
+A hypercube's vertices are the functions `Fin n → Bool`, and `FinEnum.instArrow` hands them out as
+closures that decode one digit of the vertex's index.  Every adjacency query applies two of them
+`n` times, so the `decode` case below times that one application, eight ways.  Everything here is
+`Fin n → Bool` so that the arithmetic is the cheapest it can be and the overhead around it shows. -/
+
+/-- What `FinEnum.instArrow`'s inverse used to be: `finFunctionFinEquiv` under `arrowCongr`, four
+`Equiv`s deep, reading its digit by `Nat.pow`.  The `real` line is the same job through the current
+instance, so the two together are the before-and-after of that change. -/
+def decodeEquiv (n : ℕ) (i : Fin (FinEnum.card Bool ^ FinEnum.card (Fin n))) : Fin n → Bool :=
+  ((Equiv.arrowCongr FinEnum.equiv FinEnum.equiv).trans finFunctionFinEquiv).symm i
+
+/-- The digit by the power, which is the obvious way to write it. -/
+def decodePow (n i : ℕ) : Fin n → Bool := fun j ↦ (i / 2 ^ (j : ℕ)) % 2 == 1
+
+/-- The digit by descending, which is what `FinEnum.instArrow` does now. -/
+def decodeDiv (n i : ℕ) : Fin n → Bool := fun j ↦
+  (Nat.rec (motive := fun _ ↦ ℕ) i (fun _ v ↦ v / 2) (j : ℕ)) % 2 == 1
+
+/-- The floor: the machine instruction, with no digit to reach. -/
+def decodeShift (n i : ℕ) : Fin n → Bool := fun j ↦ (i >>> (j : ℕ)) % 2 == 1
+
+/-- The shift with the `Equiv` back around it, which is what `FinEnum.instArrow` does now: the
+digit is a `Fin (card β)` and the vertex's value is `equiv.symm` of it. -/
+def decodeSymm (n i : ℕ) : Fin n → Bool := fun j ↦
+  (FinEnum.equiv (α := Bool)).symm ⟨(i >>> (j : ℕ)) % 2, Nat.mod_lt _ (by norm_num)⟩
+
+/-- The same, reading the `Equiv`'s inverse out of its field instead of building the reversed
+`Equiv` to apply it.  `Equiv.symm` is a plain function that allocates. -/
+def decodeInv (n i : ℕ) : Fin n → Bool := fun j ↦
+  (FinEnum.equiv (α := Bool)).invFun ⟨(i >>> (j : ℕ)) % 2, Nat.mod_lt _ (by norm_num)⟩
+
+/-- A `Fin m → Bool` read out of a table.  Two arguments, so a partial application to the table
+is a closure holding it — which is the point, and is not what happens: see `decodeTab`. -/
+def tabFn {m : ℕ} (t : Array Bool) (j : Fin m) : Bool := t.getD (j : ℕ) false
+
+/-- The same function with its `n` values computed once — or so it reads.  A `def` whose result
+type is a function type is eta-expanded to full arity, so the table is rebuilt on every
+application and this is the slowest line of the case by an order of magnitude.  Tabulating a
+decode is not something a plain `def` can express. -/
+def decodeTab (n i : ℕ) : Fin n → Bool :=
+  tabFn (Array.ofFn fun j : Fin n ↦ (i / 2 ^ (j : ℕ)) % 2 == 1)
+
+/-- How many elements `s` and `t` share, by building their intersection: what `kneser` and
+`johnson` ask on every adjacency query. -/
+def interFilter {n : ℕ} (s t : Finset (Fin n)) : ℕ := (s ∩ t).card
+
+/-- The same number without the intersection, by counting the elements of `s` that lie in `t`. -/
+def interCountP {n : ℕ} (s t : Finset (Fin n)) : ℕ := Multiset.countP (· ∈ t) s.val
+
+/-- The same again, testing membership by counting rather than through `Decidable`. -/
+def interCount {n : ℕ} (s t : Finset (Fin n)) : ℕ :=
+  Multiset.countP (fun x ↦ t.val.count x ≠ 0) s.val
+
+/-- The Hamming distance of two bit-strings, by recursion on the index rather than over a
+`List.finRange` built afresh on every query — `CGraph.hammingBelow`, but with an accumulator. -/
+def hamming (n : ℕ) (x y : Fin n → Bool) : ℕ → ℕ → ℕ
+  | 0, c => c
+  | m + 1, c =>
+    hamming n x y m (if h : m < n then (if x ⟨m, h⟩ != y ⟨m, h⟩ then c + 1 else c) else c)
+
+/-- The same, abandoned once two differing coordinates have been seen.  A cube's adjacency only
+ever asks whether the distance is one, and two bit-strings drawn at random answer that in four
+coordinates rather than `n`. -/
+def hammingCap (n : ℕ) (x y : Fin n → Bool) : ℕ → ℕ → ℕ
+  | 0, c => c
+  | m + 1, c =>
+    if 2 ≤ c then c
+    else hammingCap n x y m
+      (if h : m < n then (if x ⟨m, h⟩ != y ⟨m, h⟩ then c + 1 else c) else c)
+
+/-- Whether the two bit-strings differ everywhere below `m`, which is the folded cube's second
+disjunct.  `&&` short-circuits, so this abandons at the first coordinate they share. -/
+def hammingAll (n : ℕ) (x y : Fin n → Bool) : ℕ → Bool
+  | 0 => true
+  | m + 1 => (if h : m < n then x ⟨m, h⟩ != y ⟨m, h⟩ else false) && hammingAll n x y m
+
 /-! ## The library entry points, before and after
 
-The three above time the tabulation by hand.  These time the entry points the library actually
-offers, each against the same computation written the way it was before: `CGraph.autGens` and
-friends now tabulate the `Fin n` model themselves, and `CGraph.subgraphOf?` and friends run the
-search on `cacheFin` copies of both graphs. -/
+`autCount`, `pairCount` and `fillSum` time the tabulation by hand.  These time the entry points
+the library actually offers, each against the same computation written the way it was before:
+`CGraph.autGens` and friends now tabulate the `Fin n` model themselves, and `CGraph.subgraphOf?`
+and friends run the search on `cacheFin` copies of both graphs. -/
 
 /-- The generators of the automorphism group, off the raw adjacency function — what `autGens` did
 before it tabulated. -/
@@ -176,14 +275,46 @@ def reportCon (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
   | none => "none "
 
 def reportHom (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
-  match findHom H G rH rG with
+  match findHom H G rH rG (autData G rG []) with
   | some _ => "found"
   | none => "none "
 
 def reportQuot (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) : String :=
-  match findQuotient H G rH rG with
+  match findQuotient H G rH rG (autData H rH []) with
   | some _ => "found"
   | none => "none "
+
+/-- The automorphisms `CGraph.homOf?` and `CGraph.quotientOf?` would break, for the `sym` half of
+the A/B below; `[]` for the `nosym` half. -/
+def benchAuts (G : CGraph) (cap : ℕ) : List (G.cacheFin ≃cg G.cacheFin) :=
+  if cap == 0 then []
+  else autClosure G.cacheFin (Roster.fin _) (G.cacheFin.autGens G.cacheFinEquiv).toList cap
+
+/-- `CGraph.homOf?` with the host's symmetry breaking turned off or on, transport aside. -/
+def reportHomSym (H G : CGraph) (cap : ℕ) : String :=
+  let rG : Roster G.cacheFin.V := Roster.fin _
+  match findHom H.cacheFin G.cacheFin (Roster.fin _) rG (autData _ rG (benchAuts G cap)) with
+  | some _ => "found"
+  | none => "none "
+
+/-- `CGraph.quotientOf?` with the host's symmetry breaking turned off or on. -/
+def reportQuotSym (H G : CGraph) (cap : ℕ) : String :=
+  let rH : Roster H.cacheFin.V := Roster.fin _
+  match findQuotient H.cacheFin G.cacheFin rH (Roster.fin _) (autData _ rH (benchAuts H cap)) with
+  | some _ => "found"
+  | none => "none "
+
+partial def dfsCount {α β : Type} (cand : α → List (α × β) → List β) :
+    List α → List (α × β) → ℕ
+  | [], _ => 1
+  | a :: todo, pre => 1 + ((cand a pre).map fun b => dfsCount cand todo ((a, b) :: pre)).sum
+
+/-- Every node of the search tree `findQuotient H G` walks, given `auts` to prune by. -/
+def nodesQuot (H G : CGraph) (rH : Roster H.V) (rG : Roster G.V) (auts : List (H ≃cg H)) :
+    String :=
+  let ad := autData H rH auts
+  toString (dfsCount (homCandSym G H rH ad) (searchOrder G rG.toList) [])
+    ++ s!" (|Aut| = {auts.length})"
 
 /-! ## The enumerations themselves
 
@@ -270,12 +401,14 @@ def main (args : List String) : IO Unit := do
       | "kneser" => kneser (size 3 7) (size 4 3)
       | _ => hostOfEdges r 70 (lcfEdges balabanCode 1)
     duel r s!"canon {which}"
-      [("raw   ", fun _ => canonRawSum G), ("entry ", fun _ => canonSum G)]
+      [("raw   ", fun _ => canonRawSum G), ("full  ", fun _ => canonFullSum G),
+       ("entry ", fun _ => canonSum G)]
   | "canon-mass" =>
     let n := size 2 6
     let hi := size 3 20000
     duel r s!"canon {hi} graphs on {n}"
-      [("raw   ", fun _ => massRaw n hi), ("entry ", fun _ => massEntry n hi)]
+      [("raw   ", fun _ => massRaw n hi), ("full  ", fun _ => massFull n hi),
+       ("entry ", fun _ => massEntry n hi)]
   /- ### the automorphism group -/
   | "aut-tutte" => trio r "aut tutte" (hostOfEdges r 46 tutteEdges) autCount
   | "aut-balaban" => trio r "aut balaban10" (hostOfEdges r 70 (lcfEdges balabanCode 1)) autCount
@@ -412,6 +545,22 @@ def main (args : List String) : IO Unit := do
     duel r s!"enum K({n},{k}) vertices"
       [("fast  ", fun _ => enumSum {s : Finset (Fin n) // s.card = k} inferInstance),
        ("mathlib", fun _ => enumSum {s : Finset (Fin n) // s.card = k} (kneserEnumMathlib n k))]
+  | "fe-index" =>
+    let n := size 2 10
+    let k := size 3 5
+    let V := {s : Finset (Fin n) // s.card = k}
+    let vs := vertexArray V
+    let each : (V → ℕ) → String := fun f ↦ Id.run do
+      let mut acc := 0
+      for _ in [0:vs.size] do
+        for x in vs do
+          acc := acc + f x
+      return toString acc
+    duel r s!"C({n},{k}) index"
+      [("verts ", fun _ => toString vs.size),
+       ("mask  ", fun _ => each fun s ↦ FinEnum.subsetMask s.1),
+       ("shared", fun _ => let e : FinEnum V := inferInstance; each fun s ↦ (e.equiv s).1),
+       ("equiv ", fun _ => each fun s ↦ (FinEnum.equiv s).1)]
   /- ### the library entry points, before and after -/
   | "api-aut" =>
     let which := (args[2]?).getD "tutte"
@@ -549,6 +698,114 @@ def main (args : List String) : IO Unit := do
     duel r s!"C{m} quotient of tutte"
       [("raw   ", fun _ => reportQuot (cycle m) G (Roster.enum _) (Roster.enum _)),
        ("entry ", fun _ => apiQuot (cycle m) G)]
+  | "fill" =>
+    let which := (args[2]?).getD "kneser"
+    let G := match which with
+      | "tutte" => hostOfEdges r 46 tutteEdges
+      | "complete" => complete (size 3 60)
+      | "cycle" => cycle (size 3 200)
+      | "petersen" => hostOfEdges r 10 (gpEdges 5 2)
+      | "hypercube" => hypercube (size 3 8)
+      | "folded" => foldedCube (size 3 8)
+      | "johnson" => johnson (size 3 10) (size 4 5)
+      | "line" => lineGraph (hostOfEdges r 46 tutteEdges)
+      | "paley" => paley (size 3 251)
+      | "circulant" => circulant (size 3 252) [1, 2, 5]
+      | "multipartite" => completeMultipartite (List.replicate (size 3 63) 4)
+      | "strong" => cycle (size 3 16) ⊠g cycle (size 3 16)
+      | "lex" => complete (size 3 16) ·g complete (size 3 16)
+      | "mycielski" => mycielskian (hostOfEdges r 125 (cycleEdges 125))
+      | _ => kneser (size 3 10) (size 4 5)
+    duel r s!"fill {which}"
+      [("full  ", fun _ => fillSum (adjArrayOn G.V G.Adj)),
+       ("tri   ", fun _ => fillSum (adjArrayOnSymm G.V G.Adj))]
+  | "decode" =>
+    let n := size 2 8
+    let card := 2 ^ n
+    let ham : Array (Fin n → Bool) → String := fun vs ↦
+      fillSum (Array.map (fun x ↦ vs.map fun y ↦ hamming n x y n 0 == 1) vs)
+    duel r s!"Q{n} decode"
+      [("real  ", fun _ => ham (vertexArray (Fin n → Bool))),
+       ("equiv ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeEquiv n i)),
+       ("pow   ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodePow n i)),
+       ("div   ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeDiv n i)),
+       ("shift ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeShift n i)),
+       ("symm  ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeSymm n i)),
+       ("inv   ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeInv n i)),
+       ("tab   ", fun _ => ham (Array.ofFn fun i : Fin card ↦ decodeTab n i))]
+  | "cube-adj" =>
+    let n := size 2 8
+    let V := Fin n → Bool
+    let one : V → V → Bool := fun x y ↦ if h : 0 < n then x ⟨0, h⟩ != y ⟨0, h⟩ else false
+    let rng : V → V → Bool := fun _ _ ↦ (List.finRange n).length == 1
+    let list : V → V → Bool := fun x y ↦ ((List.finRange n).countP fun i ↦ x i != y i) == 1
+    let acc : V → V → Bool := fun x y ↦ hamming n x y n 0 == 1
+    let cap : V → V → Bool := fun x y ↦ hammingCap n x y n 0 == 1
+    let fold : V → V → Bool := fun x y ↦
+      (n != 0) && (let d := hamming n x y n 0; (d == 1) || (d == n))
+    let foldc : V → V → Bool := fun x y ↦
+      (n != 0) && ((hammingCap n x y n 0 == 1) || hammingAll n x y n)
+    duel r s!"Q{n} adjacency"
+      [("verts ", fun _ => toString (vertexArray V).size),
+       ("const ", fun _ => fillSum (adjArrayOnSymm V (fun _ _ ↦ true))),
+       ("one   ", fun _ => fillSum (adjArrayOnSymm V one)),
+       ("range ", fun _ => fillSum (adjArrayOnSymm V rng)),
+       ("list  ", fun _ => fillSum (adjArrayOnSymm V list)),
+       ("acc   ", fun _ => fillSum (adjArrayOnSymm V acc)),
+       ("cap   ", fun _ => fillSum (adjArrayOnSymm V cap)),
+       ("real  ", fun _ => fillSum (adjArrayOnSymm V (hypercube n).Adj)),
+       ("fold  ", fun _ => fillSum (adjArrayOnSymm V fold)),
+       ("foldc ", fun _ => fillSum (adjArrayOnSymm V foldc)),
+       ("foldr ", fun _ => fillSum (adjArrayOnSymm V (foldedCube n).Adj))]
+  | "set-adj" =>
+    let n := size 2 10
+    let k := size 3 5
+    let V := {s : Finset (Fin n) // s.card = k}
+    let filt : V → V → Bool := fun s t ↦ interFilter s.1 t.1 == 0
+    let cntp : V → V → Bool := fun s t ↦ interCountP s.1 t.1 == 0
+    let cnt : V → V → Bool := fun s t ↦ interCount s.1 t.1 == 0
+    duel r s!"K({n},{k}) adjacency"
+      [("verts ", fun _ => toString (vertexArray V).size),
+       ("const ", fun _ => fillSum (adjArrayOnSymm V (fun _ _ ↦ true))),
+       ("filter", fun _ => fillSum (adjArrayOnSymm V filt)),
+       ("countP", fun _ => fillSum (adjArrayOnSymm V cntp)),
+       ("count ", fun _ => fillSum (adjArrayOnSymm V cnt)),
+       ("real  ", fun _ => fillSum (adjArrayOnSymm V (kneser n k).Adj))]
+  | "sym-quot" =>
+    let m := size 2 4
+    let G := hostOfEdges r 46 tutteEdges
+    duel r s!"C{m} quotient of tutte"
+      [("nosym ", fun _ => reportQuotSym (cycle m) G 0),
+       ("sym   ", fun _ => reportQuotSym (cycle m) G (size 3 64))]
+  | "sym-hom" =>
+    let which := (args[2]?).getD "tutte"
+    let k := size 3 3
+    let H := match which with
+      | "mcgee" => hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)
+      | "grotzsch" => grotzsch
+      | "petersen" => hostOfEdges r 10 (gpEdges 5 2)
+      | _ => hostOfEdges r 46 tutteEdges
+    duel r s!"{which} → K{k}"
+      [("nosym ", fun _ => reportHomSym H (complete k) 0),
+       ("sym   ", fun _ => reportHomSym H (complete k) (size 4 64))]
+  | "nodes-quot" =>
+    let m := size 2 4
+    let G := (hostOfEdges r 46 tutteEdges).cacheFin
+    let H := (cycle m).cacheFin
+    let rH : Roster H.V := Roster.fin (FinEnum.card H.V)
+    let auts := if (args[3]?).getD "" == "sym" then
+        autClosure H rH ((cycle m).cacheFin.autGens (cycle m).cacheFinEquiv).toList 64 else []
+    bench s!"nodes C{m} quotient of tutte" fun _ =>
+      nodesQuot H G rH (Roster.fin (FinEnum.card G.V)) auts
+  | "nodes-quot-mcgee" =>
+    let m := size 2 4
+    let G := (hostOfEdges r 24 (lcfEdges [12, 7, -7] 8)).cacheFin
+    let H := (cycle m).cacheFin
+    let rH : Roster H.V := Roster.fin (FinEnum.card H.V)
+    let auts := if (args[3]?).getD "" == "sym" then
+        autClosure H rH ((cycle m).cacheFin.autGens (cycle m).cacheFinEquiv).toList 64 else []
+    bench s!"nodes C{m} quotient of mcgee" fun _ =>
+      nodesQuot H G rH (Roster.fin (FinEnum.card G.V)) auts
   /- ### the cache on its own -/
   | "degsum" => trio r "degree sum of tutte" (hostOfEdges r 46 tutteEdges) pairCount
   | _ =>
@@ -561,8 +818,11 @@ def main (args : List String) : IO Unit := do
     IO.println "control: sub-cycle-complete, ind-empty-cycle"
     IO.println "kneser:  kneser, kneser-canon, kneser-aut, kneser-sub,"
     IO.println "         kneser-enum, kneser-enum-canon"
-    IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype"
+    IO.println "finenum: fe-fin, fe-prod, fe-sum, fe-subtype, fe-index"
     IO.println "entry:   api-aut, api-order, api-vt, api-at, api-sub, api-sub-kneser, api-minor,"
     IO.println "         api-con, api-con-self, api-hom, api-quot, api-indminor, api-topminor,"
     IO.println "         api-immersion"
-    IO.println "cache:   degsum"
+    IO.println "symmetry: sym-quot, sym-hom <graph> <k> <cap>, nodes-quot [sym],"
+    IO.println "         nodes-quot-mcgee [sym]"
+    IO.println "cache:   degsum, fill <graph>"
+    IO.println "vertex:  decode, cube-adj, set-adj"

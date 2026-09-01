@@ -30,7 +30,7 @@ This file replaces the instances on the way to `Fin n` with direct ones.  They a
 | `Fin n`           | `ofList (List.finRange n)`         | `Equiv.refl`                        |
 | `α × β`           | `ofList (toList α ×ˢ toList β)`    | `finProdFinEquiv`                   |
 | `α ⊕ β`           | `ofList (map inl ++ map inr)`      | `finSumFinEquiv`                    |
-| `α → β`           | `ofList (Pi.enum …)`, with dedup   | `finFunctionFinEquiv`               |
+| `α → β`           | `ofList (Pi.enum …)`, with dedup   | `hornerSum`, in base `card β`       |
 | `{x // p x}`      | `ofList (filterMap …)`, with dedup | `ofNodupBlocks`, no dedup           |
 | `{s : Finset α // s.card = k}` | the above over `FinEnum (Finset α)` | `List.sublistsLen`     |
 | `Sym2 α`          | none                               | `sym2List`, no dedup                |
@@ -78,17 +78,80 @@ def decEqOfEquiv {n : ℕ} (e : α ≃ Fin n) : DecidableEq α :=
 /-! ## Sums and products
 
 Both of these are `O(1)` to build and `O(1)` to query, against Mathlib's `O(card²)` and
-`O(card)`. -/
+`O(card)`.
+
+The obvious way to write them is `(Equiv.prodCongr equiv equiv).trans finProdFinEquiv`, and the
+index it computes is the one below — but a composite `Equiv` is a composite at *run* time too.
+Asking it for one index calls the `trans` closure, which calls the `prodCongr` closure, which
+allocates a pair of `Fin`s for `finProdFinEquiv` to take apart again: six closures and two
+allocations to multiply and add. Writing the arithmetic out takes a table lookup on a
+`Fin 4 × Fin 4` from 90 ns to 58, against 24 for the array read underneath it, and that lookup is
+what the searches spend their time on.
+
+Nothing changes but the speed: the index is `finProdFinEquiv`'s, so the enumeration order, the
+`toList`, and every `decide` that ever ran against these instances are the same. -/
+
+private theorem prod_lt [FinEnum α] [FinEnum β] (a : Fin (card α)) (b : Fin (card β)) :
+    b.val + card β * a.val < card α * card β :=
+  calc b.val + card β * a.val
+      < card β + card β * a.val := by omega
+    _ = card β * (a.val + 1) := by rw [Nat.mul_succ]; omega
+    _ ≤ card β * card α := Nat.mul_le_mul le_rfl a.isLt
+    _ = card α * card β := Nat.mul_comm _ _
+
+private theorem card_snd_pos [FinEnum α] [FinEnum β] (i : Fin (card α * card β)) : 0 < card β :=
+  Nat.pos_of_ne_zero fun h ↦ absurd i.isLt (by simp [h])
+
+private theorem prod_div_lt [FinEnum α] [FinEnum β] (i : Fin (card α * card β)) :
+    i.val / card β < card α :=
+  (Nat.div_lt_iff_lt_mul (card_snd_pos i)).mpr i.isLt
 
 instance (priority := 2000) instProd [FinEnum α] [FinEnum β] : FinEnum (α × β) where
   card := card α * card β
-  equiv := (Equiv.prodCongr equiv equiv).trans finProdFinEquiv
+  equiv :=
+    { toFun := fun p ↦ ⟨(equiv p.2).val + card β * (equiv p.1).val, prod_lt _ _⟩
+      invFun := fun i ↦
+        (equiv.symm ⟨i.val / card β, prod_div_lt i⟩,
+          equiv.symm ⟨i.val % card β, Nat.mod_lt _ (card_snd_pos i)⟩)
+      left_inv := fun p ↦ by
+        dsimp only
+        have hb := (equiv p.2).isLt
+        have hpos : 0 < card β := Nat.lt_of_le_of_lt (Nat.zero_le _) hb
+        refine Prod.ext ?_ ?_ <;>
+          simp only [Nat.add_mul_div_left _ _ hpos, Nat.add_mul_mod_self_left,
+            Nat.div_eq_of_lt hb, Nat.mod_eq_of_lt hb, Nat.zero_add]
+        · exact congrArg _ (Fin.ext rfl) |>.trans (Equiv.symm_apply_apply _ _)
+        · exact congrArg _ (Fin.ext rfl) |>.trans (Equiv.symm_apply_apply _ _)
+      right_inv := fun i ↦ by
+        dsimp only
+        simp only [Equiv.apply_symm_apply]
+        exact Fin.ext (Nat.mod_add_div _ _) }
 
 @[simp] theorem card_prod' [FinEnum α] [FinEnum β] : card (α × β) = card α * card β := rfl
 
 instance (priority := 2000) instSum [FinEnum α] [FinEnum β] : FinEnum (α ⊕ β) where
   card := card α + card β
-  equiv := (Equiv.sumCongr equiv equiv).trans finSumFinEquiv
+  equiv :=
+    { toFun := fun s ↦ s.elim
+        (fun a ↦ ⟨(equiv a).val, Nat.lt_add_right _ (equiv a).isLt⟩)
+        (fun b ↦ ⟨card α + (equiv b).val, Nat.add_lt_add_left (equiv b).isLt _⟩)
+      invFun := fun i ↦
+        if h : i.val < card α then .inl (equiv.symm ⟨i.val, h⟩)
+        else .inr (equiv.symm ⟨i.val - card α, by omega⟩)
+      left_inv := fun s ↦ by
+        dsimp only
+        cases s with
+        | inl a =>
+          rw [Sum.elim_inl, dif_pos (equiv a).isLt]
+          exact congrArg _ (congrArg _ (Fin.ext rfl) |>.trans (Equiv.symm_apply_apply _ _))
+        | inr b =>
+          rw [Sum.elim_inr, dif_neg (by simp)]
+          exact congrArg _ (congrArg _ (Fin.ext (by simp)) |>.trans (Equiv.symm_apply_apply _ _))
+      right_inv := fun i ↦ by
+        dsimp only
+        by_cases h : i.val < card α
+        · rw [dif_pos h]; exact Fin.ext (by simp)
+        · rw [dif_neg h]; exact Fin.ext (by simp; omega) }
 
 @[simp] theorem card_sum' [FinEnum α] [FinEnum β] : card (α ⊕ β) = card α + card β := rfl
 
@@ -103,6 +166,23 @@ enumeration is indexing.
 
 A function into `Fin (card β)` is a numeral written in base `card β`, and `finFunctionFinEquiv`
 is that reading.  Nothing is listed and nothing is searched.
+
+Its `toFun` is `∑ i, f i * card β ^ i`, though, and that sum is expensive out of proportion to
+what it says: `Finset.univ` on the domain is `List.finRange (card α)` built afresh on every
+query, `card β ^ i` is recomputed from scratch at each digit rather than carried along, and the
+composition with `arrowCongr` wraps the whole thing in two more closures.  `hornerSum` below is
+the same numeral read by Horner's rule — one multiplication and one addition per digit, no list,
+no powers — and `arrowIdx_eq` is the proof that it is the same number, so the enumeration is
+again unchanged.  A table lookup on `Fin 4 → Bool` costs 1190 ns instead of 2450.
+
+The `invFun` is the other half of that, and it matters more.  `finFunctionFinEquiv.symm` reads
+digit `a` as `i / card β ^ a % card β`, and `arrowCongr` wraps it in two further `Equiv`s; where
+the encoding runs once per vertex, this runs on *every application of one* — a hypercube's
+adjacency query applies two vertices `n` times each.  `arrowDecode` below reaches the digit with
+`digit`, which divides rather than raising to the power and shifts when the base is two, and
+`arrowDecode_eq` is the proof that it is the same digit.  Over the 256 vertices of `Q₈`, a million
+applications cost 505 ms through the composite and 48 through this, and a full sweep of the
+hypercube's adjacency drops from 365 ms to 68.
 
 Equality is the same story told about `Fintype.decidablePiFintype`, which decides `f = g` by
 folding a pointwise check over `Finset.univ` of the domain — structural, and started again from
@@ -122,13 +202,118 @@ the first site and this one at the second.
 The listed enumerations at the end of the file could not do this in any case: their `equiv` is
 `List.idxOf`, a search that uses `DecidableEq α`, so it would call itself. -/
 
+/-- `∑ i < k, g (j + i) * b ^ i`, read by Horner's rule from the most significant digit down. -/
+private def hornerSum (b : ℕ) (g : ℕ → ℕ) : ℕ → ℕ → ℕ
+  | 0, _ => 0
+  | k + 1, j => g j + b * hornerSum b g k (j + 1)
+
+private theorem hornerSum_eq (b : ℕ) (g : ℕ → ℕ) :
+    ∀ k j, hornerSum b g k j = ∑ i ∈ Finset.range k, g (j + i) * b ^ i
+  | 0, _ => rfl
+  | k + 1, j => by
+    rw [hornerSum, hornerSum_eq b g k (j + 1), Finset.mul_sum,
+      Finset.sum_range_succ' (fun i ↦ g (j + i) * b ^ i) k]
+    refine (Nat.add_comm _ _).trans (congrArg₂ _ (Finset.sum_congr rfl fun i _ ↦ ?_) (by simp))
+    rw [show j + 1 + i = j + (i + 1) by omega, Nat.pow_succ']
+    exact Nat.mul_left_comm _ _ _
+
+/-- The index of `f` in the enumeration of `α → β`: the digits `equiv (f a)`, written in base
+`card β` with the `a` of index `0` least significant. -/
+private def arrowIdx [FinEnum α] [FinEnum β] (f : α → β) : ℕ :=
+  hornerSum (card β)
+    (fun j ↦ if h : j < card α then (equiv (f (equiv.symm ⟨j, h⟩))).val else 0) (card α) 0
+
+private theorem arrowIdx_eq [FinEnum α] [FinEnum β] (f : α → β) :
+    arrowIdx f = ∑ i : Fin (card α), (equiv (f (equiv.symm i))).val * card β ^ (i : ℕ) := by
+  rw [Finset.sum_fin_eq_sum_range, arrowIdx, hornerSum_eq]
+  refine Finset.sum_congr rfl fun i hi ↦ ?_
+  rw [Finset.mem_range] at hi
+  simp [hi]
+
+private theorem arrowIdx_lt [FinEnum α] [FinEnum β] (f : α → β) :
+    arrowIdx f < card β ^ card α := by
+  rw [arrowIdx_eq]
+  exact (finFunctionFinEquiv fun i ↦ equiv (f (equiv.symm i))).isLt
+
+/-- The `j`-th digit of `i` in base `b`, reached by dividing `j` times. -/
+private def digitAux (b : ℕ) : ℕ → ℕ → ℕ
+  | i, 0 => i % b
+  | i, j + 1 => digitAux b (i / b) j
+
+private theorem digitAux_eq (b : ℕ) : ∀ i j, digitAux b i j = i / b ^ j % b
+  | i, 0 => by simp [digitAux]
+  | i, j + 1 => by
+    rw [digitAux, digitAux_eq b (i / b) j, Nat.div_div_eq_div_mul, ← pow_succ']
+
+/-- **The `j`-th digit of `i` in base `b`.**
+
+`i / b ^ j % b` is the same number and the obvious way to write it, but `Nat.pow` is a call into
+GMP whatever it is handed, and one of those costs more than reaching the digit by dividing: on a
+byte, 171 ns by the power against 52 by the descent.  Base two is the case that matters — the
+vertices of a hypercube are `Fin n → Bool` — and there the digit is a shift, which is 15 ns and
+does not depend on `j` at all.  Every query of a function-typed vertex reads one digit, so this is
+the innermost loop of anything built on `instArrow`, and it is worth the branch. -/
+private def digit (b i j : ℕ) : ℕ := if b = 2 then (i >>> j) % 2 else digitAux b i j
+
+private theorem digit_eq (b i j : ℕ) : digit b i j = i / b ^ j % b := by
+  rw [digit]
+  split
+  · next h => subst h; rw [Nat.shiftRight_eq_div_pow]
+  · exact digitAux_eq b i j
+
+/-- **The `a`-th coordinate of the function numbered `i`.**
+
+This is `((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv).symm` — `arrowDecode_eq` —
+written out, so that neither the four `Equiv`s nor the power stands between a vertex and its
+digit.  The note above says what that is worth. -/
+private def arrowDecode [FinEnum α] [FinEnum β] (i : Fin (card β ^ card α)) (a : α) : β :=
+  equiv.symm ⟨digit (card β) i.1 (equiv a).1, by
+    have hb : 0 < card β := by
+      rcases Nat.eq_zero_or_pos (card β) with hb0 | hb
+      · exfalso
+        have hpos : 0 < card β ^ card α := Nat.lt_of_le_of_lt (Nat.zero_le _) i.isLt
+        rw [hb0] at hpos
+        have hα : card α = 0 := by
+          by_contra hne
+          rw [Nat.zero_pow (Nat.pos_of_ne_zero hne)] at hpos
+          exact absurd hpos (Nat.lt_irrefl 0)
+        exact absurd (equiv a).isLt (by omega)
+      · exact hb
+    rw [digit_eq]
+    exact Nat.mod_lt _ hb⟩
+
+private theorem arrowDecode_eq [FinEnum α] [FinEnum β] (i : Fin (card β ^ card α)) :
+    arrowDecode i = ((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv).symm i := by
+  funext a
+  refine congrArg equiv.symm (Fin.ext ?_)
+  show digit (card β) i.1 (equiv a).1 = _
+  rw [digit_eq]
+  exact (finFunctionFinEquiv_symm_apply_val i (equiv a)).symm
+
+/-- The equivalence `finFunctionFinEquiv` computes, with `hornerSum` in place of its sum and
+`arrowDecode` in place of its inverse. -/
+private def arrowEquiv [FinEnum α] [FinEnum β] : (α → β) ≃ Fin (card β ^ card α) where
+  toFun f := ⟨arrowIdx f, arrowIdx_lt f⟩
+  invFun := arrowDecode
+  left_inv f := (arrowDecode_eq _).trans <|
+    calc ((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv).symm
+            ⟨arrowIdx f, arrowIdx_lt f⟩
+        = ((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv).symm
+            (((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv) f) :=
+          congrArg _ (Fin.ext (arrowIdx_eq f))
+      _ = f := Equiv.symm_apply_apply _ _
+  right_inv i := by
+    rw [arrowDecode_eq]
+    exact Fin.ext <| (arrowIdx_eq _).trans <| congrArg Fin.val <|
+      Equiv.apply_symm_apply ((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv) i
+
 instance (priority := 2000) instDecidableEqArrow [FinEnum α] [FinEnum β] :
     DecidableEq (α → β) :=
-  decEqOfEquiv ((Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv)
+  decEqOfEquiv arrowEquiv
 
 instance (priority := 2000) instArrow [FinEnum α] [FinEnum β] : FinEnum (α → β) where
   card := card β ^ card α
-  equiv := (Equiv.arrowCongr equiv equiv).trans finFunctionFinEquiv
+  equiv := arrowEquiv
 
 @[simp] theorem card_fun [FinEnum α] [FinEnum β] : card (α → β) = card β ^ card α := rfl
 
@@ -146,9 +331,18 @@ producing its thirty vertices.
 
 Cutting the list into blocks of sixteen replaces the one walk of length `i` by two — `i / 16`
 blocks and then `i % 16` entries — and both indices are arithmetic the kernel does natively.  The
-blocked list is built once, since it mentions no index and is therefore the same subterm in every
-query, and the enumeration costs about `card α * (card α / 32 + 8)` after that.  On the line graph
-of the dodecahedron the 2.7 seconds become 310 milliseconds. -/
+enumeration then costs about `card α * (card α / 32 + 8)`, and on the line graph of the
+dodecahedron the 2.7 seconds become 310 milliseconds.
+
+That is on the understanding that the blocked list is built once.  In the kernel it is, for free:
+it mentions no index, so it is the same subterm in every query and one reduction answers for all
+of them.  Compiled, nothing of the sort is automatic — `List.blocks xs.length xs` written inside
+the lambda is a fresh call on every query, walking and reallocating the whole list to answer for
+one entry of it, and on the 252 vertices of `K(10, 5)` that made `equiv.symm` cost 8.6 µs rather
+than 0.13.  So it is `let`-bound outside the `Equiv` below, and `kSubsetEnumImpl` stores that
+`Equiv`'s `invFun` field rather than the eta-expansion `fun i ↦ base.equiv.symm i`, which would
+have put the whole of `base` — blocked list included — back inside a lambda.  Neither shape is one
+the kernel can tell from the other. -/
 
 /-- The `i`-th element of `l`, or `d` if there is none.  This is `List.getD`, but `List.getD` is
 stated through `getElem?`, so unfolding it costs an `Option` and a bounds check at every element,
@@ -228,21 +422,22 @@ theorem _root_.List.blockNthD_blocks_self (l : List α) (i : ℕ) (hi : i < l.le
 of an element in `xs` — and so is the enumeration order; only the walk to the `i`-th entry is. -/
 @[instance_reducible]
 def ofNodupBlocks [DecidableEq α] (xs : List α) (h : ∀ x : α, x ∈ xs) (h' : xs.Nodup) :
-    FinEnum α where
-  card := xs.length
-  equiv :=
-    { toFun := fun x ↦ ⟨xs.idxOf x, by rw [List.idxOf_lt_length_iff]; apply h⟩
-      invFun := fun i ↦ (List.blocks xs.length xs).blockNthD i.1
-        (xs.head (List.ne_nil_of_length_pos (Nat.zero_lt_of_lt i.2)))
-      left_inv := fun x ↦ by
-        show (List.blocks xs.length xs).blockNthD (xs.idxOf x) _ = x
-        rw [List.blockNthD_blocks_self _ _ (by rw [List.idxOf_lt_length_iff]; exact h x)]
-        simp
-      right_inv := fun i ↦ by
-        ext
-        show xs.idxOf ((List.blocks xs.length xs).blockNthD i.1 _) = i.1
-        rw [List.blockNthD_blocks_self _ _ i.2]
-        simp [h'.idxOf_getElem] }
+    FinEnum α :=
+  let bs := List.blocks xs.length xs
+  { card := xs.length
+    equiv :=
+      { toFun := fun x ↦ ⟨xs.idxOf x, by rw [List.idxOf_lt_length_iff]; apply h⟩
+        invFun := fun i ↦ bs.blockNthD i.1
+          (xs.head (List.ne_nil_of_length_pos (Nat.zero_lt_of_lt i.2)))
+        left_inv := fun x ↦ by
+          show (List.blocks xs.length xs).blockNthD (xs.idxOf x) _ = x
+          rw [List.blockNthD_blocks_self _ _ (by rw [List.idxOf_lt_length_iff]; exact h x)]
+          simp
+        right_inv := fun i ↦ by
+          ext
+          show xs.idxOf ((List.blocks xs.length xs).blockNthD i.1 _) = i.1
+          rw [List.blockNthD_blocks_self _ _ i.2]
+          simp [h'.idxOf_getElem] } }
 
 theorem toList_ofNodupBlocks [DecidableEq α] (xs : List α) (h : ∀ x : α, x ∈ xs)
     (h' : xs.Nodup) : @toList α (ofNodupBlocks xs h h') = xs := by
@@ -427,7 +622,7 @@ private unsafe def kSubsetEnumImpl :
   { base with
     equiv :=
       { toFun := fun s ↦ ⟨table.getD (subsetMask s.1) 0, lcProof⟩
-        invFun := fun i ↦ base.equiv.symm i
+        invFun := base.equiv.invFun
         left_inv := lcProof
         right_inv := lcProof } }
 

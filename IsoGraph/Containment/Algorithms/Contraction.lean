@@ -22,8 +22,11 @@ search is allowed to justify a prune by — `Backtrack.dfs_eq_none` takes exactl
 the labels tried for `v` to the closed neighbourhood in `H` of an already-labelled neighbour's
 label, which is what stops the search wandering, and puts the labels of the blocks `v` touches
 first, which is what makes it find a solution early when there is one; `candKeep` then applies
-five tests.
+six tests.
 
+* Automorphisms: no automorphism of `H` fixing the labels given so far sends this one backwards, so
+  of all the labellings that differ only by a symmetry of `H` the search looks at just the
+  lexicographically least.  This one goes first, being the cheapest.
 * The induced condition, one pair at a time: a labelled neighbour of `v` is in `v`'s block or in
   one adjacent to it in `H`.
 * Counting: the labels not yet used need a vertex each, and there are only so many left.
@@ -34,10 +37,11 @@ five tests.
 * Closed blocks: if no unlabelled vertex touches a block, that block is finished, so every edge of
   `H` at its label must already run to another block.  This is what turns the edge condition from
   something only the last vertex can check into something checked all the way down.
-* Symmetry: interchangeable vertices of `H` — the twin classes of `Algorithms/Twins.lean` — start
+* Twins: interchangeable vertices of `H` — the twin classes of `Algorithms/Twins.lean` — start
   their blocks in the order of the host, so a labelling and its relabellings are not all tried.
   `CGraph.exists_sorted_model_pairs` is what says that costs no solutions, shared with the minor
-  search.
+  search.  This and the automorphism test take turns: the section "Symmetry breaking on the
+  automorphisms of the pattern" below says why the two cannot be run together.
 
 Deciding this relation is NP-hard, and the search space is `|V(H)|^|V(G)|` before pruning, which
 is worse in the host than the minor search is.  The prunes are what make it usable: the closed
@@ -48,13 +52,14 @@ of `H` still unrealised.
 
 Unlike the minor search this one cannot stop early — every vertex of the host has to be labelled —
 so the cost follows the size of the *host* much more closely.  Finding a contraction is quick when
-the blocks fall out easily: the 4×4 grid gives up a `C4` in 1 ms, a `K4` in 47 ms and a `P4` in
-62 ms, the 4-cube a `K4` in 12 ms, and the 24-vertex McGee graph a `K5` in 0.7 s.  A graph is its
-own contraction and the search walks straight to it, so `mcgee ⋏ mcgee` is 12 ms.
+the blocks fall out easily: the 4×4 grid gives up a `C4` in 1 ms, a `K4` in 14 ms and a `P4` in
+17 ms, the 4-cube a `K4` in 12 ms, and the 24-vertex McGee graph a `K5` in 0.16 s.  A graph is its
+own contraction and the search walks straight to it, so `mcgee ⋏ mcgee` is 20 ms.
 
 Ruling one out is the expensive direction, as always: `C6` is not a contraction of the 14-vertex
-Heawood graph, and saying so takes 1.0 s.  Hosts of McGee's size are past the limit for that — `C6`
-against McGee had not answered after fifteen minutes.
+Heawood graph, and saying so takes 22 ms.  Against McGee, ten vertices larger, the same question
+takes 87 s, `C7` 170 s and `C8` 29 s: the longer cycle has more labels to try at every vertex but a
+tighter partition to fit them into, and past `C7` the second of those wins.
 
 Most of what the search costs is spent in the two block tests, so it matters that they run off one
 pass over the fibres instead of recomputing a fibre per test and per neighbour, and that `connVia`
@@ -85,6 +90,13 @@ before the others, which is not where the failures are and cost 6% on Heawood to
 stopping the walk as soon as the block's other vertices have turned up, which cost a third there,
 since a walk that is going to fail has to finish anyway and now carries a filter through every
 round.
+
+Finding the automorphisms happens before the search starts, so it has to be cheap in absolute terms
+and not merely relative to what it saves.  Asked of `H` directly it is not: the patterns of
+`SmallGraphs` are not `cacheFin`'d, so every `Adj` is a scan, and on McGee the setup cost
+0.33 s against the 0.02 s of searching it was there to speed up.  Tabulating that adjacency once and
+running the whole of it — the generator, the `isAut` filter, the lookups into `hs` — on ranks rather
+than vertices brings the setup to 0.01 s.
 -/
 
 set_option autoImplicit false
@@ -260,49 +272,241 @@ theorem fibre_cons (v : G.V) (x y : H.V) (pre : List (G.V × H.V)) :
   simp only [fibre, List.filter_cons, decide_eq_true_eq]
   split <;> simp_all
 
+/-! ## Symmetry breaking on the automorphisms of the pattern
+
+`symPairs` breaks the symmetry between two vertices of `H` with the same neighbours, which is a lot
+of symmetry when `H` is a complete graph and none at all when `H` is a cycle — a cycle has no two
+vertices alike, and yet every rotation and reflection of it relabels one contraction into another.
+What that symmetry is, in general, is the automorphism group of `H` acting on the labellings, and
+so the test here is the direct one: of all the labellings in an orbit, look only at the one whose
+word of labels comes first.
+
+A labelling is a word: the assignment gives the vertices of `G`, in the order `gs` fixes, their
+positions in `hs`.  An automorphism `a` of `H` rewrites that word letter by letter, and the
+labelling to keep is the one no automorphism makes smaller — lexicographically, since that is the
+order a depth-first search discovers the word in and so the one it can test a letter at a time.
+The test on the next letter is `autKeep`: an automorphism that already sent an earlier letter
+forwards has lost its say, one that sent an earlier letter backwards had its branch cut then, and
+so the ones still constraining the next letter are exactly those fixing every letter so far.
+
+The two symmetry breaks are not run together.  A key-minimal labelling need not satisfy the
+`symPairs` condition, so `autList` is consulted only when `symPairs` comes out empty — which is
+exactly when this is needed, and never when `symPairs` is doing the work.  Cutting the orbit of the
+automorphism group costs a factor of `|Aut H|`: against McGee, `C6` goes from twelve million nodes
+to one million. -/
+
+section Autos
+
+variable {hs : List H.V}
+
+/-- An automorphism of `H`, given as the image of `hs`: `relab hs img` sends the `i`th entry of
+`hs` to the `i`th of `img`, and anything `hs` misses to itself. -/
+def relab (hs img : List H.V) (x : H.V) : H.V := img.getD (hs.idxOf x) x
+
+/-- Is `img` the image of `hs` under an automorphism of `H`?  The labels have to come out distinct
+and the adjacency has to agree either side of the map.  Where `img` came from does not matter to
+anything downstream: this is all the symmetry breaking is entitled to assume about it. -/
+def isAut (H : CGraph) (hs img : List H.V) : Bool :=
+  let ps := hs.map fun x ↦ (x, relab hs img x)
+  decide (ps.map Prod.snd).Nodup &&
+    ps.all fun p ↦ ps.all fun q ↦ H.Adj p.2 q.2 == H.Adj p.1 q.1
+
+theorem isAut_injective {hs img : List H.V} (hhs : ∀ x : H.V, x ∈ hs)
+    (h : isAut H hs img = true) : Function.Injective (relab hs img) := by
+  rw [isAut, Bool.and_eq_true, decide_eq_true_eq, List.map_map] at h
+  exact fun x y hxy ↦ List.inj_on_of_nodup_map h.1 (hhs x) (hhs y) hxy
+
+theorem isAut_adj {hs img : List H.V} (hhs : ∀ x : H.V, x ∈ hs) (h : isAut H hs img = true)
+    (x y : H.V) : H.Adj (relab hs img x) (relab hs img y) = H.Adj x y := by
+  rw [isAut, Bool.and_eq_true] at h
+  have hx := List.all_eq_true.mp h.2 _ (List.mem_map_of_mem (f := fun x ↦ (x, relab hs img x))
+    (hhs x))
+  exact eq_of_beq (List.all_eq_true.mp hx _ (List.mem_map_of_mem
+    (f := fun x ↦ (x, relab hs img x)) (hhs y)))
+
+/-- The adjacency of `hs` with itself, by rank: one row of `Bool` per entry.  The generator below
+asks for it once per pair it places, and on a graph whose `Adj` is a scan — which is what the
+patterns of `SmallGraphs` are before `cacheFin` — that is the whole cost of the search. -/
+private def autAdj (H : CGraph) (hs : List H.V) : Array (Array Bool) :=
+  (hs.map fun x ↦ (hs.map fun y ↦ H.Adj x y).toArray).toArray
+
+/-- The automorphisms of `H`, found by extending a partial map one vertex at a time and keeping
+only what agrees with `H` on the vertices placed so far, all of it on ranks into `hs` and its
+adjacency table.  The fuel bounds the whole search rather than its depth: running out returns some
+of the automorphisms instead of all of them, which costs pruning but never a solution, since the
+test below is sound against any list of automorphisms — as is, for the same reason, reading the
+answers back out of `hs` by rank. -/
+private def autsAux (adj : Array (Array Bool)) (all : List ℕ) :
+    List ℕ → List (ℕ × ℕ) → ℕ × List (List ℕ) → ℕ × List (List ℕ)
+  | _, _, (0, acc) => (0, acc)
+  | [], done, (n + 1, acc) => (n, done.reverse.map Prod.snd :: acc)
+  | i :: rest, done, (n + 1, acc) =>
+    all.foldl (init := (n, acc)) fun st j ↦
+      if done.all fun q ↦ !(q.2 == j) && ((adj[q.1]!)[i]! == (adj[q.2]!)[j]!) then
+        autsAux adj all rest ((i, j) :: done) st
+      else st
+
+private theorem getElem!_autAdj (hhs : ∀ x : H.V, x ∈ hs) (u v : H.V) :
+    ((autAdj H hs)[hs.idxOf u]!)[hs.idxOf v]! = H.Adj u v := by
+  have h : (autAdj H hs)[hs.idxOf u]! = (hs.map fun y ↦ H.Adj u y).toArray := by
+    rw [autAdj, Array.getElem!_eq_getD, getD_toArray, List.getElem?_map,
+      List.getElem?_idxOf (hhs u)]
+    rfl
+  rw [h, Array.getElem!_eq_getD, getD_toArray, List.getElem?_map, List.getElem?_idxOf (hhs v)]
+  rfl
+
+/-- The adjacency half of `isAut`, on ranks and a table.
+
+Its own definition, and taking the ranked pairs rather than making them, for one reason: written
+inline as the second half of an `&&`, the `Nodup` test in front of it is a pure computation the
+compiler is free to sink into the loop, and it does — into the innermost of the two `all`s, where
+it runs `|hs|²` times instead of once. -/
+private def autAdjOk (adj : Array (Array Bool)) (ps : List (ℕ × ℕ)) : Bool :=
+  ps.all fun p ↦ ps.all fun q ↦ (adj[p.2]!)[q.2]! == (adj[p.1]!)[q.1]!
+
+/-- `isAut` on tables: the same two tests, with every `Adj` replaced by two array reads and every
+`List.idxOf` — which is a scan carrying `H.V`'s equality — by one.  Checking a list of candidates
+this way builds both tables once for all of them instead of once each. -/
+private def isAutTab (adj : Array (Array Bool)) (hrk : H.V → ℕ) (hs img : List H.V) : Bool :=
+  let ps := hs.map fun x ↦ (hrk x, hrk (img.getD (hrk x) x))
+  autAdjOk adj ps && decide (ps.map Prod.snd).Nodup
+
+private theorem isAut_of_isAutTab (hhs : ∀ x : H.V, x ∈ hs) {img : List H.V}
+    (h : isAutTab (autAdj H hs) (Backtrack.tabAt (Backtrack.rankTable hs)) hs img = true) :
+    isAut H hs img = true := by
+  rw [isAutTab, autAdjOk, Backtrack.tabAt_rankTable, Bool.and_eq_true, decide_eq_true_eq] at h
+  rw [isAut, Bool.and_eq_true, decide_eq_true_eq]
+  refine ⟨?_, ?_⟩
+  · refine List.Nodup.of_map (fun z ↦ hs.idxOf z) ?_
+    have h1 := h.2
+    simp only [List.map_map, Function.comp_def, relab] at h1 ⊢
+    exact h1
+  · have h2 := h.1
+    simp only [List.all_map, Function.comp_def, relab, getElem!_autAdj hhs] at h2 ⊢
+    exact h2
+
+/-- The automorphisms the symmetry test is run against, each one put through `isAut` so that how it
+was found is no part of the proof, and at most `cap` of them so that both the generator and that
+check stay cheap even for a pattern whose automorphism group is enormous. -/
+def autList (H : CGraph) (hs : List H.V) (fuel cap : ℕ) : List (List H.V) :=
+  let ranks := List.range hs.length
+  let adj := autAdj H hs
+  let hrk := Backtrack.tabAt (Backtrack.rankTable hs)
+  (((autsAux adj ranks ranks [] (fuel, [])).2.map fun a ↦
+    a.filterMap fun i ↦ hs[i]?).take cap).filter (isAutTab adj hrk hs)
+
+theorem isAut_of_mem_autList (hhs : ∀ x : H.V, x ∈ hs) {fuel cap : ℕ} {a : List H.V}
+    (h : a ∈ autList H hs fuel cap) : isAut H hs a = true :=
+  isAut_of_isAutTab hhs (List.mem_filter.mp h).2
+
+/-- **The symmetry test.**  An automorphism of `H` fixing every label handed out so far may not
+send the next one backwards.
+
+This is one test per automorphism and it stays that cheap however deep the search goes: the
+automorphisms that have anything left to say are the ones that fixed the whole assignment, and the
+first label they move settles them for good. -/
+def autKeep (H G : CGraph) (hs : List H.V) (auts : List (List H.V)) (pre : List (G.V × H.V))
+    (x : H.V) : Bool :=
+  auts.all fun a ↦ !(pre.all fun q ↦ decide (relab hs a q.2 = q.2)) ||
+    decide (hs.idxOf x ≤ hs.idxOf (relab hs a x))
+
+/-- `autKeep` at every step of an assignment, which is what `finalOk` asks of a finished one. -/
+def autOkAll (H G : CGraph) (hs : List H.V) (auts : List (List H.V)) :
+    List (G.V × H.V) → Bool
+  | [] => true
+  | q :: pre => autKeep H G hs auts pre q.2 && autOkAll H G hs auts pre
+
+theorem autOkAll_cons {auts : List (List H.V)} {q : G.V × H.V} {pre : List (G.V × H.V)} :
+    autOkAll H G hs auts (q :: pre) = (autKeep H G hs auts pre q.2 && autOkAll H G hs auts pre) :=
+  rfl
+
+/-- Every step of an assignment passing the test means the step that added `x` did. -/
+theorem autKeep_of_autOkAll {auts : List (List H.V)} {pre : List (G.V × H.V)} {v : G.V} {x : H.V} :
+    ∀ l : List (G.V × H.V), autOkAll H G hs auts (l ++ (v, x) :: pre) = true →
+      autKeep H G hs auts pre x = true
+  | [], h => (Bool.and_eq_true .. |>.mp h).1
+  | _ :: l, h => autKeep_of_autOkAll l (Bool.and_eq_true .. |>.mp h).2
+
+/-- With no automorphisms there is nothing to break, and the test is vacuous. -/
+theorem autOkAll_nil : ∀ r : List (G.V × H.V), autOkAll H G hs [] r = true
+  | [] => rfl
+  | q :: t => by rw [autOkAll_cons, autOkAll_nil t, autKeep]; rfl
+
+/-- The automorphisms the search breaks the symmetry with.  They are consulted only when `symPairs`
+has nothing to say, because the two symmetry breaks are not jointly satisfiable in general: a
+labelling with the least label word need not also put interchangeable vertices in order.  Nothing
+is lost by the choice, since `symPairs` is empty on exactly the patterns — cycles, cages, paths,
+and any graph that is its own contraction — the automorphisms are there for.
+
+The fuel and the cap bound both halves of the cost whatever `H` is, and both can only cost
+pruning: fewer automorphisms means `autOkAll` accepts more assignments, never fewer. -/
+def searchAuts (H : CGraph) (hs : List H.V) : List (List H.V) :=
+  if (symPairs H hs).isEmpty then autList H hs 20000 256 else []
+
+theorem isAut_of_mem_searchAuts (hhs : ∀ x : H.V, x ∈ hs) {a : List H.V}
+    (h : a ∈ searchAuts H hs) : isAut H hs a = true := by
+  rw [searchAuts] at h
+  split at h
+  · exact isAut_of_mem_autList hhs h
+  · exact absurd h (by simp)
+
+/-- When there are interchangeable vertices to order, the automorphisms stand down. -/
+theorem searchAuts_of_symPairs {hs : List H.V} (h : ¬ (symPairs H hs).isEmpty = true) :
+    searchAuts H hs = [] := by rw [searchAuts, if_neg h]
+
+end Autos
+
 /-! ## The test on a complete assignment
 
 Everything the search prunes with has to follow from this one test, so everything a contraction has
 to satisfy is checked here: the assignment labels each vertex of `G` exactly once, every block is
 connected — which makes it nonempty, so every vertex of `H` is used — two blocks are joined in `H`
-exactly when an edge of `G` runs between them, and interchangeable vertices of `H` take their
-blocks in order. -/
+exactly when an edge of `G` runs between them, interchangeable vertices of `H` take their blocks in
+order, and no automorphism of `H` relabels the assignment to an earlier one. -/
 
 /-- Does a complete assignment describe a contraction? -/
 def finalOk (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
-    (r : List (G.V × H.V)) : Bool :=
+    (auts : List (List H.V)) (r : List (G.V × H.V)) : Bool :=
   decide (r.map Prod.fst = gs.reverse) &&
     hs.all (fun x ↦ connOk G (fibre r x)) &&
     (hs.all fun x ↦ hs.all fun y ↦ decide (x = y) ||
       (H.Adj x y == linked G (fibre r x) (fibre r y))) &&
-    pairs.all fun p ↦
-      decide (minRank gs.idxOf (fibre r p.1) ≤ minRank gs.idxOf (fibre r p.2))
+    (pairs.all fun p ↦
+      decide (minRank gs.idxOf (fibre r p.1) ≤ minRank gs.idxOf (fibre r p.2))) &&
+    autOkAll H G hs auts r
 
-variable {hs : List H.V} {gs : List G.V} {pairs : List (H.V × H.V)} {r : List (G.V × H.V)}
+variable {hs : List H.V} {gs : List G.V} {pairs : List (H.V × H.V)} {auts : List (List H.V)}
+  {r : List (G.V × H.V)}
 
-theorem finalOk_keys (h : finalOk H G hs gs pairs r = true) : r.map Prod.fst = gs.reverse := by
-  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  exact of_decide_eq_true h.1.1.1
+theorem finalOk_keys (h : finalOk H G hs gs pairs auts r = true) :
+    r.map Prod.fst = gs.reverse := by
+  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  exact of_decide_eq_true h.1.1.1.1
 
-theorem finalOk_conn (h : finalOk H G hs gs pairs r = true) {x : H.V} (hx : x ∈ hs) :
+theorem finalOk_conn (h : finalOk H G hs gs pairs auts r = true) {x : H.V} (hx : x ∈ hs) :
     connOk G (fibre r x) = true := by
-  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  exact List.all_eq_true.mp h.1.1.2 x hx
+  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  exact List.all_eq_true.mp h.1.1.1.2 x hx
 
-theorem finalOk_adj (h : finalOk H G hs gs pairs r = true) {x y : H.V} (hx : x ∈ hs) (hy : y ∈ hs)
-    (hxy : x ≠ y) : H.Adj x y = linked G (fibre r x) (fibre r y) := by
-  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  have hxy' := List.all_eq_true.mp (List.all_eq_true.mp h.1.2 x hx) y hy
+theorem finalOk_adj (h : finalOk H G hs gs pairs auts r = true) {x y : H.V} (hx : x ∈ hs)
+    (hy : y ∈ hs) (hxy : x ≠ y) : H.Adj x y = linked G (fibre r x) (fibre r y) := by
+  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  have hxy' := List.all_eq_true.mp (List.all_eq_true.mp h.1.1.2 x hx) y hy
   rw [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq] at hxy'
   exact hxy'.resolve_left hxy
 
-theorem finalOk_sym (h : finalOk H G hs gs pairs r = true) {p : H.V × H.V} (hp : p ∈ pairs) :
+theorem finalOk_sym (h : finalOk H G hs gs pairs auts r = true) {p : H.V × H.V} (hp : p ∈ pairs) :
     minRank gs.idxOf (fibre r p.1) ≤ minRank gs.idxOf (fibre r p.2) := by
-  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  exact of_decide_eq_true (List.all_eq_true.mp h.2 p hp)
+  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  exact of_decide_eq_true (List.all_eq_true.mp h.1.2 p hp)
+
+theorem finalOk_aut (h : finalOk H G hs gs pairs auts r = true) :
+    autOkAll H G hs auts r = true := by
+  rw [finalOk, Bool.and_eq_true] at h
+  exact h.2
 
 /-- A connected block is a nonempty one, so an accepted assignment uses every vertex of `H`. -/
-theorem fibre_ne_nil (h : finalOk H G hs gs pairs r = true) {x : H.V} (hx : x ∈ hs) :
+theorem fibre_ne_nil (h : finalOk H G hs gs pairs auts r = true) {x : H.V} (hx : x ∈ hs) :
     fibre r x ≠ [] := by
   intro hnil
   have hc := finalOk_conn h hx
@@ -313,8 +517,9 @@ theorem fibre_ne_nil (h : finalOk H G hs gs pairs r = true) {x : H.V} (hx : x �
 
 /-- The contraction a complete, accepted assignment describes. -/
 def ofFinal (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
-    (r : List (G.V × H.V)) (hcov : ∀ x : H.V, x ∈ hs) (hgs : ∀ v : G.V, v ∈ gs)
-    (hgnd : gs.Nodup) (h : finalOk H G hs gs pairs r = true) : H.ContractionOf G := by
+    (auts : List (List H.V)) (r : List (G.V × H.V)) (hcov : ∀ x : H.V, x ∈ hs)
+    (hgs : ∀ v : G.V, v ∈ gs) (hgnd : gs.Nodup)
+    (h : finalOk H G hs gs pairs auts r = true) : H.ContractionOf G := by
   have hknd : (r.map Prod.fst).Nodup := by rw [finalOk_keys h]; exact List.nodup_reverse.mpr hgnd
   have hbr : ∀ (v : G.V) (x : H.V), labOf r v = some x ↔ v ∈ fibre r x := fun v x ↦
     (labOf_eq_some_iff hknd).trans mem_fibre.symm
@@ -438,16 +643,20 @@ def blocksOk (H G : CGraph) (pool : List G.V) (fs : List (H.V × List G.V)) : Bo
 
 /-- The tests a label has to pass.
 
+* No automorphism of `H` fixing the labels so far sends this one backwards.  This is `autKeep`, and
+  it goes first because it is the cheapest of the five and, when there is any symmetry left, the
+  one that kills the most.
 * Every done neighbour of `v` is in the same block or in an adjacent one — the induced condition,
   one pair at a time.
 * The vertices of `H` still unused fit into the vertices of `G` still unassigned.
 * Interchangeable vertices of `H` start their blocks in order.
 * The blocks pass `blocksOk`, which is the dearest of the tests and so is left for last. -/
 def candKeep (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
-    (v : G.V) (pre : List (G.V × H.V)) (x : H.V) : Bool :=
+    (auts : List (List H.V)) (v : G.V) (pre : List (G.V × H.V)) (x : H.V) : Bool :=
   let asg := (v, x) :: pre
   let pool := gs.drop (pre.length + 1)
-  pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+  autKeep H G hs auts pre x &&
+    pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
     decide (hs.countP (fun y ↦ !(asg.map Prod.snd).contains y) + asg.length ≤ gs.length) &&
     pairs.all (fun p ↦ (fibre asg p.2).isEmpty || (!(fibre asg p.1).isEmpty &&
       decide (minRank gs.idxOf (fibre asg p.1) ≤ minRank gs.idxOf (fibre asg p.2)))) &&
@@ -455,8 +664,8 @@ def candKeep (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V �
 
 /-- The labels the search tries for `v`. -/
 def candLab (H G : CGraph) (hs : List H.V) (gs : List G.V) (pairs : List (H.V × H.V))
-    (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
-  (labSource H G hs v pre).filter (candKeep H G hs gs pairs v pre)
+    (auts : List (List H.V)) (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+  (labSource H G hs v pre).filter (candKeep H G hs gs pairs auts v pre)
 
 /-! ## What the search runs
 
@@ -501,19 +710,21 @@ private theorem filter_and {α : Type} (l : List α) (a d : α → Bool) :
   rw [List.filter_filter]
   exact List.filter_congr fun x _ ↦ Bool.and_comm ..
 
-/-- What the search runs in place of `candLab`: the three cheap tests first, then the block table
+/-- What the search runs in place of `candLab`: the four cheap tests first, then the block table
 for whatever got through, then the two block tests off that table. -/
 def candLabWith (H G : CGraph) (rank : G.V → ℕ) (hs : List H.V) (gs : List G.V)
-    (pairs : List (H.V × H.V)) (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+    (pairs : List (H.V × H.V)) (auts : List (List H.V)) (v : G.V) (pre : List (G.V × H.V)) :
+    List H.V :=
   let used := pre.map Prod.snd
   let len := pre.length + 1
   let rough := (labSource H G hs v pre).filter fun x ↦
-    pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
-      decide (hs.countP (fun y ↦ !(x :: used).contains y) + len ≤ gs.length) &&
-      pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
-        (!(fibre ((v, x) :: pre) p.1).isEmpty &&
-          decide (minRank rank (fibre ((v, x) :: pre) p.1) ≤
-            minRank rank (fibre ((v, x) :: pre) p.2))))
+    autKeep H G hs auts pre x &&
+      pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+        decide (hs.countP (fun y ↦ !(x :: used).contains y) + len ≤ gs.length) &&
+        pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
+          (!(fibre ((v, x) :: pre) p.1).isEmpty &&
+            decide (minRank rank (fibre ((v, x) :: pre) p.1) ≤
+              minRank rank (fibre ((v, x) :: pre) p.2))))
   if rough.isEmpty then [] else
     let pool := gs.drop len
     let tab := hs.map fun y ↦ let f := fibre pre y; (y, f, Thunk.mk fun _ ↦ blockOk G pool f)
@@ -521,11 +732,12 @@ def candLabWith (H G : CGraph) (rank : G.V → ℕ) (hs : List H.V) (gs : List G
       if x = t.1 then (let f := v :: t.2.1; (t.1, f, Thunk.mk fun _ ↦ blockOk G pool f)) else t)
 
 theorem candLab_eq_candLabWith (H G : CGraph) (hs : List H.V) (gs : List G.V)
-    (pairs : List (H.V × H.V)) :
-    candLab H G hs gs pairs = candLabWith H G (fun v ↦ gs.idxOf v) hs gs pairs := by
+    (pairs : List (H.V × H.V)) (auts : List (List H.V)) :
+    candLab H G hs gs pairs auts = candLabWith H G (fun v ↦ gs.idxOf v) hs gs pairs auts := by
   funext v pre
-  have hk : candKeep H G hs gs pairs v pre = fun x ↦
-      (pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
+  have hk : candKeep H G hs gs pairs auts v pre = fun x ↦
+      (autKeep H G hs auts pre x &&
+        pre.all (fun q ↦ !G.Adj v q.1 || decide (q.2 = x) || H.Adj x q.2) &&
         decide (hs.countP (fun y ↦ !(x :: pre.map Prod.snd).contains y) + (pre.length + 1) ≤
           gs.length) &&
         pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
@@ -1151,6 +1363,68 @@ theorem countP_unused_eq_mask (hhs : ∀ x : H.V, x ∈ hs) (pre : List (G.V × 
   rw [usedMask_eq hhs, getElem!_hbitTab hhs, ← mask_append, testBit_mask_eq_decide_mem hhs]
   simp [and_comm]
 
+/-! The symmetry test goes the same way, and the shape of it is what makes the masks pay: an
+automorphism is still in force exactly when the used labels miss the ones it moves, which is one
+`&&&` against the mask the node already built for the counting test, and what it then forbids is a
+mask of labels fixed once and for all.  So the whole test is a fold over the automorphisms at the
+node and a single bit at each candidate, rather than a walk down the assignment per automorphism
+per candidate. -/
+
+/-- Each automorphism as two masks over `hs`: the labels it moves, and the labels it sends
+backwards. -/
+def autTab (H : CGraph) (hs : List H.V) (auts : List (List H.V)) : List (ℕ × ℕ) :=
+  auts.map fun a ↦
+    (mask H hs (hs.filter fun y ↦ !decide (relab hs a y = y)),
+      mask H hs (hs.filter fun y ↦ decide (hs.idxOf (relab hs a y) < hs.idxOf y)))
+
+/-- The labels forbidden by the automorphisms still in force, as a mask over `hs`. -/
+def badLabMask (atab : List (ℕ × ℕ)) (um : ℕ) : ℕ :=
+  atab.foldl (fun b p ↦ if um &&& p.1 == 0 then b ||| p.2 else b) 0
+
+private theorem autKeep_one (hhs : ∀ x : H.V, x ∈ hs) (a : List H.V) (pre : List (G.V × H.V))
+    (x : H.V) :
+    (!(pre.all fun q ↦ decide (relab hs a q.2 = q.2)) ||
+        decide (hs.idxOf x ≤ hs.idxOf (relab hs a x)))
+      = !((mask H hs (pre.map Prod.snd) &&&
+            mask H hs (hs.filter fun y ↦ !decide (relab hs a y = y)) == 0) &&
+          (mask H hs (hs.filter fun y ↦ decide (hs.idxOf (relab hs a y) < hs.idxOf y))).testBit
+            (hs.idxOf x)) := by
+  have hz : (mask H hs (pre.map Prod.snd) &&&
+        mask H hs (hs.filter fun y ↦ !decide (relab hs a y = y)) == 0)
+      = pre.all fun q ↦ decide (relab hs a q.2 = q.2) := by
+    rw [Bool.eq_iff_iff, beq_iff_eq, and_mask_eq_zero_iff hhs, List.all_eq_true]
+    constructor
+    · intro h q hq
+      by_contra hne
+      exact h q.2 (List.mem_map_of_mem hq) (List.mem_filter.mpr ⟨hhs q.2, by simpa using hne⟩)
+    · intro h u hu hmem
+      obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hu
+      have hne := (List.mem_filter.mp hmem).2
+      simp only [Bool.not_eq_true', decide_eq_false_iff_not] at hne
+      exact hne (of_decide_eq_true (h q hq))
+  have hb : (mask H hs (hs.filter fun y ↦ decide (hs.idxOf (relab hs a y) < hs.idxOf y))).testBit
+        (hs.idxOf x) = decide (hs.idxOf (relab hs a x) < hs.idxOf x) := by
+    rw [testBit_mask_eq_decide_mem hhs]
+    simp [List.mem_filter, hhs x]
+  rw [hz, hb, Bool.not_and]
+  congr 1
+  rw [Bool.eq_iff_iff, decide_eq_true_eq, Bool.not_eq_true', decide_eq_false_iff_not, Nat.not_lt]
+
+/-- **The symmetry test as one bit.** -/
+theorem autKeep_eq_mask (hhs : ∀ x : H.V, x ∈ hs) (auts : List (List H.V))
+    (pre : List (G.V × H.V)) (x : H.V) :
+    autKeep H G hs auts pre x
+      = !(badLabMask (autTab H hs auts) (usedMask H G (hbitTab H hs) hs.idxOf pre)).testBit
+          (hs.idxOf x) := by
+  rw [badLabMask, testBit_foldl_or_if, autTab, List.any_map, usedMask_eq hhs, autKeep,
+    Nat.zero_testBit, Bool.false_or]
+  induction auts with
+  | nil => rfl
+  | cons a t ih =>
+    rw [List.all_cons, List.any_cons, Bool.not_or, ih]
+    congr 1
+    exact autKeep_one hhs a pre x
+
 /-- What the block tests read, built once for the search.
 
 `rows` is what a round of the connectivity sweep runs over; `bits` and `nbrs` are a vertex's own
@@ -1188,12 +1462,15 @@ assignment, "an unlabelled vertex still touches it" and `linked` are one `&&&` e
 connectivity sweep runs on words, and the induced and counting tests read the labels of the
 assignment out of a mask instead of walking it once per candidate. -/
 def candLabMask (H G : CGraph) (env : MaskEnv H G) (hs : List H.V) (gs : List G.V)
-    (pairs : List (H.V × H.V)) (v : G.V) (pre : List (G.V × H.V)) : List H.V :=
+    (pairs : List (H.V × H.V)) (atab : List (ℕ × ℕ)) (v : G.V) (pre : List (G.V × H.V)) :
+    List H.V :=
   let len := pre.length + 1
   let nbrLab := nbrLabMask H G env.hbit env.hrk v pre
   let um := usedMask H G env.hbit env.hrk pre
+  let bad := badLabMask atab um
   let rough := (labSource H G hs v pre).filter fun x ↦
-    (nbrLab &&& env.hclosed[env.hrk x]! == nbrLab) &&
+    !bad.testBit (env.hrk x) &&
+      (nbrLab &&& env.hclosed[env.hrk x]! == nbrLab) &&
       decide (hs.countP (fun y ↦ !(um ||| env.hbit[env.hrk x]!).testBit (env.hrk y)) + len
         ≤ gs.length) &&
       pairs.all (fun p ↦ (fibre ((v, x) :: pre) p.2).isEmpty ||
@@ -1211,12 +1488,12 @@ def candLabMask (H G : CGraph) (env : MaskEnv H G) (hs : List H.V) (gs : List G.
         (t.1.set! i (t.1[i]! ||| vb)) (t.2.set! i (t.2[i]! ||| vn)) env.hz
 
 theorem candLabWith_eq_candLabMask (hgs : ∀ v, v ∈ gs) (hhs : ∀ x : H.V, x ∈ hs)
-    (pairs : List (H.V × H.V)) :
-    candLabWith H G (fun u ↦ gs.idxOf u) hs gs pairs
-      = candLabMask H G (maskEnv H G hs gs) hs gs pairs := by
+    (pairs : List (H.V × H.V)) (auts : List (List H.V)) :
+    candLabWith H G (fun u ↦ gs.idxOf u) hs gs pairs auts
+      = candLabMask H G (maskEnv H G hs gs) hs gs pairs (autTab H hs auts) := by
   funext v pre
   simp only [candLabWith, candLabMask, maskEnv, Backtrack.tabAt_rankTable, maskTab_eq,
-    induced_eq_mask hhs, countP_unused_eq_mask hhs]
+    induced_eq_mask hhs, countP_unused_eq_mask hhs, autKeep_eq_mask hhs]
   split_ifs with hemp
   · rfl
   · refine List.filter_congr fun x _ ↦ ?_
@@ -1271,7 +1548,7 @@ variable {l pre : List (G.V × H.V)} {v : G.V} {x : H.V}
 /-- The induced condition as the candidate tests see it: adjacent vertices of `G` are in the same
 block or in adjacent ones. -/
 theorem adj_of_finalOk (hcov : ∀ y : H.V, y ∈ hs) {r : List (G.V × H.V)}
-    (h : finalOk H G hs gs pairs r = true) {q q' : G.V × H.V} (hq : q ∈ r) (hq' : q' ∈ r)
+    (h : finalOk H G hs gs pairs auts r = true) {q q' : G.V × H.V} (hq : q ∈ r) (hq' : q' ∈ r)
     (hadj : G.Adj q.1 q'.1 = true) : q.2 = q'.2 ∨ H.Adj q.2 q'.2 = true := by
   by_cases hqx : q.2 = q'.2
   · exact Or.inl hqx
@@ -1282,12 +1559,13 @@ theorem adj_of_finalOk (hcov : ∀ y : H.V, y ∈ hs) {r : List (G.V × H.V)}
 /-- The same for a neighbour of `v` that is done already: it is in `x`'s block or in one next to
 it. -/
 theorem adj_pre_of_finalOk (hcov : ∀ y : H.V, y ∈ hs)
-    (h : finalOk H G hs gs pairs (l ++ (v, x) :: pre) = true) {q : G.V × H.V} (hq : q ∈ pre)
+    (h : finalOk H G hs gs pairs auts (l ++ (v, x) :: pre) = true) {q : G.V × H.V} (hq : q ∈ pre)
     (hadj : G.Adj v q.1 = true) : q.2 = x ∨ H.Adj x q.2 = true :=
   (adj_of_finalOk hcov h (q := (v, x)) (by simp) (by simp [hq]) hadj).imp Eq.symm id
 
 theorem mem_labSource (hcov : ∀ y : H.V, y ∈ hs)
-    (h : finalOk H G hs gs pairs (l ++ (v, x) :: pre) = true) : x ∈ labSource H G hs v pre := by
+    (h : finalOk H G hs gs pairs auts (l ++ (v, x) :: pre) = true) :
+    x ∈ labSource H G hs v pre := by
   rw [labSource, mem_labNear]
   split
   · exact hcov x
@@ -1301,8 +1579,8 @@ theorem mem_labSource (hcov : ∀ y : H.V, y ∈ hs)
 /-- **The pruning throws nothing away.**  This is the one thing `Backtrack.dfs_eq_none` asks of a
 search, and every test in `candKeep` is discharged here against `finalOk`. -/
 theorem mem_candLab (hcov : ∀ y : H.V, y ∈ hs) (hhnd : hs.Nodup) (hgnd : gs.Nodup)
-    (h : finalOk H G hs gs pairs (l ++ (v, x) :: pre) = true) :
-    x ∈ candLab H G hs gs pairs v pre := by
+    (h : finalOk H G hs gs pairs auts (l ++ (v, x) :: pre) = true) :
+    x ∈ candLab H G hs gs pairs auts v pre := by
   have hk := finalOk_keys h
   have hknd : ((l ++ (v, x) :: pre).map Prod.fst).Nodup := by
     rw [hk]; exact List.nodup_reverse.mpr hgnd
@@ -1338,8 +1616,10 @@ theorem mem_candLab (hcov : ∀ y : H.V, y ∈ hs) (hhnd : hs.Nodup) (hgnd : gs.
   have hrank_gt : ∀ u : G.V, u ∈ pool → pre.length < gs.idxOf u := fun u hu ↦
     rank_gt_of_mem_l hgnd hk ((hmempool u).mp hu)
   refine List.mem_filter.mpr ⟨mem_labSource hcov h, ?_⟩
-  rw [candKeep, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
-  refine ⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩
+  rw [candKeep, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
+  refine ⟨⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩, ?_⟩
+  · -- the symmetry test against the automorphisms
+    exact autKeep_of_autOkAll l (finalOk_aut h)
   · -- the induced condition
     rw [List.all_eq_true]
     intro q hq
@@ -1463,11 +1743,12 @@ theorem mem_fibre_asgOf {f : H.ContractionOf G} {gs : List G.V} {v : G.V} {x : H
   exact ⟨fun ⟨w, hw, hwv, hwx⟩ ↦ ⟨hwv ▸ hw, hwv ▸ hwx⟩, fun ⟨hv, hx⟩ ↦ ⟨v, hv, rfl, hx⟩⟩
 
 /-- **Completeness of the test**: the assignment a contraction gives passes `finalOk`, as long as
-it has already been relabelled so that interchangeable vertices of `H` take their blocks in
-order. -/
+it has already been relabelled so that interchangeable vertices of `H` take their blocks in order
+and no automorphism of `H` moves it earlier. -/
 theorem finalOk_asgOf (f : H.ContractionOf G) (hgs : ∀ v : G.V, v ∈ gs)
-    (hsym : ∀ p ∈ pairs, modelMin f.branch gs.idxOf gs p.1 ≤ modelMin f.branch gs.idxOf gs p.2) :
-    finalOk H G hs gs pairs (asgOf f gs).reverse = true := by
+    (hsym : ∀ p ∈ pairs, modelMin f.branch gs.idxOf gs p.1 ≤ modelMin f.branch gs.idxOf gs p.2)
+    (haut : autOkAll H G hs auts (asgOf f gs).reverse = true) :
+    finalOk H G hs gs pairs auts (asgOf f gs).reverse = true := by
   have hmem : ∀ (v : G.V) (x : H.V), v ∈ fibre (asgOf f gs).reverse x ↔ f v = x := fun v x ↦
     mem_fibre_asgOf.trans (and_iff_right (hgs v))
   have hmin : ∀ x : H.V,
@@ -1476,8 +1757,8 @@ theorem finalOk_asgOf (f : H.ContractionOf G) (hgs : ∀ v : G.V, v ∈ gs)
     refine minRank_congr fun v ↦ ?_
     rw [hmem, List.mem_filter, decide_eq_true_eq, f.branch_eq_some_iff]
     exact (and_iff_right (hgs v)).symm
-  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
-  refine ⟨⟨⟨decide_eq_true ?_, ?_⟩, ?_⟩, ?_⟩
+  rw [finalOk, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
+  refine ⟨⟨⟨⟨decide_eq_true ?_, ?_⟩, ?_⟩, ?_⟩, haut⟩
   · rw [List.map_reverse, keys_asgOf]
   · refine List.all_eq_true.mpr fun x _ ↦ connOk_of_connectedOn ?_
     rw [show {u : G.V | u ∈ fibre (asgOf f gs).reverse x} = {v | f v = x} from
@@ -1516,6 +1797,123 @@ theorem ContractionOf.exists_reindex (f : H.ContractionOf G) {σ : H.V → H.V}
     ContractionOf.trans_apply, ContractionOf.ofIso_apply]
   exact Equiv.symm_apply_eq e
 
+/-- **Relabelling a contraction along an automorphism the other way round.**  Same construction as
+`ContractionOf.exists_reindex`, but stated on the total map, which is what the label word of
+`ContractionSearch.labKey` is written in terms of. -/
+theorem ContractionOf.exists_relabel (f : H.ContractionOf G) {σ : H.V → H.V}
+    (hinj : Function.Injective σ) (hadj : ∀ x y, H.Adj (σ x) (σ y) = H.Adj x y) :
+    ∃ g : H.ContractionOf G, ∀ v : G.V, g v = σ (f v) := by
+  classical
+  let e : H.V ≃ H.V := Equiv.ofBijective σ (Finite.injective_iff_bijective.mp hinj)
+  let i : H ≃cg H := ⟨e.symm, fun {a b} ↦ by
+    show (H.Adj (e.symm a) (e.symm b) = true) ↔ (H.Adj a b = true)
+    rw [← hadj (e.symm a) (e.symm b)]
+    show (H.Adj (e (e.symm a)) (e (e.symm b)) = true) ↔ _
+    rw [e.apply_symm_apply, e.apply_symm_apply]⟩
+  refine ⟨(ContractionOf.ofIso i).trans f, fun v ↦ ?_⟩
+  rw [ContractionOf.trans_apply, ContractionOf.ofIso_apply]
+  show e (f v) = σ (f v)
+  rfl
+
+namespace ContractionSearch
+
+variable {hs : List H.V} {gs : List G.V}
+
+/-! ### The label word
+
+The lexicographic order the symmetry test breaks the automorphisms with is easier to argue about as
+an order on numbers: read the label word as the digits of a numeral, most significant first, and
+lexicographic order on words of a fixed length is the order on the numerals.  So a contraction
+whose word is least is one the test accepts, and there is one because the naturals are
+well-ordered. -/
+
+/-- The label word of an assignment as a numeral: the position in `hs` of each vertex's label, as
+digits in base `hs.length + 1`, most significant first. -/
+def labKey (hs : List H.V) (lab : G.V → H.V) : List G.V → ℕ
+  | [] => 0
+  | v :: rest => hs.idxOf (lab v) * (hs.length + 1) ^ rest.length + labKey hs lab rest
+
+theorem labKey_lt (hs : List H.V) (lab : G.V → H.V) :
+    ∀ gs : List G.V, labKey hs lab gs < (hs.length + 1) ^ gs.length
+  | [] => Nat.zero_lt_one
+  | v :: rest => by
+    rw [labKey, List.length_cons, pow_succ']
+    calc hs.idxOf (lab v) * (hs.length + 1) ^ rest.length + labKey hs lab rest
+        < hs.idxOf (lab v) * (hs.length + 1) ^ rest.length + (hs.length + 1) ^ rest.length :=
+          Nat.add_lt_add_left (labKey_lt hs lab rest) _
+      _ = (hs.idxOf (lab v) + 1) * (hs.length + 1) ^ rest.length := by ring
+      _ ≤ (hs.length + 1) * (hs.length + 1) ^ rest.length :=
+          Nat.mul_le_mul_right _ (Nat.succ_le_succ (List.idxOf_le_length))
+
+/-- Two words agreeing up to a place where the first is smaller give the smaller numeral. -/
+theorem labKey_lt_of_prefix {lab lab' : G.V → H.V} {v : G.V} {rest : List G.V}
+    (hv : hs.idxOf (lab v) < hs.idxOf (lab' v)) :
+    ∀ p : List G.V, (∀ u ∈ p, hs.idxOf (lab u) = hs.idxOf (lab' u)) →
+      labKey hs lab (p ++ v :: rest) < labKey hs lab' (p ++ v :: rest)
+  | [], _ => by
+    rw [List.nil_append, labKey, labKey]
+    calc hs.idxOf (lab v) * (hs.length + 1) ^ rest.length + labKey hs lab rest
+        < hs.idxOf (lab v) * (hs.length + 1) ^ rest.length + (hs.length + 1) ^ rest.length :=
+          Nat.add_lt_add_left (labKey_lt hs lab rest) _
+      _ = (hs.idxOf (lab v) + 1) * (hs.length + 1) ^ rest.length := by ring
+      _ ≤ hs.idxOf (lab' v) * (hs.length + 1) ^ rest.length := Nat.mul_le_mul_right _ hv
+      _ ≤ _ := Nat.le_add_right ..
+  | u :: p, h => by
+    rw [List.cons_append, labKey, labKey, h u (List.mem_cons_self ..)]
+    exact Nat.add_lt_add_left
+      (labKey_lt_of_prefix hv p fun w hw ↦ h w (List.mem_cons_of_mem _ hw)) _
+
+/-- Some contraction has the least label word. -/
+theorem exists_minKey (f : H.ContractionOf G) :
+    ∃ g : H.ContractionOf G, ∀ g' : H.ContractionOf G,
+      labKey hs (⇑g) gs ≤ labKey hs (⇑g') gs := by
+  classical
+  have hne : ∃ n, ∃ g : H.ContractionOf G, labKey hs (⇑g) gs = n := ⟨_, f, rfl⟩
+  obtain ⟨g, hg⟩ := Nat.find_spec hne
+  exact ⟨g, fun g' ↦ by rw [hg]; exact Nat.find_min' hne ⟨g', rfl⟩⟩
+
+/-- The test at every step of an assignment, from the test at every way of splitting `gs`. -/
+theorem autOkAll_asgOf {auts : List (List H.V)} {f : H.ContractionOf G} :
+    ∀ gs : List G.V, (∀ (p : List G.V) (v : G.V) (rest : List G.V), gs = p ++ v :: rest →
+      autKeep H G hs auts (asgOf f p).reverse (f v) = true) →
+      autOkAll H G hs auts (asgOf f gs).reverse = true := by
+  intro gs
+  induction gs using List.reverseRecOn with
+  | nil => intro _; rfl
+  | append_singleton p v ih =>
+    intro h
+    have hrw : (asgOf f (p ++ [v])).reverse = (v, f v) :: (asgOf f p).reverse := by simp [asgOf]
+    rw [hrw, autOkAll_cons, Bool.and_eq_true]
+    exact ⟨h p v [] rfl, ih fun p' v' rest' hp' ↦ h p' v' (rest' ++ [v]) (by rw [hp']; simp)⟩
+
+/-- **The symmetry break is satisfiable**: whatever automorphisms the search is given, a
+contraction with the least label word passes the test at every step, and so is one the search is
+still allowed to find.
+
+An automorphism that fixes every label assigned so far and sends the next one backwards would carry
+the whole contraction to one with a smaller word: the labels it fixes leave the leading digits
+alone, and the one it moves makes the first digit that changes smaller. -/
+theorem exists_autOkAll (hhs : ∀ x : H.V, x ∈ hs) {auts : List (List H.V)}
+    (hauts : ∀ a ∈ auts, isAut H hs a = true) (f : H.ContractionOf G) :
+    ∃ g : H.ContractionOf G, autOkAll H G hs auts (asgOf g gs).reverse = true := by
+  obtain ⟨g, hmin⟩ := exists_minKey (hs := hs) (gs := gs) f
+  refine ⟨g, autOkAll_asgOf gs fun p v rest hgs ↦ List.all_eq_true.mpr fun a ha ↦ ?_⟩
+  rw [Bool.or_eq_true, Bool.not_eq_true', List.all_reverse, asgOf, List.all_map]
+  by_cases hfix : ∀ u ∈ p, relab hs a (g u) = g u
+  · refine Or.inr (decide_eq_true (Nat.not_lt.mp fun hlt ↦ ?_))
+    obtain ⟨g', hg'⟩ := g.exists_relabel (isAut_injective hhs (hauts a ha))
+      (isAut_adj hhs (hauts a ha))
+    refine absurd (hmin g') (Nat.not_le.mpr ?_)
+    rw [hgs]
+    refine labKey_lt_of_prefix (by rw [hg']; exact hlt) p fun u hu ↦ ?_
+    rw [hg', hfix u hu]
+  · refine Or.inl ?_
+    push Not at hfix
+    obtain ⟨u, hu, hne⟩ := hfix
+    exact List.all_eq_false.mpr ⟨u, hu, by simpa using hne⟩
+
+end ContractionSearch
+
 /-! ## The search -/
 
 section Search
@@ -1529,22 +1927,24 @@ def searchLab (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     Backtrack.dfs
       (candLab H G (searchOrder H rH.toList) (searchOrder G rG.toList)
-        (symPairs H (searchOrder H rH.toList)))
+        (symPairs H (searchOrder H rH.toList)) (searchAuts H (searchOrder H rH.toList)))
       (finalOk H G (searchOrder H rH.toList) (searchOrder G rG.toList)
-        (symPairs H (searchOrder H rH.toList)))
+        (symPairs H (searchOrder H rH.toList)) (searchAuts H (searchOrder H rH.toList)))
       (searchOrder G rG.toList) []
   else none
 
-/-- What `searchLab` runs.  Three things are shared that the specification writes out: the two
-search orders, each named three times above; the rank, which is a table rather than `List.idxOf`;
-and the row and mask tables the block tests read, built once for the whole search. -/
+/-- What `searchLab` runs.  Four things are shared that the specification writes out: the two
+search orders, each named four times above; the rank, which is a table rather than `List.idxOf`;
+the row and mask tables the block tests read; and the two masks per automorphism the symmetry test
+reads.  All of them are built once for the whole search. -/
 def searchLabFast (rH : Roster H.V) (rG : Roster G.V) : Option (List (G.V × H.V)) :=
   if FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E then
     let hs := searchOrder H rH.toList
     let gs := searchOrder G rG.toList
     let pairs := symPairs H hs
-    Backtrack.dfs (candLabMask H G (maskEnv H G hs gs) hs gs pairs)
-      (finalOk H G hs gs pairs) gs []
+    let auts := searchAuts H hs
+    Backtrack.dfs (candLabMask H G (maskEnv H G hs gs) hs gs pairs (autTab H hs auts))
+      (finalOk H G hs gs pairs auts) gs []
   else none
 
 @[csimp] theorem searchLab_eq_searchLabFast : @searchLab = @searchLabFast := by
@@ -1557,7 +1957,7 @@ variable {H G}
 theorem searchLab_goal {rH : Roster H.V} {rG : Roster G.V} {r : List (G.V × H.V)}
     (h : searchLab H G rH rG = some r) :
     finalOk H G (searchOrder H rH.toList) (searchOrder G rG.toList)
-      (symPairs H (searchOrder H rH.toList)) r = true := by
+      (symPairs H (searchOrder H rH.toList)) (searchAuts H (searchOrder H rH.toList)) r = true := by
   rw [searchLab] at h
   split at h
   · exact Backtrack.goal_of_dfs_eq_some h
@@ -1569,8 +1969,8 @@ variable (H G)
 `isEmpty_contractionOf_of_eq_none` for the other half of the answer. -/
 def findContraction (rH : Roster H.V) (rG : Roster G.V) : Option (H.ContractionOf G) :=
   Option.pmap (p := fun r ↦ finalOk H G (searchOrder H rH.toList) (searchOrder G rG.toList)
-      (symPairs H (searchOrder H rH.toList)) r = true)
-    (fun r hr ↦ ofFinal H G _ _ _ r (mem_searchOrder H rH.mem_toList)
+      (symPairs H (searchOrder H rH.toList)) (searchAuts H (searchOrder H rH.toList)) r = true)
+    (fun r hr ↦ ofFinal H G _ _ _ _ r (mem_searchOrder H rH.mem_toList)
       (mem_searchOrder G rG.mem_toList) (searchOrder_nodup G rG.toList) hr)
     (searchLab H G rH rG) (fun _ hr ↦ searchLab_goal hr)
 
@@ -1586,17 +1986,30 @@ theorem isEmpty_contractionOf_of_eq_none {rH : Roster H.V} {rG : Roster G.V}
   rw [findContraction_eq_none_iff, searchLab] at h
   refine ⟨fun f ↦ ?_⟩
   split at h
-  · -- the contraction is first relabelled to one the symmetry test accepts
-    obtain ⟨g, -, hgsym⟩ := exists_sorted_model_pairs (fun f : H.ContractionOf G ↦ f.branch)
-      (fun f {_σ} hinj hadj ↦ f.exists_reindex hinj hadj)
-      (hs := searchOrder H rH.toList) (gs := searchOrder G rG.toList)
-      (rank := (searchOrder G rG.toList).idxOf) (mem_searchOrder H rH.mem_toList) f
-      (fun v _ _ ↦ mem_searchOrder G rG.mem_toList v)
+  · -- the contraction is first relabelled to one both symmetry tests accept.  Only one of them is
+    -- ever asking anything, so there is no need to satisfy them together
+    obtain ⟨g, hgsym, hgaut⟩ : ∃ g : H.ContractionOf G,
+        (∀ p ∈ symPairs H (searchOrder H rH.toList),
+            modelMin g.branch (searchOrder G rG.toList).idxOf (searchOrder G rG.toList) p.1 ≤
+              modelMin g.branch (searchOrder G rG.toList).idxOf (searchOrder G rG.toList) p.2) ∧
+          autOkAll H G (searchOrder H rH.toList) (searchAuts H (searchOrder H rH.toList))
+            (asgOf g (searchOrder G rG.toList)).reverse = true := by
+      by_cases hp : (symPairs H (searchOrder H rH.toList)).isEmpty = true
+      · obtain ⟨g, hg⟩ := exists_autOkAll (mem_searchOrder H rH.mem_toList)
+          (fun _ ha ↦ isAut_of_mem_searchAuts (mem_searchOrder H rH.mem_toList) ha) f
+        exact ⟨g, fun p hp' ↦ absurd hp' (by rw [List.isEmpty_iff.mp hp]; simp), hg⟩
+      · obtain ⟨g, -, hgsym⟩ := exists_sorted_model_pairs (fun f : H.ContractionOf G ↦ f.branch)
+          (fun f {_σ} hinj hadj ↦ f.exists_reindex hinj hadj)
+          (hs := searchOrder H rH.toList) (gs := searchOrder G rG.toList)
+          (rank := (searchOrder G rG.toList).idxOf) (mem_searchOrder H rH.mem_toList) f
+          (fun v _ _ ↦ mem_searchOrder G rG.mem_toList v)
+        exact ⟨g, hgsym, by rw [searchAuts_of_symPairs hp]; exact autOkAll_nil _⟩
     have hn := Backtrack.dfs_eq_none
       (fun _ _ _ _ hh ↦ mem_candLab (mem_searchOrder H rH.mem_toList)
         (searchOrder_nodup H rH.toList) (searchOrder_nodup G rG.toList) hh) h
       (keys_asgOf g (searchOrder G rG.toList))
-    rw [List.append_nil, finalOk_asgOf g (mem_searchOrder G rG.mem_toList) hgsym] at hn
+    rw [List.append_nil,
+      finalOk_asgOf g (mem_searchOrder G rG.mem_toList) hgsym hgaut] at hn
     exact absurd hn (by simp)
   · exact absurd (show FinEnum.card H.V ≤ FinEnum.card G.V ∧ H.E ≤ G.E from
       ⟨f.card_le, f.E_le⟩) ‹_›

@@ -361,6 +361,78 @@ def canonCode (n : ℕ) (adj : Fin n → Fin n → Bool) : ℕ := codeOfAdj n (c
 theorem canonCode_eq (n : ℕ) (adj : Fin n → Fin n → Bool) :
     canonCode n adj = codeOf n (canonAdj n adj) := rfl
 
+/-! ### Reading a certificate
+
+The code of the graph a certificate holds is `codeOfAdj` of `certGet`, but `certGet` is a poor
+inner loop: per bit it recomputes the row width, divides the column by 64 to find its word, and
+tests that word's bit through `UInt64.toBitVec`, which materialises a `Nat` — a bignum allocation
+whenever the word's top bit is set.  `certCodeMul` is `codeMul` with all of that hoisted: the row
+width once, the word index and the one-bit mask once per column, and the test itself a machine
+`&&&`.  On the top level of `enumCodesFast 8` this is 6 ms where `codeOfAdj ∘ certGet` is 38. -/
+
+/-- The code of the graph a canonicalisation certificate holds. -/
+def codeOfCert (n : ℕ) (c : Array UInt64) : ℕ := codeOfAdj n (certGet n c)
+
+/-- The mask `certColMul` tests with picks out bit `k`. -/
+private theorem toBitVec_one_shiftLeft {k : ℕ} (hk : k < 64) :
+    ((1 : UInt64) <<< UInt64.ofNat k).toBitVec = BitVec.twoPow 64 k := by
+  simp only [UInt64.toBitVec_shiftLeft, UInt64.toBitVec_ofNat, BitVec.ofNat_eq_ofNat,
+    BitVec.shiftLeft_eq', BitVec.toNat_umod, UInt64.toNat_toBitVec, UInt64.toNat_ofNat',
+    Nat.reducePow, BitVec.toNat_ofNat, Nat.reduceMod, Nat.reduceDvd, Nat.mod_mod_of_dvd]
+  rw [Nat.mod_eq_of_lt hk]
+  rfl
+
+/-- Bit `k` of a machine word, without turning the word into a `Nat`. -/
+theorem uint64_test_bit (x : UInt64) {k : ℕ} (hk : k < 64) :
+    (x &&& (1 <<< UInt64.ofNat k) != 0) = x.toBitVec.getLsbD k := by
+  refine Bool.eq_iff_iff.2 ?_
+  rw [bne_iff_ne, ne_eq, UInt64.eq_iff_toBitVec_eq, UInt64.toBitVec_and,
+    toBitVec_one_shiftLeft hk, UInt64.toBitVec_zero, BitVec.and_twoPow]
+  by_cases hb : x.toBitVec.getLsbD k
+  · rw [if_pos hb, hb]
+    simp only [iff_true]
+    intro h
+    have := congrArg (fun z : BitVec 64 ↦ z.getLsbD k) h
+    simp [hk] at this
+  · rw [if_neg hb]
+    simpa using hb
+
+/-- Column `j` of a certificate of row width `w`, prepended to `acc` most significant bit first:
+`colMul` for the adjacency `certGet n c`, with the column's word index `wj` and one-bit mask `m`
+lifted out of the loop. -/
+def certColMul (c : Array UInt64) (w wj : ℕ) (m : UInt64) : ℕ → ℕ → ℕ
+  | 0, acc => acc
+  | i + 1, acc => certColMul c w wj m i (2 * acc + (if c[i * w + wj]! &&& m != 0 then 1 else 0))
+
+@[inherit_doc certColMul]
+def certCodeMul (c : Array UInt64) (w : ℕ) : ℕ → ℕ → ℕ
+  | 0, acc => acc
+  | j + 1, acc =>
+    certCodeMul c w j (certColMul c w (j / 64) (1 <<< UInt64.ofNat (63 - j % 64)) j acc)
+
+@[inherit_doc codeOfCert]
+def codeOfCertFast (n : ℕ) (c : Array UInt64) : ℕ := certCodeMul c (rowWords n) n 0
+
+theorem certColMul_eq (n : ℕ) (c : Array UInt64) (j : ℕ) :
+    ∀ (i acc : ℕ),
+      certColMul c (rowWords n) (j / 64) (1 <<< UInt64.ofNat (63 - j % 64)) i acc
+        = colMul (certGet n c) j i acc
+  | 0, _ => rfl
+  | i + 1, acc => by
+    rw [certColMul, colMul, certColMul_eq n c j i,
+      uint64_test_bit _ (by omega : 63 - j % 64 < 64)]
+    rfl
+
+theorem certCodeMul_eq (n : ℕ) (c : Array UInt64) :
+    ∀ (j acc : ℕ), certCodeMul c (rowWords n) j acc = codeMul (certGet n c) j acc
+  | 0, _ => rfl
+  | j + 1, acc => by
+    rw [certCodeMul, codeMul, certColMul_eq, certCodeMul_eq n c j]
+
+@[csimp] theorem codeOfCert_eq_codeOfCertFast : @codeOfCert = @codeOfCertFast := by
+  funext n c
+  rw [codeOfCert, codeOfCertFast, certCodeMul_eq, ← codeOfAdjFast, codeOfAdjFast_eq]
+
 /-- What `canonCode` runs: the certificate the search has already built.
 
 `canonMatrix` is the right thing to *say* — a matrix, indexed by `Fin n`, whose adjacency is the
@@ -370,14 +442,38 @@ same matrix, packed a row of bits to a word, and `canonical_get` says so: readin
 index and a shift, `canonPerm` and its `O(n)` permutation check never run, and neither does the
 `isPermArray` that `canonicalLabellingOfOracle` guards the labelling with. -/
 def canonCodeFast (n : ℕ) (adj : Fin n → Fin n → Bool) : ℕ :=
-  codeOfAdj n (certGet n (canonical (Graph.ofOracle n (oracleOfFin n adj))).cert)
+  codeOfCert n (canonical (Graph.ofOracle n (oracleOfFin n adj))).cert
 
 @[csimp] theorem canonCode_eq_canonCodeFast : @canonCode = @canonCodeFast := by
   funext n adj
-  simp only [canonCode, canonCodeFast]
+  simp only [canonCode, canonCodeFast, codeOfCert]
   refine codeOfAdj_congr fun a b ha hb ↦ ?_
   rw [AdjMatrix.get_eq _ ha hb, canonMatrix_adj, canonAdj_eq_oracle labellingIsPerm,
     canonical_get _ _ ha hb, labelling, canonicalLabellingOfOracle_eq]
+
+/-- The canonical code of the graph a code describes.  This — not `canonCode` — is what the
+enumerator calls: it is the only operation on a whole level, and it is worth naming so that the
+`Fin` round trip below can be taken out of it. -/
+def canonOfCode (n c : ℕ) : ℕ := canonCode n (graphOfCode n c).Adj
+
+/-- The adjacency of `graphOfCode n c` as an oracle on `ℕ`. -/
+def codeOracle (c i j : ℕ) : Bool := i != j && c.testBit (pairIdx i j)
+
+/-- What `canonOfCode` runs.  Composing `canonCodeFast` with `graphOfCode` would build the graph
+the search reads by wrapping each index in a `Fin`, comparing the two `Fin`s, and unwrapping them
+again in `oracleOfFin` — `n²` times per candidate, for a function of the two indices that was
+there all along.  `Graph.ofOracle_congr` says the search cannot tell the difference. -/
+def canonOfCodeFast (n c : ℕ) : ℕ :=
+  codeOfCert n (canonical (Graph.ofOracle n (codeOracle c))).cert
+
+@[csimp] theorem canonOfCode_eq_canonOfCodeFast : @canonOfCode = @canonOfCodeFast := by
+  funext n c
+  have h : Graph.ofOracle n (oracleOfFin n (graphOfCode n c).Adj)
+      = Graph.ofOracle n (codeOracle c) :=
+    Graph.ofOracle_congr fun v w hv hw ↦ by
+      rw [oracleOfFin_apply _ hv hw, graphOfCode_adj, codeOracle]
+      by_cases hvw : v = w <;> simp [Fin.ext_iff, hvw]
+  rw [canonOfCode, canonCode_eq_canonCodeFast, canonCodeFast, canonOfCodeFast, h]
 
 /-- **Canonicalisation is idempotent.**  Immediate from invariance: the canonical form is a
 relabelling of the original, and relabelling does not change the canonical form. -/
@@ -745,13 +841,13 @@ theorem canonCode_zero (adj : Fin 0 → Fin 0 → Bool) : canonCode 0 adj = 0 :=
 /-- **One level of the recursion**: extend every code in `l` by a new last vertex in each offered
 way, canonicalise, and deduplicate. -/
 def extendLevel (masks : ℕ → ℕ → List ℕ) (n : ℕ) (l : List ℕ) : List ℕ :=
-  dedupNat ((l.flatMap fun c ↦ (masks n c).map (extendCode n c)).map
-    fun C ↦ canonCode (n + 1) (graphOfCode (n + 1) C).Adj)
+  dedupNat ((l.flatMap fun c ↦ (masks n c).map (extendCode n c)).map (canonOfCode (n + 1)))
 
 theorem mem_extendLevel {masks : ℕ → ℕ → List ℕ} {n : ℕ} {l : List ℕ} {d : ℕ} :
     d ∈ extendLevel masks n l ↔ ∃ c ∈ l, ∃ s ∈ masks n c,
       canonCode (n + 1) (graphOfCode (n + 1) (extendCode n c s)).Adj = d := by
   rw [extendLevel, mem_dedupNat, List.mem_map]
+  simp only [canonOfCode]
   constructor
   · rintro ⟨C, hC, rfl⟩
     obtain ⟨c, hc, hC'⟩ := List.mem_flatMap.1 hC

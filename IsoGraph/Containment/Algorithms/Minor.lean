@@ -131,11 +131,23 @@ The search-side test is `MinorSearch.symOk`: if `x` follows `y` in its class, th
 it is already among the finished ones — must have started at a smaller `rank` than the set of `x`.
 Nothing is required when `y` is still unplaced, which is what keeps the test local.
 
-The test is applied twice over.  A finished set has to pass it, which is where it is final; but a
-set only ever *lowers* its least rank as it grows, so every vertex the set will contain has to
-clear the same floor, and the search therefore also applies `symOk` to the singleton `[v]` at each
-`pick`.  That turns the rule from one that rejects a set after building it into one that refuses
-to seed it, which is most of what it is worth.
+The rule is about a finished set, but the search never waits that long.  A set only ever *lowers*
+its least rank as it grows, so every vertex the set will contain has to clear the same floor, and
+the search applies `symOk` to the singleton `[v]` at each `pick` instead.  That turns a rule that
+rejects a set after building it into one that refuses to seed it, which is most of what it is
+worth — and it makes the test on the finished set redundant, since a set every one of whose
+vertices cleared the floor has its least rank above it too.
+
+The third use of it prunes the *pool* rather than a set.  Every vertex of `H` still to come has a
+floor of its own — the set of the last finished member of its class started somewhere, and it must
+start no earlier, and if no member of its class is finished, the member before it in the class has
+a floor that will do just as well.  `MinorSearch.poolFloor` takes the least of those over what is
+left to place, and `MinorSearch.trimPool` drops the vertices of `G` below it from `avail` as soon
+as a set is finished: no set that is left can reach them, so they are dead weight in the scan at
+every node below, and in the counting tests the `stop` runs.  One class that has not been started
+yet makes the floor zero and the pool is passed through untouched, which is what keeps this
+affordable at every `stop`.  It is worth 2.2× fewer nodes and 1.7× less time on `K5` in the 4×4
+grid, and 1.4× and 1.15× on `K3,3` in it.
 
 ## The induced minor
 
@@ -169,7 +181,7 @@ start: `K5` in the Heawood graph takes 3 ms, `K3,3` in it 3 ms, `K5` in the 24-v
 peeling rather than by search, so a `C3` in a 13-vertex star takes no measurable time at all.
 
 Ruling a minor out of a host that does not peel is the expensive direction, since every family of
-disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 5 s, and `K3,3` in it 39 s.
+disjoint connected sets has to be looked at: `K5` in the 4×4 grid takes 2 s, and `K3,3` in it 24 s.
 Those two are the honest picture of the limit — a planar host of about twenty vertices is where
 ruling `K5` out stops being interactive.
 
@@ -177,10 +189,11 @@ Symmetry breaking is what makes even that possible, though for less than one mig
 only at a finished set it was worth a factor of 2.6 on the first of those and 1.9 on the second,
 far less than the `5!` and `2·(3!)²` relabellings the classes admit, because the canonical pick
 order and the seed rules had already ruled out most of them.  Checking it at every `pick` as well
-is worth a further 1.6 and 1.3, on interleaved runs of both binaries.  On a host where a model
-exists none of it makes a measurable difference either way.  (The numbers above are from
-`testing/MinorBench.lean` on a shared machine, and the same binary has been seen to vary fourfold
-with load, so treat them as ratios rather than absolutes.)
+is worth a further 1.6 and 1.3, and trimming the pool to its floor a further 1.7 and 1.15, on
+interleaved runs of the binaries.  On a host where a model exists none of it makes a measurable
+difference either way.  (The numbers above are from `testing/MinorBench.lean` on a shared machine,
+and the same binary has been seen to vary fourfold with load, so treat them as ratios rather than
+absolutes.)
 
 The induced search costs what the plain one does when there is a model, because `indPick` rejects
 at a `pick` the sets the final test would otherwise have thrown away at the end: `K4` as an induced
@@ -213,12 +226,24 @@ def reachAux (G : CGraph) : ℕ → List G.V → List G.V → List G.V → List 
     else reachAux G n ((pool.filter fun v ↦ front.any (G.Adj v)) ++ S)
       (pool.filter fun v ↦ front.any (G.Adj v)) (pool.filter fun v ↦ !front.any (G.Adj v))
 
+/-- `T.any (G.Adj v)`, spelled so that the scan carries `v` rather than a closure over it.  The
+searches ask this of a two- or three-element set millions of times, and at that size building the
+closure costs about as much as the scan it is there for. -/
+def anyAdj (G : CGraph) (v : G.V) : List G.V → Bool
+  | [] => false
+  | w :: T => G.Adj v w || anyAdj G v T
+
+theorem anyAdj_eq (G : CGraph) (v : G.V) (T : List G.V) : anyAdj G v T = T.any (G.Adj v) := by
+  induction T with
+  | nil => rfl
+  | cons w T ih => rw [anyAdj, List.any_cons, ih]
+
 /-- What `reachAux` runs: one `List.partition` where the specification writes four `List.filter`s,
 and so one query of the adjacency per pool vertex per round instead of four. -/
 def reachAuxFast (G : CGraph) : ℕ → List G.V → List G.V → List G.V → List G.V
   | 0, S, _, _ => S
   | n + 1, S, front, pool =>
-    let sp := pool.partition fun v ↦ front.any (G.Adj v)
+    let sp := pool.partition fun v ↦ anyAdj G v front
     if sp.1.isEmpty then S else reachAuxFast G n (sp.1 ++ S) sp.1 sp.2
 
 @[csimp] theorem reachAux_eq_reachAuxFast : @reachAux = @reachAuxFast := by
@@ -228,6 +253,7 @@ def reachAuxFast (G : CGraph) : ℕ → List G.V → List G.V → List G.V → L
   | succ n ih =>
     funext S front pool
     rw [reachAux, reachAuxFast, List.partition_eq_filter_filter]
+    simp only [anyAdj_eq]
     split <;> simp_all [Function.comp_def]
 
 /-- The vertices that `S` can reach without leaving `S ∪ pool`: the component of `S` in the
@@ -597,6 +623,19 @@ def linked (S T : List G.V) : Bool := S.any fun u ↦ T.any fun w ↦ G.Adj u w
 
 theorem linked_iff {S T : List G.V} : linked G S T = true ↔ ∃ u ∈ S, ∃ w ∈ T, G.Adj u w := by
   simp [linked]
+
+variable (G) in
+/-- What `linked` runs: the same double scan with neither closure built. -/
+def linkedFast : List G.V → List G.V → Bool
+  | [], _ => false
+  | u :: S, T => anyAdj G u T || linkedFast S T
+
+@[csimp] theorem linked_eq_linkedFast : @linked = @linkedFast := by
+  funext G S T
+  show S.any (fun u ↦ T.any fun w ↦ G.Adj u w) = linkedFast G S T
+  induction S with
+  | nil => rfl
+  | cons u S ih => rw [List.any_cons, ih, linkedFast, anyAdj_eq]
 
 /-! ## Shrinking the host
 
@@ -1006,7 +1045,8 @@ interchangeable vertices, the set of the previous member must have started earli
 Adding vertices to a set only lowers its `minRank`, so a set that will pass this test passes it
 *already*, one vertex at a time: `symOk rank pairs x [v] done` is a necessary condition on every
 vertex `v` the set will ever contain.  The search checks it at each `pick` for exactly that reason
-— a set seeded below the floor is hopeless, and there is no point building it out first. -/
+— a set seeded below the floor is hopeless, and there is no point building it out first — and
+that is the *only* place it checks it: the finished set inherits the floor from its vertices. -/
 def symOk (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x : H.V) (S : List G.V)
     (done : List (H.V × List G.V)) : Bool :=
   pairs.all fun p ↦ !decide (p.2 = x) ||
@@ -1049,6 +1089,114 @@ theorem symOk_eq_symFloor_le (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (x
         · exact Or.inr (h q hq ⟨p, hp, hpx, hqp⟩)
         · exact Or.inl hqp
     · exact Or.inl hpx
+
+/-- The floor symmetry breaking puts under a branch set that has *not been started yet*: if the
+member of its class before `z` is finished, that set's `minRank` is the floor.  If it is not
+finished, *its* floor will do, because the chain is increasing — and it comes before `z` in the
+order the pool is scanned in, so `seen` already has it.  Anything else is unconstrained. -/
+def stepFloor (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (done : List (H.V × List G.V))
+    (seen : List (H.V × ℕ)) (z : H.V) : ℕ :=
+  match pairs.find? fun p ↦ decide (p.2 = z) with
+  | none => 0
+  | some p =>
+    match done.find? fun q ↦ decide (q.1 = p.1) with
+    | some q => minRank rank q.2
+    | none =>
+      match seen.find? fun w ↦ decide (w.1 = p.1) with
+      | some w => w.2
+      | none => 0
+
+/-- The floor that every branch set still to come has to clear: the least of their `stepFloor`s,
+taken along the pool in order so that each vertex of `H` can hand its own floor to the ones after
+it.
+
+This is what makes symmetry breaking prune the *pool* rather than one set at a time.  A vertex of
+`G` below this floor cannot be used by any of the sets that are left, so the moment a set is
+finished the search drops all of them from `avail` — which shrinks the scan at every node below,
+and sharpens the counting tests and the seed's component test into the bargain.
+
+One vertex of `H` whose class has not been started yet drops the least to zero, and the scan stops
+as soon as it meets one.  That is the common case, and it is what makes the floor affordable at
+every `stop`: two list lookups and out. -/
+def poolFloor (rank : G.V → ℕ) (pairs : List (H.V × H.V)) (done : List (H.V × List G.V)) :
+    List (H.V × ℕ) → List H.V → ℕ
+  | _, [] => 0
+  | seen, [z] => stepFloor rank pairs done seen z
+  | seen, z :: w :: t =>
+    let m := stepFloor rank pairs done seen z
+    if m == 0 then 0 else min m (poolFloor rank pairs done ((z, m) :: seen) (w :: t))
+
+variable {rank : G.V → ℕ} {pairs : List (H.V × H.V)} {done : List (H.V × List G.V)}
+  {l : H.V → List G.V}
+
+/-- **The floor is a floor.**  In a model whose classes are sorted, the set of `z` starts no
+earlier than `stepFloor` says, as long as everything `seen` carries is a floor for the vertex it
+belongs to: the step from there to `z` is a pair, and `hsym` makes `minRank` increase along it. -/
+theorem stepFloor_le (hsym : ∀ p ∈ pairs, minRank rank (l p.1) ≤ minRank rank (l p.2))
+    (hdone : ∀ q ∈ done, q.2 = l q.1) {seen : List (H.V × ℕ)}
+    (hseen : ∀ w ∈ seen, w.2 ≤ minRank rank (l w.1)) (z : H.V) :
+    stepFloor rank pairs done seen z ≤ minRank rank (l z) := by
+  rw [stepFloor]
+  split
+  · exact Nat.zero_le _
+  · rename_i p hp
+    have hpz : p.2 = z := by simpa using List.find?_some hp
+    have hle : minRank rank (l p.1) ≤ minRank rank (l z) :=
+      hpz ▸ hsym p (List.mem_of_find?_eq_some hp)
+    split
+    · rename_i q hq
+      have hq1 : q.1 = p.1 := by simpa using List.find?_some hq
+      rw [hdone q (List.mem_of_find?_eq_some hq), hq1]
+      exact hle
+    · split
+      · rename_i w hw
+        have h := hseen w (List.mem_of_find?_eq_some hw)
+        rw [show w.1 = p.1 by simpa using List.find?_some hw] at h
+        exact le_trans h hle
+      · exact Nat.zero_le _
+
+/-- **The pool floor is a floor for all of them**, so the search may keep only the vertices above
+it. -/
+theorem poolFloor_le (hsym : ∀ p ∈ pairs, minRank rank (l p.1) ≤ minRank rank (l p.2))
+    (hdone : ∀ q ∈ done, q.2 = l q.1) :
+    ∀ {seen : List (H.V × ℕ)}, (∀ w ∈ seen, w.2 ≤ minRank rank (l w.1)) →
+      ∀ {xs : List H.V} {y : H.V}, y ∈ xs →
+        poolFloor rank pairs done seen xs ≤ minRank rank (l y)
+  | _, hseen, [z], y, hy => by
+    rw [poolFloor, List.mem_singleton.mp hy]
+    exact stepFloor_le hsym hdone hseen z
+  | seen, hseen, z :: w :: t, y, hy => by
+    have hz := stepFloor_le hsym hdone hseen (l := l) z
+    rw [poolFloor]
+    split
+    · exact Nat.zero_le _
+    · rcases List.mem_cons.mp hy with rfl | hy
+      · exact le_trans (min_le_left ..) hz
+      · refine le_trans (min_le_right ..) (poolFloor_le hsym hdone ?_ hy)
+        rintro w' hw'
+        rcases List.mem_cons.mp hw' with rfl | hw'
+        · exact hz
+        · exact hseen w' hw'
+
+/-- Keep only the vertices of the pool that clear the floor.  A floor of zero keeps all of them,
+and the search says so rather than walking the pool to find it out: that walk is over everything
+left of the host, and it would be paid at every `stop`. -/
+def trimPool (rank : G.V → ℕ) (fl : ℕ) (avail : List G.V) : List G.V :=
+  if fl == 0 then avail else avail.filter fun u ↦ decide (fl ≤ rank u)
+
+theorem mem_trimPool {rank : G.V → ℕ} {fl : ℕ} {avail : List G.V} {u : G.V} (hu : u ∈ avail)
+    (hfl : fl ≤ rank u) : u ∈ trimPool rank fl avail := by
+  rw [trimPool]
+  split
+  · exact hu
+  · exact List.mem_filter.mpr ⟨hu, decide_eq_true hfl⟩
+
+theorem trimPool_sublist (rank : G.V → ℕ) (fl : ℕ) (avail : List G.V) :
+    (trimPool rank fl avail).Sublist avail := by
+  rw [trimPool]
+  split
+  · exact List.Sublist.refl _
+  · exact List.filter_sublist
 
 end Symmetry
 
@@ -1098,6 +1246,18 @@ def attHit (att : Option (H.V × List G.V)) (v : G.V) : Bool :=
 
 theorem attOf_eq_attHit (x : H.V) (done : List (H.V × List G.V)) (v : G.V) :
     attOf H G x done v = attHit H G (attTo H G x done) v := rfl
+
+/-- What `attHit` runs. -/
+def attHitFast (att : Option (H.V × List G.V)) (v : G.V) : Bool :=
+  match att with
+  | none => true
+  | some q => anyAdj G v q.2
+
+@[csimp] theorem attHit_eq_attHitFast : @attHit = @attHitFast := by
+  funext H G att v
+  cases att with
+  | none => rfl
+  | some q => exact (anyAdj_eq G v q.2).symm
 
 /-- Is a branch set started at `v` still worth pursuing?  Everything a set of `x`'s neighbour has
 to do it has to do inside `CGraph.seedReach`, the component of `v` in what is left, since it must
@@ -1155,6 +1315,61 @@ With `ind = false` this is the constant `true` and the search is the plain minor
 def indPick (ind : Bool) (x : H.V) (v : G.V) (done : List (H.V × List G.V)) : Bool :=
   !ind || done.all fun q ↦ H.Adj x q.1 || !q.2.any (G.Adj v)
 
+/-- What `indPick` runs. -/
+def indPickFast (ind : Bool) (x : H.V) (v : G.V) (done : List (H.V × List G.V)) : Bool :=
+  !ind || done.all fun q ↦ H.Adj x q.1 || !anyAdj G v q.2
+
+@[csimp] theorem indPick_eq_indPickFast : @indPick = @indPickFast := by
+  funext H G ind x v done
+  rw [indPick, indPickFast]
+  simp only [anyAdj_eq]
+
+/-- The counting tests a finished branch set has to pass, asked of what symmetry breaking leaves
+of the pool: there has to be room for every set still to come, and every finished set needs one
+vertex of its own next to a *different* leftover vertex for each of its neighbours still to come.
+
+The trim is computed here, and not at the call, so that a `stop` the cheaper tests reject never
+pays for it. -/
+def poolOk (todo : List H.V) (done : List (H.V × List G.V)) (avail : List G.V) : Bool :=
+  let pool := trimPool rank (poolFloor rank pairs done [] todo) avail
+  decide (todo.length ≤ pool.length) &&
+    done.all fun q ↦ decide (todo.countP (H.Adj q.1) ≤ pool.countP fun u ↦ q.2.any (G.Adj u))
+
+/-- `k ≤ l.countP p`, stopping as soon as `k` of them are found.  What `poolOk` compares is
+one-sided — it never wants the count, only whether the pool clears a bar — and the bar is the
+number of neighbours a finished set still has to place, which is small and often zero.  At zero
+the scan does not start. -/
+def atLeastP {α : Type} (p : α → Bool) : ℕ → List α → Bool
+  | 0, _ => true
+  | _ + 1, [] => false
+  | k + 1, a :: l => if p a then atLeastP p k l else atLeastP p (k + 1) l
+
+theorem atLeastP_eq {α : Type} (p : α → Bool) (l : List α) :
+    ∀ k : ℕ, atLeastP p k l = decide (k ≤ l.countP p) := by
+  induction l with
+  | nil => intro k; cases k <;> simp [atLeastP]
+  | cons a l ih =>
+    intro k
+    cases k with
+    | zero => simp [atLeastP]
+    | succ k =>
+      rw [atLeastP, List.countP_cons]
+      cases p a
+      · rw [if_neg (by simp), ih]; simp
+      · rw [if_pos (by simp), ih]; simp
+
+/-- What `poolOk` runs: the same two tests, with the counting one stopped as soon as it is
+decided and the inner scan closure-free. -/
+def poolOkFast (todo : List H.V) (done : List (H.V × List G.V)) (avail : List G.V) : Bool :=
+  let pool := trimPool rank (poolFloor rank pairs done [] todo) avail
+  decide (todo.length ≤ pool.length) &&
+    done.all fun q ↦ atLeastP (fun u ↦ anyAdj G u q.2) (todo.countP (H.Adj q.1)) pool
+
+@[csimp] theorem poolOk_eq_poolOkFast : @poolOk = @poolOkFast := by
+  funext H G rank pairs todo done avail
+  rw [poolOk, poolOkFast]
+  simp only [atLeastP_eq, anyAdj_eq]
+
 /-- Make a move, or report that it is illegal. -/
 def step (m : Move G) (st : State H G) : Option (State H G) :=
   match m with
@@ -1181,13 +1396,11 @@ def step (m : Move G) (st : State H G) : Option (State H G) :=
   | .stop =>
     match st.cur with
     | some (x, S) =>
+      let done := (x, S) :: st.done
       if st.done.all (fun p ↦ !H.Adj x p.1 || linked G S p.2) &&
-          decide (st.todo.length ≤ st.avail.length) &&
-          decide (st.todo.countP (H.Adj x) ≤ st.avail.countP fun u ↦ S.any (G.Adj u)) &&
-          st.done.all (fun q ↦
-            decide (st.todo.countP (H.Adj q.1) ≤ st.avail.countP fun u ↦ q.2.any (G.Adj u))) &&
-          symOk rank pairs x S st.done then
-        some ⟨st.todo, none, (x, S) :: st.done, st.avail⟩
+          poolOk H G rank pairs st.todo done st.avail then
+        some ⟨st.todo, none, done,
+          trimPool rank (poolFloor rank pairs done [] st.todo) st.avail⟩
       else none
     | none => if st.todo.isEmpty then some st else none
 
@@ -1231,9 +1444,9 @@ def candListFast (st : State H G) : List (State H G) :=
       let ru := rank u
       let fl := symFloor rank pairs x st.done
       st.avail.filterMap fun v ↦
-        if decide (fl ≤ rank v) && (u :: T).any (G.Adj v) &&
+        if decide (fl ≤ rank v) && anyAdj G v (u :: T) &&
             (!attHit H G att v || decide (rlast ≤ rank v)) &&
-            (decide (ru ≤ rank v) || !T.any (G.Adj v)) &&
+            (decide (ru ≤ rank v) || !anyAdj G v T) &&
             indPick H G ind x v st.done then
           some ⟨st.todo, some (x, v :: u :: T), st.done, st.avail.erase v⟩
         else none
@@ -1275,7 +1488,7 @@ private theorem and_perm₄ (a b c d : Bool) : (a && b && c && d) = (c && a && d
   | some (x, u :: T), todo =>
     refine List.filterMap_congr fun v hv ↦ ?_
     rw [step, if_pos (List.contains_iff_mem.mpr hv)]
-    simp only [attOf_eq_attHit, symOk_eq_symFloor_le, minRank_singleton]
+    simp only [attOf_eq_attHit, symOk_eq_symFloor_le, minRank_singleton, anyAdj_eq]
     rw [and_perm₅]
   | none, [] =>
     refine List.filterMap_eq_nil_iff.mpr fun v _ ↦ ?_
@@ -1804,10 +2017,23 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
   obtain ⟨r, hr, hlen, hhead⟩ := trace_picks rank pairs ind (l x) st hcur htodo
     (by rw [hdone, attOf_eq l hl hhsnd hpre]; exact hch x) hfeas hsymv hindv
     (hnd x) (hsub x (List.mem_cons_self ..)) hav
-  have havail : ∀ y ∈ xs, ∀ v ∈ l y, v ∈ eraseAll G st.avail (l x) := by
+  have hdone' : ∀ q ∈ (x, l x) :: st.done, q.2 = l q.1 := by
+    intro q hq
+    rcases List.mem_cons.mp hq with rfl | hq
+    · rfl
+    · obtain ⟨y, -, rfl⟩ := List.mem_map.mp (hdone ▸ hq)
+      rfl
+  -- Every set still to come starts above the pool floor, so dropping the pool below it loses
+  -- nothing — and every count below is asked of the smaller pool.
+  have havail : ∀ y ∈ xs, ∀ v ∈ l y, v ∈ trimPool rank
+      (poolFloor rank pairs ((x, l x) :: st.done) [] xs) (eraseAll G st.avail (l x)) := by
     intro y hy v hv
+    refine mem_trimPool ?_ (le_trans (poolFloor_le hsym hdone' (by simp) hy) (minRank_le hv))
     refine (mem_eraseAll G hav _ v).mpr ⟨hsub y (List.mem_cons_of_mem _ hy) v hv, ?_⟩
     exact not_mem_l l f hl (by rintro rfl; exact (List.nodup_cons.mp hxs).1 hy) hv
+  have hndav : (trimPool rank (poolFloor rank pairs ((x, l x) :: st.done) [] xs)
+      (eraseAll G st.avail (l x))).Nodup :=
+    (nodup_eraseAll G hav _).sublist (trimPool_sublist ..)
   have hc1 : st.done.all (fun q ↦ !H.Adj x q.1 || linked G (l x) q.2) = true := by
     rw [hdone, List.all_eq_true]
     intro q hq
@@ -1815,45 +2041,36 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
     cases hadj : H.Adj x y
     · simp
     · simp [linked_l l f hl hadj]
-  have hsubperm : (xs.flatMap l).Subperm (eraseAll G st.avail (l x)) := by
+  have hsubperm : (xs.flatMap l).Subperm (trimPool rank
+      (poolFloor rank pairs ((x, l x) :: st.done) [] xs) (eraseAll G st.avail (l x))) := by
     refine (nodup_flatMap l f hl hnd (List.Nodup.of_cons hxs)).subperm ?_
     intro v hv
     obtain ⟨y, hy, hv⟩ := List.mem_flatMap.mp hv
     exact havail y hy v hv
-  have hc2 : xs.length ≤ (eraseAll G st.avail (l x)).length :=
+  have hc2 : xs.length ≤ (trimPool rank (poolFloor rank pairs ((x, l x) :: st.done) [] xs)
+      (eraseAll G st.avail (l x))).length :=
     le_trans (length_le_flatMap l hcc xs) hsubperm.length_le
-  -- Each vertex of `H` still to come that is next to `x` puts a *different* vertex of its own
-  -- branch set next to `x`'s, so there must be at least that many left over to go round.
-  have hc3 : xs.countP (H.Adj x) ≤
-      (eraseAll G st.avail (l x)).countP (fun u ↦ (l x).any (G.Adj u)) :=
-    le_trans (countP_le_flatMap l f hl x xs) (List.Subperm.countP_le _ hsubperm)
-  -- The same count for the sets already finished.  It was asked of each of them when *it* was
-  -- finished, but both sides have shrunk since, so it is worth asking again.
-  have hc3' : st.done.all (fun q ↦ decide (xs.countP (H.Adj q.1) ≤
-      (eraseAll G st.avail (l x)).countP (fun u ↦ q.2.any (G.Adj u)))) = true := by
-    rw [hdone, List.all_eq_true]
+  -- Each vertex of `H` still to come that is next to a finished set puts a *different* vertex of
+  -- its own branch set next to it, so there must be at least that many left over to go round.
+  -- For the sets finished earlier the count was asked when *they* were finished, but both sides
+  -- have shrunk since, so it is worth asking again.
+  have hc3 : ((x, l x) :: st.done).all (fun q ↦ decide (xs.countP (H.Adj q.1) ≤
+      (trimPool rank (poolFloor rank pairs ((x, l x) :: st.done) [] xs)
+        (eraseAll G st.avail (l x))).countP (fun u ↦ q.2.any (G.Adj u)))) = true := by
+    rw [List.all_eq_true]
     intro q hq
-    obtain ⟨y, -, rfl⟩ := List.mem_map.mp hq
+    obtain ⟨y, rfl⟩ : ∃ y, (y, l y) = q := by
+      rcases List.mem_cons.mp hq with rfl | hq
+      · exact ⟨x, rfl⟩
+      · obtain ⟨y, -, rfl⟩ := List.mem_map.mp (hdone ▸ hq)
+        exact ⟨y, rfl⟩
     exact decide_eq_true
       (le_trans (countP_le_flatMap l f hl y xs) (List.Subperm.countP_le _ hsubperm))
-  have hc4 : symOk rank pairs x (l x) st.done = true := by
-    rw [symOk, List.all_eq_true]
-    intro q hq
-    simp only [Bool.or_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not,
-      List.all_eq_true, decide_eq_true_eq]
-    by_cases hqx : q.2 = x
-    · refine Or.inr fun r hr ↦ ?_
-      obtain ⟨y, -, rfl⟩ := List.mem_map.mp (hdone ▸ hr)
-      by_cases hy : y = q.1
-      · refine Or.inr ?_
-        rw [← hqx]
-        exact hy ▸ hsym q hq
-      · exact Or.inl hy
-    · exact Or.inl hqx
-  refine ⟨((), ⟨xs, none, (x, l x) :: st.done, eraseAll G st.avail (l x)⟩) :: r, ?_,
-    by simp [hlen], ⟨rfl, rfl, by rw [hdone]; rfl, havail, nodup_eraseAll G hav _⟩⟩
+  refine ⟨((), ⟨xs, none, (x, l x) :: st.done, trimPool rank
+      (poolFloor rank pairs ((x, l x) :: st.done) [] xs) (eraseAll G st.avail (l x))⟩) :: r, ?_,
+    by simp [hlen], ⟨rfl, rfl, by rw [hdone]; rfl, havail, hndav⟩⟩
   rw [blockOf, trace, hr, Option.bind_some, hhead, step]
-  simp only [hc1, hc2, hc3, hc3', hc4, decide_true, Bool.and_true, if_pos]
+  simp only [poolOk, hc1, hc2, hc3, decide_true, Bool.and_true, if_pos]
   rfl
 
 include f hl hnd hcc hhsnd hch hsym hind in
