@@ -484,7 +484,8 @@ theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
 theorem autCount_mul_le_autCount_join (G H : CGraph) :
     G.autCount * H.autCount ≤ (G ∇g H).autCount := by
   have h := autCount_mul_le_autCount_disjUnion Gᶜ Hᶜ
-  rwa [autCount_compl, autCount_compl, ← autCount_compl (Gᶜ ⊕g Hᶜ)] at h
+  rw [autCount_compl, autCount_compl, ← autCount_compl (Gᶜ ⊕g Hᶜ)] at h
+  rwa [join_eq_compl_disjUnion]
 
 /-- Two copies of the same graph can also be exchanged, which doubles the bound. -/
 @[toIsoGraph]

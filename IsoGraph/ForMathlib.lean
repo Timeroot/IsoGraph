@@ -9,6 +9,7 @@ import IsoGraph.ForMathlib.Nat
 import IsoGraph.ForMathlib.Perm
 import IsoGraph.ForMathlib.QuadraticChar
 import IsoGraph.ForMathlib.SimpleGraph
+import IsoGraph.ForMathlib.Sym2
 import IsoGraph.ForMathlib.ZMod
 
 /-!
@@ -23,9 +24,10 @@ The modules are grouped by subject: `Nat`, `ZMod` and `Bits` for arithmetic and 
 `List` and `Array` for the containers the canonical form runs on, `Decide` and `Perm` for two
 small odds-and-ends, `Hamming` for the Boolean corner of `hammingDist` that the cube families
 run on, `QuadraticChar` for the character sums behind the Paley graphs, `Matrix` and
-`Analysis` for the spectral computations, and `SimpleGraph` for the graph facts themselves —
-chiefly that every invariant Mathlib defines is invariant under `SimpleGraph.Iso`, which is the
-one lemma family here that the rest of the library leans on everywhere.
+`Analysis` for the spectral computations, `Sym2` for a decision procedure on unordered pairs that
+does not search the type, and `SimpleGraph` for the graph facts themselves — chiefly that every
+invariant Mathlib defines is invariant under `SimpleGraph.Iso`, which is the one lemma family
+here that the rest of the library leans on everywhere.
 
 Nothing in this folder imports anything from `IsoGraph`, so the dependency runs one way only.
 -/

@@ -222,7 +222,7 @@ theorem edgeChromNum_kneser_ge {n k : ℕ} (hk : 1 ≤ k) (hn : 2 * k ≤ n)
 
 /-- `K(7, 3)` is `4`-regular on `35` vertices, so it needs at least five edge colours. -/
 theorem edgeChromNum_kneser_seven_three_ge : 5 ≤ (kneser 7 3).edgeChromNum := by
-  have h := edgeChromNum_kneser_ge (n := 7) (k := 3) (by norm_num) (by norm_num) (by decide)
+  have h := edgeChromNum_kneser_ge (n := 7) (k := 3) (by norm_num) (by norm_num) (by decide +kernel)
   norm_num at h
   omega
 
@@ -245,7 +245,8 @@ theorem edgeChromNum_johnson_ge {n k : ℕ} (hk : 1 ≤ k) (hkn : k < n)
 
 /-- `J(7, 3)` is `12`-regular on `35` vertices. -/
 theorem edgeChromNum_johnson_seven_three_ge : 13 ≤ (johnson 7 3).edgeChromNum := by
-  have h := edgeChromNum_johnson_ge (n := 7) (k := 3) (by norm_num) (by norm_num) (by decide)
+  have h := edgeChromNum_johnson_ge (n := 7) (k := 3) (by norm_num) (by norm_num)
+    (by decide +kernel)
   norm_num at h
   omega
 
@@ -810,8 +811,8 @@ misses the two opposite it. -/
   rw [show (paley 5 : IsoGraph) = ⟦CGraph.paley 5⟧ from rfl, domNum_mk]
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({0, 2} : Finset (Fin 5)))) (by decide)) (by decide)
-  · have := CGraph.one_lt_domNum (CGraph.paley 5) (by decide) (by decide)
+      (s := (({0, 2} : Finset (Fin 5)))) (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.one_lt_domNum (CGraph.paley 5) (by decide +kernel) (by decide +kernel)
     omega
 
 set_option maxRecDepth 100000 in
@@ -821,8 +822,8 @@ leave room for a dominating pair, and there is none, but `{0, 2, 7}` does domina
   rw [show (paley 13 : IsoGraph) = ⟦CGraph.paley 13⟧ from rfl, domNum_mk]
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({0, 2, 7} : Finset (Fin 13)))) (by decide)) (by decide)
-  · have := CGraph.two_lt_domNum (CGraph.paley 13) (by decide) (by decide)
+      (s := (({0, 2, 7} : Finset (Fin 13)))) (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.two_lt_domNum (CGraph.paley 13) (by decide +kernel) (by decide +kernel)
     omega
 
 set_option maxRecDepth 100000 in
@@ -835,8 +836,8 @@ that search is cubic. -/
   rw [show (paley 17 : IsoGraph) = ⟦CGraph.paley 17⟧ from rfl, domNum_mk]
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({0, 3, 6} : Finset (Fin 17)))) (by decide)) (by decide)
-  · have := CGraph.two_lt_domNum (CGraph.paley 17) (by decide) (by decide)
+      (s := (({0, 3, 6} : Finset (Fin 17)))) (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.two_lt_domNum (CGraph.paley 17) (by decide +kernel) (by decide +kernel)
     omega
 
 /-- A cycle with pendant paths attached contains a cycle, so its girth is at least three. -/
@@ -983,8 +984,8 @@ set_option maxRecDepth 100000 in
   have hle : (ladder 3).domNum ≤ 2 := by
     rw [show (ladder 3 : IsoGraph) = ⟦CGraph.ladder 3⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({((0 : Fin 3), (0 : Fin 2)), (2, 1)}) : Finset (Fin 3 × Fin 2))) (by decide))
-      (by decide)
+      (s := (({((0 : Fin 3), (0 : Fin 2)), (2, 1)}) : Finset (Fin 3 × Fin 2))) (by decide +kernel))
+      (by decide +kernel)
   have hge := le_domNum_ladder 0
   norm_num at hge
   omega
@@ -997,8 +998,8 @@ whichever pair is chosen, some vertex escapes. -/
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 4), (0 : Fin 2)), (1, 1), (3, 0)}) : Finset (Fin 4 × Fin 2)))
-      (by decide)) (by decide)
-  · have := CGraph.two_lt_domNum (CGraph.ladder 4) (by decide) (by decide)
+      (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.two_lt_domNum (CGraph.ladder 4) (by decide +kernel) (by decide +kernel)
     omega
 
 set_option maxRecDepth 100000 in
@@ -1007,8 +1008,8 @@ set_option maxRecDepth 100000 in
   have hle : (ladder 5).domNum ≤ 3 := by
     rw [show (ladder 5 : IsoGraph) = ⟦CGraph.ladder 5⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2))) (by decide))
-      (by decide)
+      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2)))
+      (by decide +kernel)) (by decide +kernel)
   have hge := le_domNum_ladder 2
   norm_num at hge
   omega
@@ -1020,8 +1021,8 @@ set_option maxRecDepth 100000 in
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 6), (0 : Fin 2)), (2, 1), (3, 0), (5, 1)}) : Finset (Fin 6 × Fin 2)))
-      (by decide)) (by decide)
-  · have := CGraph.three_lt_domNum (CGraph.ladder 6) (by decide) (by decide)
+      (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.three_lt_domNum (CGraph.ladder 6) (by decide +kernel) (by decide +kernel)
     omega
 
 set_option maxRecDepth 100000 in
@@ -1031,7 +1032,7 @@ set_option maxRecDepth 100000 in
     rw [show (ladder 7 : IsoGraph) = ⟦CGraph.ladder 7⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 7), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 7 × Fin 2)))
-      (by decide)) (by decide)
+      (by decide +kernel)) (by decide +kernel)
   have hge := le_domNum_ladder 4
   norm_num at hge
   omega
@@ -1042,8 +1043,8 @@ set_option maxRecDepth 100000 in
   have hle : (prism 3).domNum ≤ 2 := by
     rw [show (prism 3 : IsoGraph) = ⟦CGraph.prism 3⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({((0 : Fin 3), (0 : Fin 2)), (1, 1)}) : Finset (Fin 3 × Fin 2))) (by decide))
-      (by decide)
+      (s := (({((0 : Fin 3), (0 : Fin 2)), (1, 1)}) : Finset (Fin 3 × Fin 2))) (by decide +kernel))
+      (by decide +kernel)
   have hge := le_domNum_prism 0
   norm_num at hge
   omega
@@ -1059,8 +1060,8 @@ the two are not isomorphic. -/
   have hle : (prism 5).domNum ≤ 3 := by
     rw [show (prism 5 : IsoGraph) = ⟦CGraph.prism 5⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
-      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2))) (by decide))
-      (by decide)
+      (s := (({((0 : Fin 5), (0 : Fin 2)), (2, 1), (4, 0)}) : Finset (Fin 5 × Fin 2)))
+      (by decide +kernel)) (by decide +kernel)
   have hge := le_domNum_prism 2
   norm_num at hge
   omega
@@ -1073,8 +1074,8 @@ prism has no perfect dominating set. -/
   refine Nat.le_antisymm ?_ ?_
   · exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 6), (0 : Fin 2)), (2, 1), (3, 0), (5, 1)}) : Finset (Fin 6 × Fin 2)))
-      (by decide)) (by decide)
-  · have := CGraph.three_lt_domNum (CGraph.prism 6) (by decide) (by decide)
+      (by decide +kernel)) (by decide +kernel)
+  · have := CGraph.three_lt_domNum (CGraph.prism 6) (by decide +kernel) (by decide +kernel)
     omega
 
 set_option maxRecDepth 100000 in
@@ -1084,7 +1085,7 @@ set_option maxRecDepth 100000 in
     rw [show (prism 7 : IsoGraph) = ⟦CGraph.prism 7⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 7), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 7 × Fin 2)))
-      (by decide)) (by decide)
+      (by decide +kernel)) (by decide +kernel)
   have hge := le_domNum_prism 4
   norm_num at hge
   omega
@@ -1097,7 +1098,7 @@ neighbourhoods of four, no overlap. -/
     rw [show (prism 8 : IsoGraph) = ⟦CGraph.prism 8⟧ from rfl, domNum_mk]
     exact le_trans (CGraph.domNum_le_card_of_isDominatingSet
       (s := (({((0 : Fin 8), (0 : Fin 2)), (2, 1), (4, 0), (6, 1)}) : Finset (Fin 8 × Fin 2)))
-      (by decide)) (by decide)
+      (by decide +kernel)) (by decide +kernel)
   have hge := le_domNum_prism 5
   norm_num at hge
   omega

@@ -1,7 +1,9 @@
+import IsoGraph.ForMathlib.Bits
 import IsoGraph.ForMathlib.Decide
 import IsoGraph.ForMathlib.Nat
 import IsoGraph.ForMathlib.Perm
 import IsoGraph.ForMathlib.QuadraticChar
+import IsoGraph.ForMathlib.Sym2
 import IsoGraph.ForMathlib.ZMod
 import IsoGraph.Invariants.Basic
 import Mathlib.Algebra.BigOperators.Fin
@@ -95,12 +97,113 @@ theorem eq_ofRel (G : CGraph) (r : G.V → G.V → Bool)
     exact Bool.eq_false_iff.2 (G.loopless x)
   · rw [h x y hxy]; simp [hxy]
 
+/-! ### Graphs from an edge list
+
+An edge list is the wrong shape to *query*: answering "is `i` next to `j`?" by scanning it is
+linear in the number of edges, and every proof about such a graph asks the question a quadratic
+number of times.  So `ofEdges` transposes the list into an adjacency matrix, once, and each query
+is then a shift and a bit test.  For the kernel — which has hardware arithmetic for `Nat` — that is
+worth about a factor of eight.
+
+The matrix is a single number, and not the one bitmask per vertex a program would use.  The kernel
+evaluates a term once and remembers the value, but it remembers it against *that* term: a row
+`rows.getD i 0` names the vertex it belongs to, so each of the `n²` queries asks about a different
+term and rebuilds a row from the edge list.  `edgeMask n es` names no vertex, is therefore the same
+term in every query, and is built once.
+
+Compiled code keeps the scan; see `ofEdgesImpl`. -/
+
+/-- Both orientations of every edge. -/
+def symEdges (es : List (ℕ × ℕ)) : List (ℕ × ℕ) := es ++ es.map Prod.swap
+
+theorem mem_symEdges {es : List (ℕ × ℕ)} {a b : ℕ} :
+    (a, b) ∈ symEdges es ↔ ((a, b) ∈ es ∨ (b, a) ∈ es) := by
+  simp only [symEdges, List.mem_append, List.mem_map, Prod.exists, Prod.swap_prod_mk,
+    Prod.mk.injEq]
+  constructor
+  · rintro (h | ⟨x, y, h, rfl, rfl⟩)
+    · exact Or.inl h
+    · exact Or.inr h
+  · rintro (h | h)
+    · exact Or.inl h
+    · exact Or.inr ⟨b, a, h, rfl, rfl⟩
+
+/-- The adjacency matrix of an edge list, as a single bitmask: the bit at `i * n + j` says whether
+`i` and `j` are joined.  Endpoints outside `0, …, n-1` are dropped, so that a stray large endpoint
+cannot make the mask enormous, and so are self-loops, so that no query has to check for them.
+
+The bit is set with a shift rather than with `2 ^ (i * n + j)`, which is the same number: the
+elaborator refuses to evaluate a power whose exponent is over `exponentiation.threshold`, and an
+exponent here is as large as `n²`. -/
+def edgeMask (n : ℕ) (es : List (ℕ × ℕ)) : ℕ :=
+  (symEdges es).foldl
+    (fun m e ↦ if decide (e.1 ≠ e.2) && decide (e.1 < n) && decide (e.2 < n)
+      then m ||| 1 <<< (e.1 * n + e.2) else m) 0
+
+theorem testBit_edgeMask (n : ℕ) (es : List (ℕ × ℕ)) {i j : ℕ} (hi : i < n) (hj : j < n) :
+    (edgeMask n es).testBit (i * n + j)
+      = (decide (i ≠ j) && (decide ((i, j) ∈ es) || decide ((j, i) ∈ es))) := by
+  have hpair : ∀ {a b c d : ℕ}, b < n → d < n → a * n + b = c * n + d → a = c ∧ b = d := by
+    intro a b c d hb hd h
+    have hbd : b = d := by
+      have h2 : (a * n + b) % n = (c * n + d) % n := by rw [h]
+      rwa [Nat.mul_add_mod_of_lt hb, Nat.mul_add_mod_of_lt hd] at h2
+    subst hbd
+    exact ⟨Nat.eq_of_mul_eq_mul_right (Nat.lt_of_le_of_lt (Nat.zero_le b) hb)
+      (Nat.add_right_cancel h), rfl⟩
+  rw [edgeMask]
+  simp only [Nat.one_shiftLeft]
+  rw [testBit_foldl_or (α := ℕ × ℕ) (f := fun e ↦ e.1 * n + e.2)
+      (p := fun e ↦ decide (e.1 ≠ e.2) && decide (e.1 < n) && decide (e.2 < n)),
+    Nat.zero_testBit, Bool.false_or, Bool.eq_iff_iff]
+  simp only [List.any_eq_true, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq]
+  constructor
+  · rintro ⟨⟨a, b⟩, he, ⟨⟨hne, -⟩, hlt⟩, heq⟩
+    obtain ⟨rfl, rfl⟩ := hpair hlt hj heq
+    exact ⟨hne, mem_symEdges.1 he⟩
+  · rintro ⟨hne, hmem⟩
+    exact ⟨(i, j), mem_symEdges.2 hmem, ⟨⟨hne, hi⟩, hj⟩, rfl⟩
+
+/-- The same for a pair of vertices: the range checks come for free, and the two are distinct
+exactly when their numbers are. -/
+theorem testBit_edgeMask_fin (n : ℕ) (es : List (ℕ × ℕ)) (u v : Fin n) :
+    (edgeMask n es).testBit (u.1 * n + v.1)
+      = (decide (u ≠ v) && (decide ((u.1, v.1) ∈ es) || decide ((v.1, u.1) ∈ es))) := by
+  rw [testBit_edgeMask n es u.2 v.2, decide_eq_decide.2 Fin.val_ne_iff]
+
 /-- A `CGraph` on `Fin n` from a list of edges, given as pairs of numbers. -/
-def ofEdges (n : ℕ) (es : List (ℕ × ℕ)) : CGraph :=
-  ofRel (Fin n) fun i j ↦ es.contains (i.1, j.1)
+def ofEdges (n : ℕ) (es : List (ℕ × ℕ)) : CGraph where
+  V := Fin n
+  Adj i j := (edgeMask n es).testBit (i.1 * n + j.1)
+  symm i j := by
+    rw [testBit_edgeMask n es i.2 j.2, testBit_edgeMask n es j.2 i.2, decide_ne_comm i.1 j.1,
+      Bool.or_comm]
+  loopless i := by rw [testBit_edgeMask n es i.2 i.2]; simp
 
 @[simp] theorem card_ofEdges (n : ℕ) (es : List (ℕ × ℕ)) :
     FinEnum.card (ofEdges n es).V = n := rfl
+
+theorem ofEdges_adj (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es).V) :
+    (ofEdges n es).Adj u v =
+      (decide (u ≠ v) && (es.contains (u.1, v.1) || es.contains (v.1, u.1))) :=
+  (testBit_edgeMask_fin n es u v).trans (by congr <;> simp)
+
+/-- The mask is only a faster spelling of the scan. -/
+theorem ofEdges_eq_ofRel (n : ℕ) (es : List (ℕ × ℕ)) :
+    ofEdges n es = ofRel (Fin n) fun i j ↦ es.contains (i.1, j.1) :=
+  eq_ofRel _ _ fun x y hxy ↦ by rw [ofEdges_adj]; simp [hxy]
+
+/-- **The runtime spelling of `ofEdges`**: scan the edge list, do not build a mask.
+
+The named graphs are `abbrev`s, so the compiler inlines their bodies and rebuilds the graph at
+every use; the mask would then be rebuilt once per adjacency query, which is far worse than the
+scan it replaces.  The kernel has no such problem — it builds the mask once — so `ofEdges` keeps it
+and `csimp` hands the compiler this version instead. -/
+def ofEdgesImpl (n : ℕ) (es : List (ℕ × ℕ)) : CGraph :=
+  ofRel (Fin n) fun i j ↦ es.contains (i.1, j.1)
+
+@[csimp] theorem ofEdges_eq_ofEdgesImpl : @ofEdges = @ofEdgesImpl :=
+  funext fun n ↦ funext fun es ↦ ofEdges_eq_ofRel n es
 
 /-- The edgeless graph on `n` vertices. -/
 @[toIsoGraph]
@@ -318,9 +421,30 @@ instance (n : ℕ) : Nonempty (complete (n + 1)).V := inferInstanceAs (Nonempty 
 @[simp] theorem equiv_complete_symm (n : ℕ) (i : Fin n) :
     (FinEnum.equiv (α := (complete n).V)).symm i = i := rfl
 
-/-- The join: a disjoint union together with every edge between the two parts. -/
-def join (G H : CGraph) : CGraph :=
-  (Gᶜ ⊕g Hᶜ)ᶜ
+/-- The join: a disjoint union together with every edge between the two parts.
+
+Written directly rather than as `(Gᶜ ⊕g Hᶜ)ᶜ`, which is what a join *is* but not a way to ask
+whether two vertices are adjacent: each of the three complements tests a vertex equality, and the
+two inner ones are tested again inside the outer one, so a query walks the `Sum` four times over
+where one match settles it.  Joins nest — a complete multipartite graph is a join of joins — and
+each layer multiplied that cost.  `join_eq_compl_disjUnion` says the two agree. -/
+def join (G H : CGraph) : CGraph where
+  V := G.V ⊕ H.V
+  Adj x y :=
+    match x, y with
+    | .inl a, .inl c => G.Adj a c
+    | .inr b, .inr d => H.Adj b d
+    | _, _ => true
+  symm x y := by
+    cases x <;> cases y
+    · exact G.symm _ _
+    · rfl
+    · rfl
+    · exact H.symm _ _
+  loopless x := by
+    cases x with
+    | inl a => exact G.loopless a
+    | inr b => exact H.loopless b
 
 @[inherit_doc] infixl:60 " ∇g " => CGraph.join
 
@@ -328,28 +452,39 @@ def join (G H : CGraph) : CGraph :=
     FinEnum.card (G ∇g H).V = FinEnum.card G.V + FinEnum.card H.V := rfl
 
 @[simp] theorem join_adj_inl_inl (G H : CGraph) (a c : G.V) :
-    (G ∇g H).Adj (.inl a) (.inl c) = G.Adj a c := by
-  by_cases h : a = c
-  · subst h
-    simp [join, G.loopless a]
-  · have hne : (Sum.inl a : G.V ⊕ H.V) ≠ Sum.inl c := fun h' ↦ h (Sum.inl.inj h')
-    simp [join, h, hne]
+    (G ∇g H).Adj (.inl a) (.inl c) = G.Adj a c := rfl
 
 @[simp] theorem join_adj_inr_inr (G H : CGraph) (b d : H.V) :
-    (G ∇g H).Adj (.inr b) (.inr d) = H.Adj b d := by
-  by_cases h : b = d
-  · subst h
-    simp [join, H.loopless b]
-  · have hne : (Sum.inr b : G.V ⊕ H.V) ≠ Sum.inr d := fun h' ↦ h (Sum.inr.inj h')
-    simp [join, h, hne]
+    (G ∇g H).Adj (.inr b) (.inr d) = H.Adj b d := rfl
 
 @[simp] theorem join_adj_inl_inr (G H : CGraph)
-    (a : G.V) (d : H.V) : (G ∇g H).Adj (.inl a) (.inr d) = true := by
-  simp [join]
+    (a : G.V) (d : H.V) : (G ∇g H).Adj (.inl a) (.inr d) = true := rfl
 
 @[simp] theorem join_adj_inr_inl (G H : CGraph)
-    (b : H.V) (c : G.V) : (G ∇g H).Adj (.inr b) (.inl c) = true := by
-  simp [join]
+    (b : H.V) (c : G.V) : (G ∇g H).Adj (.inr b) (.inl c) = true := rfl
+
+/-- The join is the complement of the disjoint union of the complements: what a join is, though
+not how `join` is written. -/
+theorem join_eq_compl_disjUnion (G H : CGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := by
+  refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
+  show (G ∇g H).Adj x y = (decide (x ≠ y) && !(Gᶜ ⊕g Hᶜ).Adj x y)
+  cases x with
+  | inl a =>
+    cases y with
+    | inl c =>
+      rcases eq_or_ne a c with rfl | h
+      · simp [G.loopless a]
+      · simp [h]
+        exact fun _ h' ↦ h (Sum.inl.inj h')
+    | inr d => simp
+  | inr b =>
+    cases y with
+    | inl c => simp
+    | inr d =>
+      rcases eq_or_ne b d with rfl | h
+      · simp [H.loopless b]
+      · simp [h]
+        exact fun _ h' ↦ h (Sum.inr.inj h')
 
 /-! ## Paths, cycles and theta graphs -/
 
@@ -689,20 +824,24 @@ identity about `^hg` is this lemma plus a reindexing. -/
 /-- The line graph: one vertex per edge of `G`, two of them adjacent when the edges meet.
 
 Every edge meets itself, so the diagonal has to go; the meeting relation is symmetric as it
-stands. -/
+stands.  "The edges meet" is `Sym2.meet` and not the `∃ v, v ∈ e ∧ v ∈ f` of `lineGraph_adj`,
+which would have the kernel search the vertex type for the shared endpoint rather than compare
+the four that are there; and it comes first, because it is the cheaper of the two tests and the
+one that usually fails. -/
 def lineGraph (G : CGraph) : CGraph where
   V := {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}
-  Adj e f := decide (e ≠ f) && decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V))
-  symm e f := by
-    rw [decide_ne_comm e f]
-    congr 1
-    exact decide_eq_decide.2 ⟨fun ⟨v, h1, h2⟩ => ⟨v, h2, h1⟩, fun ⟨v, h1, h2⟩ => ⟨v, h2, h1⟩⟩
+  Adj e f := Sym2.meet (e.1 : Sym2 G.V) f.1 && decide (e ≠ f)
+  symm e f := by rw [Sym2.meet_comm, decide_ne_comm e f]
   loopless e := by simp
 
 @[simp] theorem lineGraph_adj (G : CGraph)
     (e f : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) :
     (lineGraph G).Adj e f
-      = (decide (e ≠ f) && decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V))) := rfl
+      = (decide (e ≠ f) && decide (∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V))) := by
+  show (Sym2.meet (e.1 : Sym2 G.V) f.1 && decide (e ≠ f)) = _
+  rw [Bool.and_comm]
+  congr 1
+  rw [Bool.eq_iff_iff, Sym2.meet_iff, decide_eq_true_eq]
 
 theorem lineGraph_eq_ofRel (G : CGraph) :
     lineGraph G = ofRel {e : Sym2 G.V // e ∈ G.toSimple.edgeSet} fun e f ↦

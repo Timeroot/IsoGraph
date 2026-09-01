@@ -219,11 +219,9 @@ theorem paley13Col_proper : ∀ u v w : (paley 13).V, (paley 13).Adj u v = true 
 
 /-! ## The Petersen graph is class two
 
-The Petersen graph is cubic, so Vizing gives `χ' ≤ 4`; the table `pet10ColTable` realises that
-bound.  For the lower bound the fifteen edges are listed as `petEdge 0, …, petEdge 14` and the
-thirty adjacencies of the line graph between them are checked once, by `native_decide`; then
-`petSearch` — an exhaustive `3 ^ 15` case split, again by `native_decide` — says no assignment of
-three colours to those fifteen edges avoids all thirty conflicts. -/
+The Petersen graph is cubic, so Vizing gives `χ' ≤ 4`, and the table `pet10ColTable` realises that
+bound.  The lower bound is a SAT refutation on the line graph — see `four_le_edgeChromNum_petersen`
+in `IsoGraph/SmallGraphs/Operators.lean`. -/
 
 def petVerts : List (kneser 5 2).V :=
   (List.range 32).filterMap fun m ↦
@@ -232,45 +230,6 @@ def petVerts : List (kneser 5 2).V :=
     else none
 
 def petVert0 : (kneser 5 2).V := ⟨{0, 1}, by decide⟩
-
-def petVert1 : (kneser 5 2).V := ⟨{2, 3}, by decide⟩
-
-def petEdge0 : (lineGraph (kneser 5 2)).V := ⟨s(petVert0, petVert1), by decide⟩
-
-/-- The fifteen edges of the Petersen graph, as vertices of its line graph. -/
-def petEdgeList : List (lineGraph (kneser 5 2)).V :=
-  petVerts.zipIdx.flatMap fun p ↦ petVerts.zipIdx.filterMap fun q ↦
-    if h : p.2 < q.2 ∧ s(p.1, q.1) ∈ (kneser 5 2).toSimple.edgeSet then some ⟨_, h.2⟩ else none
-
-def petEdge (i : ℕ) : (lineGraph (kneser 5 2)).V := petEdgeList.getD i petEdge0
-
-theorem petEdgeAdj : ∀ p ∈ petPairs,
-    (lineGraph (kneser 5 2)).Adj (petEdge p.1) (petEdge p.2) = true := by
-  native_decide
-
-theorem petersen_no_three_colouring (col : (lineGraph (kneser 5 2)).V → Fin 3) :
-    ∃ e f, (lineGraph (kneser 5 2)).Adj e f = true ∧ col e = col f := by
-  by_contra hcon
-  push Not at hcon
-  exact petSearch (col (petEdge 0)) (col (petEdge 1)) (col (petEdge 2)) (col (petEdge 3))
-    (col (petEdge 4)) (col (petEdge 5)) (col (petEdge 6)) (col (petEdge 7)) (col (petEdge 8))
-    (col (petEdge 9)) (col (petEdge 10)) (col (petEdge 11)) (col (petEdge 12)) (col (petEdge 13))
-    (col (petEdge 14))
-    ⟨hcon _ _ (petEdgeAdj (0, 1) (by decide)), hcon _ _ (petEdgeAdj (0, 2) (by decide)),
-      hcon _ _ (petEdgeAdj (0, 13) (by decide)), hcon _ _ (petEdgeAdj (0, 14) (by decide)),
-      hcon _ _ (petEdgeAdj (1, 2) (by decide)), hcon _ _ (petEdgeAdj (1, 10) (by decide)),
-      hcon _ _ (petEdgeAdj (1, 12) (by decide)), hcon _ _ (petEdgeAdj (2, 5) (by decide)),
-      hcon _ _ (petEdgeAdj (2, 8) (by decide)), hcon _ _ (petEdgeAdj (3, 4) (by decide)),
-      hcon _ _ (petEdgeAdj (3, 5) (by decide)), hcon _ _ (petEdgeAdj (3, 11) (by decide)),
-      hcon _ _ (petEdgeAdj (3, 12) (by decide)), hcon _ _ (petEdgeAdj (4, 5) (by decide)),
-      hcon _ _ (petEdgeAdj (4, 9) (by decide)), hcon _ _ (petEdgeAdj (4, 14) (by decide)),
-      hcon _ _ (petEdgeAdj (5, 8) (by decide)), hcon _ _ (petEdgeAdj (6, 7) (by decide)),
-      hcon _ _ (petEdgeAdj (6, 8) (by decide)), hcon _ _ (petEdgeAdj (6, 9) (by decide)),
-      hcon _ _ (petEdgeAdj (6, 10) (by decide)), hcon _ _ (petEdgeAdj (7, 8) (by decide)),
-      hcon _ _ (petEdgeAdj (7, 11) (by decide)), hcon _ _ (petEdgeAdj (7, 13) (by decide)),
-      hcon _ _ (petEdgeAdj (9, 10) (by decide)), hcon _ _ (petEdgeAdj (9, 14) (by decide)),
-      hcon _ _ (petEdgeAdj (10, 12) (by decide)), hcon _ _ (petEdgeAdj (11, 12) (by decide)),
-      hcon _ _ (petEdgeAdj (11, 13) (by decide)), hcon _ _ (petEdgeAdj (13, 14) (by decide))⟩
 
 def pet10Idx (s : (kneser 5 2).V) : ℕ :=
   pet10Masks.findIdx (fun m ↦ m == (s.1.sum fun i ↦ 2 ^ i.1))
@@ -318,8 +277,8 @@ theorem petIdx_map_ne (f : kneser 5 2 ≃cg kneser 5 2) {i j : Fin 10} (hij : i 
   have h2 : petAt i = petAt j := f.injective h1
   rw [← petIdx_petAt i, ← petIdx_petAt j, h2]
 
--- As in `petSearch`: the six nested binders build a deep `Decidable` instance, which needs the
--- `maxSize` wall.  The search runs as compiled code and costs 6 856 heartbeats.
+-- The six nested binders build a deep `Decidable` instance, which is what the `maxSize` wall is
+-- for.  The search runs as compiled code and costs 6 856 heartbeats.
 set_option maxRecDepth 100000 in
 set_option synthInstance.maxSize 1000000 in
 /-- **The stabiliser of a `3`-arc in the Petersen graph is trivial**, as a search over the six

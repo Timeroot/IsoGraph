@@ -1234,15 +1234,11 @@ theorem edgeChromNum_paley_thirteen : (paley 13).edgeChromNum = 7 := by
     norm_num at h
     exact h
 
-/-- **The Petersen graph is a snark**: it is cubic but not `3`-edge-colourable. -/
+/-- **The Petersen graph is a snark**: it is cubic but not `3`-edge-colourable.  Three colours are
+ruled out on the fifteen vertices of the line graph, by a SAT refutation. -/
 theorem four_le_edgeChromNum_petersen : 4 ≤ petersen.edgeChromNum := by
-  rw [edgeChromNum_eq, show (petersen : IsoGraph) = ⟦CGraph.kneser 5 2⟧ from rfl, lineGraph_mk,
-    chromNum_mk]
-  by_contra hcon
-  push Not at hcon
-  obtain ⟨C⟩ := CGraph.chromNum_le_iff_colorable.1 (Nat.lt_succ_iff.1 hcon)
-  obtain ⟨e, f, hadj, heq⟩ := CGraph.petersen_no_three_colouring C
-  exact C.valid (by simpa using hadj) heq
+  show 3 < petersen.edgeChromNum
+  graph_sat native
 
 /-- **The chromatic index of the Petersen graph is four.** -/
 @[simp] theorem edgeChromNum_petersen : petersen.edgeChromNum = 4 := by

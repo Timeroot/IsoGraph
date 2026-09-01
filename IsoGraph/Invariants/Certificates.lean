@@ -14,8 +14,7 @@ turns a *finite, checkable witness* into one of those statements:
 * a list of vertices that closes up into a cycle bounds the girth from above
   (`girth_le_of_cycleList`), and forbids acyclicity (`not_isAcyclic_of_cycleList`);
 * a neighbour table with no short closed walk in it bounds the girth from below
-  (`five_le_girth_of_nbrList` up to `twelve_le_girth_of_nbrList`), by unfolding the search over
-  cycles of length below the bound into nested quantifiers over the table;
+  (`le_girth_of_nbrList`), by searching the table for one;
 * a closed walk of odd length, or a triangle, forbids a two-colouring
   (`not_isBipartite_of_odd_walk`, `not_isBipartite_of_triangle`);
 * a constant degree sequence is regularity (`isRegularWith_of_degSequence`);
@@ -30,8 +29,8 @@ side conditions are decidable statements about concrete data.
 Girth is the delicate one, and it is handled in two halves.  An upper bound needs a single cycle,
 produced from a list of vertices by `exists_cycle_of_cycleList`.  A lower bound needs the absence
 of every shorter cycle; `le_girth_of_forall_cycleList` reduces that to a statement about lists of
-vertices, and the `_le_girth_of_nbrList` family then reduces *that* to nested membership tests in
-a neighbour table, one lemma per bound because the number of nested quantifiers grows with it.
+vertices, and `le_girth_of_nbrList` reduces *that* to `cycleSearch`, a depth-first search of a
+neighbour table that a single `native_decide` runs to exhaustion.
 -/
 
 set_option autoImplicit false
@@ -479,6 +478,18 @@ theorem not_isAcyclic_of_cycleList {G : CGraph} (u : G.V) (vs : List G.V)
   obtain ⟨_, _, hw, _⟩ := exists_cycle_of_cycleList u vs h2 hnd hch hcl
   exact not_isAcyclic_of_isCycle hw
 
+/-- **Both halves of a cycle list at once**: the girth bound and the cycle.  A girth is an
+antisymmetry between the two, and giving the list twice means checking it twice — for the graphs
+below, three `native_decide`s twice over.  The graph is explicit, unlike everywhere else in this
+file: a conjunction is usually destructured without an expected type, and then nothing else in the
+arguments says which graph the vertices belong to. -/
+theorem girth_le_and_not_isAcyclic_of_cycleList (G : CGraph) (u : G.V) (vs : List G.V)
+    (h2 : 2 ≤ vs.length) (hnd : (u :: vs).Nodup)
+    (hch : List.IsChain (fun x y ↦ G.Adj x y) (u :: vs)) (hcl : G.Adj (vs.getLastD u) u) :
+    G.girth ≤ vs.length + 1 ∧ ¬ G.IsAcyclic := by
+  obtain ⟨_, w, hw, hl⟩ := exists_cycle_of_cycleList u vs h2 hnd hch hcl
+  exact ⟨hl ▸ girth_le_length hw, not_isAcyclic_of_isCycle hw⟩
+
 /-- **A graph with a cycle but no short cycle list has large girth.** -/
 theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
     (h : ∀ (u : G.V) (vs : List G.V), 2 ≤ vs.length → vs.length + 1 < L → (u :: vs).Nodup →
@@ -493,407 +504,84 @@ theorem le_girth_of_forall_cycleList {G : CGraph} {L : ℕ}
     · exact_mod_cast hge
   exact ENat.toNat_le_toNat hle (SimpleGraph.egirth_eq_top.not.2 hnac)
 
-/-- **One more rung on the girth ladder**: a graph with girth at least `L` and no cycle list of
-length exactly `L` has girth at least `L + 1`.  Anything shorter than `L` is excluded by
-`girth_le_of_cycleList` against `hprev`, so only the new length has to be ruled out. -/
-private theorem le_girth_succ {G : CGraph} {L : ℕ} (hnac : ¬ G.IsAcyclic) (hprev : L ≤ G.girth)
-    (hnew : ∀ (u : G.V) (vs : List G.V), vs.length + 1 = L → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u → False) :
-    L + 1 ≤ G.girth := by
+/-- **A depth-first search for a short cycle through `a`**, walking the neighbour list `nb`.
+`path` is the walk so far, in reverse, so its head is where the search has got to and `a` is where
+it has to close up; `fuel` bounds the steps left, so the cycles found are those of length at most
+`fuel`.
+
+The search refuses to revisit a vertex.  Nothing is lost by that — a cycle has distinct vertices —
+and it is what keeps the search cheap: on a cubic graph the branching factor drops from three to
+two, which at the lengths the cages below need is the difference between minutes and hours. -/
+def cycleSearch {G : CGraph} (nb : G.V → List G.V) (a : G.V) : ℕ → List G.V → Bool
+  | 0, _ => false
+  | fuel + 1, path =>
+    (nb (path.headD a)).any fun v =>
+      if v = a then decide (2 ≤ path.length)
+      else if v ∈ path then false
+      else cycleSearch nb a fuel (v :: path)
+
+private theorem cycleSearch_succ {G : CGraph} (nb : G.V → List G.V) (a : G.V) (fuel : ℕ)
+    (path : List G.V) :
+    cycleSearch nb a (fuel + 1) path =
+      (nb (path.headD a)).any fun v =>
+        if v = a then decide (2 ≤ path.length)
+        else if v ∈ path then false
+        else cycleSearch nb a fuel (v :: path) := rfl
+
+/-- **The search finds every cycle list it has the fuel for.**  The induction is on the part of
+the walk still to come, carrying the part already walked as `path`, in reverse; the first step of
+the search is the case `path = []`, where the head is `a` itself. -/
+private theorem cycleSearch_of_cycleList {G : CGraph} {nb : G.V → List G.V}
+    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b) (a : G.V) :
+    ∀ (rest : List G.V) (fuel : ℕ) (path : List G.V), rest.length + 1 ≤ fuel →
+      2 ≤ path.length + rest.length → (a :: (path ++ rest)).Nodup →
+      List.IsChain (fun x y ↦ G.Adj x y) (path.headD a :: rest) →
+      G.Adj (rest.getLastD (path.headD a)) a → cycleSearch nb a fuel path = true := by
+  intro rest
+  induction rest with
+  | nil =>
+    intro fuel path hf h2 _ _ hcl
+    obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 1 := ⟨fuel - 1, by omega⟩
+    rw [cycleSearch_succ, List.any_eq_true]
+    exact ⟨a, (hnb _ _).2 (by simpa using hcl), by simp; omega⟩
+  | cons w rest' ih =>
+    intro fuel path hf h2 hnd hch hcl
+    obtain ⟨f, rfl⟩ : ∃ f, fuel = f + 1 := ⟨fuel - 1, by simp at hf; omega⟩
+    have hnd' : (a :: (w :: path ++ rest')).Nodup := ((List.perm_middle.cons a).nodup_iff).1 hnd
+    have hwa : ¬ w = a := fun h ↦ (List.nodup_cons.1 hnd').1 (by simp [h])
+    have hwp : w ∉ path := by
+      have := (List.nodup_cons.1 hnd').2
+      simp only [List.cons_append, List.nodup_cons, List.mem_append, not_or] at this
+      exact this.1.1
+    rw [List.isChain_cons_cons] at hch
+    rw [cycleSearch_succ, List.any_eq_true]
+    refine ⟨w, (hnb _ _).2 hch.1, ?_⟩
+    simp only [hwa, if_false, hwp]
+    refine ih f (w :: path) (by simp at hf ⊢; omega) (by simp at h2 ⊢; omega) hnd' ?_ ?_
+    · simpa using hch.2
+    · rw [List.getLastD_cons] at hcl; exact hcl
+
+/-- **Girth at least `L` from a neighbour list.**  `nb` is a list of neighbours of each vertex —
+in practice a precomputed table, which is what makes the search below cheap — and the hypothesis
+says that no cycle of length less than `L` closes up anywhere in it.  A graph with a cycle and no
+cycle that short has girth at least `L`.
+
+One `native_decide`, at every `L`.  The alternative is to unfold the search into `L` nested
+quantifiers over the table and let the elaborator state them, and that is the expensive way round:
+the searches are a second's work either way, but each level of quantifier costs a `Fintype` and a
+`DecidableEq` over the vertex type, and by the twelfth those instances are the compile time.  The
+girth of the Tutte 12-cage took a hundred and sixteen seconds that way, and three this way. -/
+theorem le_girth_of_nbrList {G : CGraph} {nb : G.V → List G.V} (L : ℕ)
+    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
+    (h : ∀ a : G.V, cycleSearch nb a (L - 1) [] = false)
+    (hnac : ¬ G.IsAcyclic) : L ≤ G.girth := by
+  rcases Nat.eq_zero_or_pos L with rfl | hL
+  · exact Nat.zero_le _
   refine le_girth_of_forall_cycleList (fun u vs h2 hlt hnd hch hcl ↦ ?_) hnac
-  have hge := girth_le_of_cycleList u vs h2 hnd hch hcl
-  exact hnew u vs (by omega) hnd hch hcl
-
-/-- No cycle list of length `3`, read off the neighbour lists. -/
-private theorem no_cycleList_three {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 3 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, t⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h3 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2)) ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `4`, read off the neighbour lists. -/
-private theorem no_cycleList_four {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 4 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, t⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h4 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2))
-    ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `5`, read off the neighbour lists. -/
-private theorem no_cycleList_five {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 5 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, t⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h5 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2)) ⟨(hnb
-    _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `6`, read off the neighbour lists. -/
-private theorem no_cycleList_six {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 6 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, t⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h6 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `7`, read off the neighbour lists. -/
-private theorem no_cycleList_seven {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 7 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, t⟩⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h7 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `8`, read off the neighbour lists. -/
-private theorem no_cycleList_eight {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
-      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 8 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, t⟩⟩⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h8 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.1)) h (mem_erase_of_ne_of_mem
-    (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.2))
-    ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `9`, read off the neighbour lists. -/
-private theorem no_cycleList_nine {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h9 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g,
-      ¬ (a ∈ nb i ∧ [a, b, c, d, e, f, g, h, i].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 9 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, _ | ⟨i, t⟩⟩⟩⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h9 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.1)) h (mem_erase_of_ne_of_mem
-    (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.1)) i (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.2.2)) ⟨(hnb _
-    _).2 hcl, hnd⟩
-
-/-- No cycle list of length `10`, read off the neighbour lists. -/
-private theorem no_cycleList_ten {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h10 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ∀ f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g, ∀ j ∈
-      (nb i).erase h,
-      ¬ (a ∈ nb j ∧ [a, b, c, d, e, f, g, h, i, j].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 10 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, _ | ⟨i, _ | ⟨j, t⟩⟩⟩⟩⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h10 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.1)) h (mem_erase_of_ne_of_mem
-    (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.1)) i (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.2.2.1)) j
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- No cycle list of length `11`, read off the neighbour lists. -/
-private theorem no_cycleList_eleven {G : CGraph} {nb : G.V → List G.V}
-    (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h11 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ∀ f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g, ∀ j ∈
-      (nb i).erase h, ∀ k ∈ (nb j).erase i,
-      ¬ (a ∈ nb k ∧ [a, b, c, d, e, f, g, h, i, j, k].Nodup)) :
-    ∀ (u : G.V) (vs : List G.V), vs.length + 1 = 11 → (u :: vs).Nodup →
-      List.IsChain (fun x y ↦ G.Adj x y) (u :: vs) → G.Adj (vs.getLastD u) u →
-      False := by
-  intro u vs hlen hnd hch hcl
-  rcases vs with _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | ⟨g, _ | ⟨h, _ | ⟨i, _ | ⟨j, _ |
-    ⟨k, t⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
-  all_goals simp only [List.length_cons, List.length_nil] at hlen
-  all_goals try omega
-  obtain rfl : t = [] := List.eq_nil_of_length_eq_zero (by omega)
-  simp only [List.isChain_cons_cons, List.isChain_singleton, and_true] at hch
-  exact h11 u b ((hnb _ _).2 hch.1) c (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd) ((hnb _ _).2
-    hch.2.1)) d (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons) ((hnb _ _).2 hch.2.2.1)) e
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.1)) f
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.1)) g (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.1)) h (mem_erase_of_ne_of_mem
-    (ne_of_nodup_cons₂ hnd.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.1)) i (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2 hch.2.2.2.2.2.2.2.1)) j
-    (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.2.2.1)) k (mem_erase_of_ne_of_mem (ne_of_nodup_cons₂
-    hnd.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons.of_cons) ((hnb _ _).2
-    hch.2.2.2.2.2.2.2.2.2)) ⟨(hnb _ _).2 hcl, hnd⟩
-
-/-- **Girth at least five** from a neighbour list, as `six_le_girth_of_nbrList` at length
-five. -/
-theorem five_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 5 ≤ G.girth :=
-  le_girth_succ hnac (le_girth_succ hnac (three_le_girth hnac)
-    (no_cycleList_three hnb h3)) (no_cycleList_four hnb h4)
-
-/-- **Girth at least six from a neighbour list.**  `nb` is a list of neighbours of each vertex —
-in practice a precomputed table, which is what makes the search below cheap — and the hypotheses
-say that no closed walk of three, four or five steps along it has distinct vertices.  A graph with
-a cycle and no such short cycle has girth at least six.
-
-Each step after the first erases the previous vertex from the neighbour list, which is sound
-because the walk is required to have distinct vertices and cuts the branching factor of the search
-from the degree to the degree minus one — a factor of two per step on a cubic graph, which is the
-difference between minutes and hours at the lengths the cages below need. -/
-theorem six_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 6 ≤ G.girth :=
-  le_girth_succ hnac (five_le_girth_of_nbrList hnb h3 h4 hnac)
-    (no_cycleList_five hnb h5)
-
-/-- **Girth at least seven** from a neighbour list, as `six_le_girth_of_nbrList` at length
-seven. -/
-theorem seven_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 7 ≤ G.girth :=
-  le_girth_succ hnac (six_le_girth_of_nbrList hnb h3 h4 h5 hnac)
-    (no_cycleList_six hnb h6)
-
-/-- **Girth at least eight** from a neighbour list, as `six_le_girth_of_nbrList` at length
-eight. -/
-theorem eight_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 8 ≤ G.girth :=
-  le_girth_succ hnac (seven_le_girth_of_nbrList hnb h3 h4 h5 h6 hnac)
-    (no_cycleList_seven hnb h7)
-
-/-- **Girth at least nine** from a neighbour list, as `six_le_girth_of_nbrList` at length
-nine. -/
-theorem nine_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
-    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
-      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 9 ≤ G.girth :=
-  le_girth_succ hnac (eight_le_girth_of_nbrList hnb h3 h4 h5 h6 h7 hnac)
-    (no_cycleList_eight hnb h8)
-
-/-- **Girth at least ten** from a neighbour list, as `six_le_girth_of_nbrList` at length
-ten. -/
-theorem ten_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
-    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
-      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
-    (h9 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g,
-      ¬ (a ∈ nb i ∧ [a, b, c, d, e, f, g, h, i].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 10 ≤ G.girth :=
-  le_girth_succ hnac (nine_le_girth_of_nbrList hnb h3 h4 h5 h6 h7 h8 hnac)
-    (no_cycleList_nine hnb h9)
-
-/-- **Girth at least eleven** from a neighbour list, as `six_le_girth_of_nbrList` at length
-eleven. -/
-theorem eleven_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
-    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
-      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
-    (h9 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g,
-      ¬ (a ∈ nb i ∧ [a, b, c, d, e, f, g, h, i].Nodup))
-    (h10 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ∀ f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g, ∀ j ∈
-      (nb i).erase h,
-      ¬ (a ∈ nb j ∧ [a, b, c, d, e, f, g, h, i, j].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 11 ≤ G.girth :=
-  le_girth_succ hnac (ten_le_girth_of_nbrList hnb h3 h4 h5 h6 h7 h8 h9 hnac)
-    (no_cycleList_ten hnb h10)
-
-/-- **Girth at least twelve** from a neighbour list, as `six_le_girth_of_nbrList` at length
-twelve. -/
-theorem twelve_le_girth_of_nbrList {G : CGraph}
-    {nb : G.V → List G.V} (hnb : ∀ a b : G.V, b ∈ nb a ↔ G.Adj a b)
-    (h3 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a,
-      ¬ (a ∈ nb c ∧ [a, b, c].Nodup))
-    (h4 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b,
-      ¬ (a ∈ nb d ∧ [a, b, c, d].Nodup))
-    (h5 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ¬ (a ∈ nb e ∧ [a, b, c, d, e].Nodup))
-    (h6 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d,
-      ¬ (a ∈ nb f ∧ [a, b, c, d, e, f].Nodup))
-    (h7 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e,
-      ¬ (a ∈ nb g ∧ [a, b, c, d, e, f, g].Nodup))
-    (h8 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f,
-      ¬ (a ∈ nb h ∧ [a, b, c, d, e, f, g, h].Nodup))
-    (h9 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c, ∀
-      f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g,
-      ¬ (a ∈ nb i ∧ [a, b, c, d, e, f, g, h, i].Nodup))
-    (h10 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ∀ f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g, ∀ j ∈
-      (nb i).erase h,
-      ¬ (a ∈ nb j ∧ [a, b, c, d, e, f, g, h, i, j].Nodup))
-    (h11 : ∀ a : G.V, ∀ b ∈ nb a, ∀ c ∈ (nb b).erase a, ∀ d ∈ (nb c).erase b, ∀ e ∈ (nb d).erase c,
-      ∀ f ∈ (nb e).erase d, ∀ g ∈ (nb f).erase e, ∀ h ∈ (nb g).erase f, ∀ i ∈ (nb h).erase g, ∀ j ∈
-      (nb i).erase h, ∀ k ∈ (nb j).erase i,
-      ¬ (a ∈ nb k ∧ [a, b, c, d, e, f, g, h, i, j, k].Nodup))
-    (hnac : ¬ G.IsAcyclic) : 12 ≤ G.girth :=
-  le_girth_succ hnac (eleven_le_girth_of_nbrList hnb h3 h4 h5 h6 h7 h8 h9 h10 hnac)
-    (no_cycleList_eleven hnb h11)
+  have hfound := cycleSearch_of_cycleList hnb u vs (L - 1) [] (by omega) (by simpa using h2)
+    (by simpa using hnd) (by simpa using hch) (by simpa using hcl)
+  rw [h u] at hfound
+  exact Bool.noConfusion hfound
 
 /-- The neighbour lists of every vertex in `l`, as a table indexed by position in `l`. -/
 def nbrTable (G : CGraph) (l : List G.V) : List (List G.V) :=

@@ -39,7 +39,6 @@ theorem girth_kneser_five_two : (kneser 5 2).girth = 5 := by
 
 @[toIsoGraph]
 theorem domNum_star (n : ℕ) : (star n).domNum = 1 := by
-  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   refine domNum_eq_one_of_universal (v := (Sum.inl 0 : Fin 1 ⊕ Fin n)) fun u hu ↦ ?_
   match u with
   | Sum.inl a => exact absurd (congrArg Sum.inl (Subsingleton.elim a (0 : Fin 1))) hu
@@ -52,7 +51,7 @@ theorem domNum_wheel (n : ℕ) : (wheel n).domNum = 1 := domNum_join_complete_on
 @[simp, toIsoGraph] theorem indepCount_bipartite (m n k : ℕ) :
     (bipartite m n).indepCount (k + 1) = m.choose (k + 1) + n.choose (k + 1) := by
   classical
-  rw [bipartite, indepCount_compl, cliqueCount_disjUnion, cliqueCount_complete,
+  rw [bipartite_eq_compl, indepCount_compl, cliqueCount_disjUnion, cliqueCount_complete,
     cliqueCount_complete]
 
 /-- A ray of a star has only one neighbour, so a vertex of `K_{1,n}` with two distinct neighbours
@@ -60,7 +59,6 @@ is the centre. -/
 theorem exists_eq_inl_of_two_neighbours {n : ℕ} {x u v : (bipartite 1 n).V} (huv : u ≠ v)
     (hu : (bipartite 1 n).Adj x u = true) (hv : (bipartite 1 n).Adj x v = true) :
     ∃ a, x = Sum.inl a := by
-  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
   rcases x with a | b
   · exact ⟨a, rfl⟩
   · exfalso
@@ -74,10 +72,9 @@ theorem exists_eq_inl_of_two_neighbours {n : ℕ} {x u v : (bipartite 1 n).V} (h
 /-- **Every automorphism of a star with at least two rays fixes the centre**, since the centre is
 the only vertex with two distinct neighbours. -/
 theorem aut_apply_inl {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2))
-    (a : (complete 1).V) : f (.inl a) = .inl a := by
-  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
+    (a : Fin 1) : f (.inl a) = .inl a := by
   obtain ⟨u, v, huv⟩ :=
-    Fintype.exists_pair_of_one_lt_card (α := (complete (n + 2)).V) (by simp)
+    Fintype.exists_pair_of_one_lt_card (α := Fin (n + 2)) (by simp)
   have hne : (Sum.inr u : (bipartite 1 (n + 2)).V) ≠ Sum.inr v := fun h ↦ huv (Sum.inr.inj h)
   obtain ⟨a', ha'⟩ := exists_eq_inl_of_two_neighbours
     (x := f (.inl a)) (u := f (Sum.inr u)) (v := f (Sum.inr v))
@@ -88,8 +85,7 @@ theorem aut_apply_inl {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 
 permutation of the rays. -/
 theorem exists_perm_of_aut {n : ℕ} (f : bipartite 1 (n + 2) ≃cg bipartite 1 (n + 2)) :
     ∃ σ : Equiv.Perm (Fin (n + 2)), f = starAut (n + 2) σ := by
-  have : Subsingleton (complete 1).V := inferInstanceAs (Subsingleton (Fin 1))
-  have hex : ∀ b : (complete (n + 2)).V, ∃ r, f (.inr b) = Sum.inr r := by
+  have hex : ∀ b : Fin (n + 2), ∃ r, f (.inr b) = Sum.inr r := by
     intro b
     rcases hb : f (.inr b) with a | r
     · exact absurd (f.injective (hb.trans (aut_apply_inl f a).symm)) (by simp)
@@ -152,18 +148,18 @@ def bipartiteAut (m n : ℕ) (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n))
 @[simp] theorem bipartiteAut_inr (m n : ℕ) (σ : Equiv.Perm (Fin m)) (τ : Equiv.Perm (Fin n))
     (b : Fin n) : bipartiteAut m n σ τ (.inr b) = .inr (τ b) := rfl
 
-theorem card_nbrs_bipartite_inl (m n : ℕ) (a : (complete m).V) :
+theorem card_nbrs_bipartite_inl (m n : ℕ) (a : Fin m) :
     ((bipartite m n).nbrs (Sum.inl a)).card = n := by
-  rw [nbrs_bipartite_inl, Finset.card_map, FinEnum.card_univ, card_complete]
+  rw [nbrs_bipartite_inl, Finset.card_map, Finset.card_fin]
 
-theorem card_nbrs_bipartite_inr (m n : ℕ) (b : (complete n).V) :
+theorem card_nbrs_bipartite_inr (m n : ℕ) (b : Fin n) :
     ((bipartite m n).nbrs (Sum.inr b)).card = m := by
-  rw [nbrs_bipartite_inr, Finset.card_map, FinEnum.card_univ, card_complete]
+  rw [nbrs_bipartite_inr, Finset.card_map, Finset.card_fin]
 
 /-- **The two sides of `K_{m,n}` cannot be exchanged when `m ≠ n`**, since they are told apart by
 the degree of their vertices. -/
 theorem bipartite_aut_inl {m n : ℕ} (hmn : m ≠ n) (f : bipartite m n ≃cg bipartite m n)
-    (a : (complete m).V) : ∃ a', f (Sum.inl a) = Sum.inl a' := by
+    (a : Fin m) : ∃ a', f (Sum.inl a) = Sum.inl a' := by
   rcases h : f (Sum.inl a) with a' | b'
   · exact ⟨a', rfl⟩
   · exfalso
@@ -172,7 +168,7 @@ theorem bipartite_aut_inl {m n : ℕ} (hmn : m ≠ n) (f : bipartite m n ≃cg b
     exact hmn h1
 
 theorem bipartite_aut_inr {m n : ℕ} (hmn : m ≠ n) (f : bipartite m n ≃cg bipartite m n)
-    (b : (complete n).V) : ∃ b', f (Sum.inr b) = Sum.inr b' := by
+    (b : Fin n) : ∃ b', f (Sum.inr b) = Sum.inr b' := by
   rcases h : f (Sum.inr b) with a' | b'
   · exfalso
     have h1 := card_nbrs_aut f (Sum.inr b)
@@ -254,7 +250,7 @@ def bipartiteSwapAut (n : ℕ) (σ τ : Equiv.Perm (Fin n)) : bipartite n n ≃c
 /-- If one left vertex of `K_{n,n}` goes left then they all do: two left vertices are
 non-adjacent, and a left and a right vertex are adjacent. -/
 theorem bipartite_self_inl_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
-    {a a' c : (complete n).V} (h : f (Sum.inl a) = Sum.inl c) :
+    {a a' c : Fin n} (h : f (Sum.inl a) = Sum.inl c) :
     ∃ c', f (Sum.inl a') = Sum.inl c' := by
   rcases ha : f (Sum.inl a') with c' | d'
   · exact ⟨c', rfl⟩
@@ -266,7 +262,7 @@ theorem bipartite_self_inl_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
 
 /-- If one left vertex of `K_{n,n}` goes right then they all do. -/
 theorem bipartite_self_inl_inr {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
-    {a a' d : (complete n).V} (h : f (Sum.inl a) = Sum.inr d) :
+    {a a' d : Fin n} (h : f (Sum.inl a) = Sum.inr d) :
     ∃ d', f (Sum.inl a') = Sum.inr d' := by
   rcases ha : f (Sum.inl a') with c' | d'
   · exfalso
@@ -277,7 +273,7 @@ theorem bipartite_self_inl_inr {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
   · exact ⟨d', rfl⟩
 
 theorem bipartite_self_inr_of_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
-    {a c : (complete n).V} (h : f (Sum.inl a) = Sum.inl c) (b : (complete n).V) :
+    {a c : Fin n} (h : f (Sum.inl a) = Sum.inl c) (b : Fin n) :
     ∃ d, f (Sum.inr b) = Sum.inr d := by
   rcases hb : f (Sum.inr b) with c' | d'
   · exfalso
@@ -288,7 +284,7 @@ theorem bipartite_self_inr_of_inl {n : ℕ} (f : bipartite n n ≃cg bipartite n
   · exact ⟨d', rfl⟩
 
 theorem bipartite_self_inl_of_inr {n : ℕ} (f : bipartite n n ≃cg bipartite n n)
-    {a d : (complete n).V} (h : f (Sum.inl a) = Sum.inr d) (b : (complete n).V) :
+    {a d : Fin n} (h : f (Sum.inl a) = Sum.inr d) (b : Fin n) :
     ∃ c, f (Sum.inr b) = Sum.inl c := by
   rcases hb : f (Sum.inr b) with c' | d'
   · exact ⟨c', rfl⟩

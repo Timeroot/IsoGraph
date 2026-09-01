@@ -18,11 +18,11 @@ open Fintype
 variable (G H : CGraph)
 
 @[simp] theorem indepNum_bipartite (m n : ℕ) : (bipartite m n).indepNum = max m n := by
-  simp only [bipartite]
-  rw [indepNum_compl, cliqueNum_disjUnion, cliqueNum_complete, cliqueNum_complete]
+  rw [bipartite_eq_compl, indepNum_compl, cliqueNum_disjUnion, cliqueNum_complete,
+    cliqueNum_complete]
 
 @[simp] theorem cliqueNum_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).cliqueNum = 2 := by
-  simp only [bipartite, cliqueNum_compl, indepNum_disjUnion, indepNum_complete]
+  simp only [bipartite_eq_compl, cliqueNum_compl, indepNum_disjUnion, indepNum_complete]
   omega
 
 /-- The supremum of a list, read through `Finset.sup` over its indices, is `List.max?`. -/
@@ -56,7 +56,8 @@ into `cliqueNum_sigmaUnion`: a clique of the disjoint union of the parts is a su
 part. -/
 @[simp] theorem indepNum_completeMultipartite (ds : List ℕ) :
     (completeMultipartite ds).indepNum = (ds.max?).getD 0 := by
-  simp only [completeMultipartite, indepNum_compl, cliqueNum_sigmaUnion, cliqueNum_complete]
+  simp only [completeMultipartite_eq_compl, indepNum_compl, cliqueNum_sigmaUnion,
+    cliqueNum_complete]
   exact sup_get_eq_max? ds _ (fun i ↦ by simp)
 
 end
@@ -572,7 +573,8 @@ theorem cliqueCount_disjUnion (G H : CGraph) (n : ℕ) :
 theorem indepCount_join (G H : CGraph) (n : ℕ) :
     (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
   classical
-  rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
+  rw [join_eq_compl_disjUnion, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl,
+    cliqueCount_compl]
 
 /-! ### Colouring the strong product -/
 
@@ -834,7 +836,7 @@ theorem le_domNum_cycle (n : ℕ) : n + 3 ≤ (cycle (n + 3)).domNum * 3 := by
 
 @[simp] theorem indepCount_join (G H : IsoGraph) (n : ℕ) :
     (G ∇g H).indepCount (n + 1) = G.indepCount (n + 1) + H.indepCount (n + 1) := by
-  rw [join, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
+  rw [join_def, indepCount_compl, cliqueCount_disjUnion, cliqueCount_compl, cliqueCount_compl]
 
 /-! ### The clique number of the Mycielskian -/
 

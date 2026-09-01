@@ -439,19 +439,23 @@ noncomputable def cycleTensorTwo (m : ℕ) :
           (⟨k.1 % 2, _⟩, ⟨k.1 % (2 * m + 3), _⟩) (⟨l.1 % 2, _⟩, ⟨l.1 % (2 * m + 3), _⟩)
         = (CGraph.cycle (2 * (2 * m + 3))).Adj k l
       have hn : 0 < 2 * m + 3 := by omega
-      have e1 := succ_mod_eq_iff (d := 2 * m + 3) (x := k.1 % (2 * m + 3))
-        (y := l.1 % (2 * m + 3)) (Nat.mod_lt _ hn)
-      have e2 := succ_mod_eq_iff (d := 2 * m + 3) (x := l.1 % (2 * m + 3))
-        (y := k.1 % (2 * m + 3)) (Nat.mod_lt _ hn)
-      have e3 := succ_mod_eq_iff (d := 2 * (2 * m + 3)) (x := k.1) (y := l.1) k.isLt
-      have e4 := succ_mod_eq_iff (d := 2 * (2 * m + 3)) (x := l.1) (y := k.1) l.isLt
-      have hk := mod_of_lt_two_mul (d := 2 * m + 3) k.isLt
-      have hl := mod_of_lt_two_mul (d := 2 * m + 3) l.isLt
+      -- `mod_of_lt_two_mul` says `k % (2m+3)` is `k` or `k - (2m+3)`, and a truncated subtraction
+      -- is another case split for `omega` on top of the eight the two sides of the `↔` already
+      -- cost; stated additively it is one equation, and the tactic is three times faster
+      have hk : k.1 % (2 * m + 3) = k.1 ∨ k.1 % (2 * m + 3) + (2 * m + 3) = k.1 := by
+        rcases mod_of_lt_two_mul (d := 2 * m + 3) k.isLt with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
+      have hl : l.1 % (2 * m + 3) = l.1 ∨ l.1 % (2 * m + 3) + (2 * m + 3) = l.1 := by
+        rcases mod_of_lt_two_mul (d := 2 * m + 3) l.isLt with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
       refine Bool.eq_iff_iff.2 ?_
       simp only [CGraph.tensorProduct_adj, CGraph.complete_adj, CGraph.cycle, CGraph.ofRel_adj,
-        Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff]
-      rw [e1, e2, e3, e4]
-      omega)
+        Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq, ne_eq, Fin.ext_iff,
+        succ_mod_eq_iff (Nat.mod_lt k.1 hn), succ_mod_eq_iff (Nat.mod_lt l.1 hn),
+        succ_mod_eq_iff k.isLt, succ_mod_eq_iff l.isLt]
+      have hk2 := Nat.mod_lt k.1 hn
+      have hl2 := Nat.mod_lt l.1 hn
+      have hkl := k.isLt
+      have hll := l.isLt
+      rcases hk with hk | hk <;> rcases hl with hl | hl <;> omega)
 
 /-! ### Matchings as circulants -/
 
@@ -669,7 +673,7 @@ on the nose, not merely isomorphisms: the edge list literally becomes the edge l
 clique or a path. -/
 
 theorem ofEdges_nil (n : ℕ) : ofEdges n [] = empty n := by
-  rw [empty_eq_ofRel]
+  rw [ofEdges_eq_ofRel, empty_eq_ofRel]
   rfl
 
 /-- Two edge lists that meet the same unordered pairs of *distinct* vertices describe the same
@@ -677,9 +681,10 @@ graph: `ofEdges` ignores the orientation of each pair, and discards the diagonal
 theorem ofEdges_congr (n : ℕ) (es fs : List (ℕ × ℕ))
     (h : ∀ p q : ℕ, p ≠ q → (((p, q) ∈ es ∨ (q, p) ∈ es) ↔ ((p, q) ∈ fs ∨ (q, p) ∈ fs))) :
     ofEdges n es = ofEdges n fs := by
+  rw [ofEdges_eq_ofRel n fs]
   refine eq_ofRel (ofEdges n es) (fun i j ↦ fs.contains (i.1, j.1)) ?_
   intro x y hxy
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     List.contains_eq_mem]
   rw [Bool.eq_iff_iff]
   simp only [Bool.or_eq_true, decide_eq_true_eq]
@@ -708,17 +713,18 @@ theorem ofEdges_append_congr (n : ℕ) (es fs gs : List (ℕ × ℕ))
 theorem ofEdges_cycleEdges (m : ℕ) : ofEdges m (cycleEdges m) = cycle m := by
   refine eq_ofRel (ofEdges m (cycleEdges m)) (fun i j ↦ (i.1 + 1) % m == j.1) ?_
   intro x y hxy
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     List.contains_eq_mem]
   rcases m with _ | k
   · exact absurd x.isLt (by omega)
   · have hx : x.1 < k + 1 := x.isLt
     have hy : y.1 < k + 1 := y.isLt
     have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
-    have e1 := succ_mod_eq_iff (d := k + 1) (x := x.1) (y := y.1) hx
-    have e2 := succ_mod_eq_iff (d := k + 1) (x := y.1) (y := x.1) hy
     rw [Bool.eq_iff_iff]
-    simp only [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq, mem_cycleEdges_succ]
+    -- the two `succ_mod_eq_iff`s go in the `simp` set rather than into hypotheses: left in the
+    -- context they are two more disjunctions for `omega` to split on, and it is ten times slower
+    simp only [Bool.or_eq_true, decide_eq_true_eq, beq_iff_eq, mem_cycleEdges_succ,
+      succ_mod_eq_iff hx, succ_mod_eq_iff hy]
     omega
 
 /-- The one-vertex "cycle" is a single loop, which `ofEdges` discards. -/
@@ -743,7 +749,7 @@ theorem ofEdges_cliqueEdges (m : ℕ) : ofEdges m (cliqueEdges m) = complete m :
   have hne : (x : Fin m).1 ≠ (y : Fin m).1 := fun h ↦ hxy (Fin.ext h)
   have hx : (x : Fin m).1 < m := x.isLt
   have hy : (y : Fin m).1 < m := y.isLt
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     List.contains_eq_mem]
   rw [Bool.eq_iff_iff]
   simp only [Bool.or_eq_true, decide_eq_true_eq, mem_cliqueEdges, or_self, iff_true]
@@ -752,7 +758,7 @@ theorem ofEdges_cliqueEdges (m : ℕ) : ofEdges m (cliqueEdges m) = complete m :
 theorem ofEdges_legEdges_one (k : ℕ) : ofEdges (1 + k) (legEdges 0 1 k) = path (1 + k) := by
   refine eq_ofRel (ofEdges (1 + k) (legEdges 0 1 k)) (fun i j ↦ i.1 + 1 == j.1) ?_
   intro x y hxy
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     legEdges_zero_one, List.contains_eq_mem]
   have hx : (x : Fin (1 + k)).1 < 1 + k := x.isLt
   have hy : (y : Fin (1 + k)).1 < 1 + k := y.isLt
@@ -763,7 +769,7 @@ theorem ofEdges_legEdges_one (k : ℕ) : ofEdges (1 + k) (legEdges 0 1 k) = path
 theorem ofEdges_legEdges_zero (k : ℕ) : ofEdges k (legEdges 0 0 k) = path k := by
   refine eq_ofRel (ofEdges k (legEdges 0 0 k)) (fun i j ↦ i.1 + 1 == j.1) ?_
   intro x y hxy
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     legEdges_zero_zero, List.contains_eq_mem]
   have hx : (x : Fin k).1 < k := x.isLt
   have hy : (y : Fin k).1 < k := y.isLt
@@ -2416,25 +2422,6 @@ def paley13ColTable : List (List ℕ) :=
    0, 4, 0, 0, 5, 0, 6, 0, 2], [0, 1, 0, 0, 0, 0, 4, 2, 0, 6, 0, 5, 0], [0, 6, 0, 0, 0, 0, 0, 1, 3,
    0, 5, 0, 4], [5, 0, 1, 0, 0, 0, 0, 0, 6, 2, 0, 4, 0]]
 
-def petPairs : List (ℕ × ℕ) :=
-  [(0, 1), (0, 2), (0, 13), (0, 14), (1, 2), (1, 10), (1, 12), (2, 5), (2, 8), (3, 4), (3, 5),
-   (3, 11), (3, 12), (4, 5), (4, 9), (4, 14), (5, 8), (6, 7), (6, 8), (6, 9), (6, 10), (7, 8),
-   (7, 11), (7, 13), (9, 10), (9, 14), (10, 12), (11, 12), (11, 13), (13, 14)]
-
--- The fifteen nested `Fin 3` binders make the `Decidable` instance a fifteen-deep tower of
--- `Nat.decEq`/`instDecidableAnd`, which is what the two walls below are for.  The `3 ^ 15` search
--- itself is compiled code and costs 1 591 heartbeats, so the default budget is ample.
-set_option maxRecDepth 100000 in
-set_option synthInstance.maxSize 1000000 in
-/-- No assignment of three colours to the fifteen edges of the Petersen graph avoids all thirty
-conflicts: an exhaustive `3 ^ 15` case split. -/
-theorem petSearch : ∀ c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 : Fin 3,
-    ¬ (c0 ≠ c1 ∧ c0 ≠ c2 ∧ c0 ≠ c13 ∧ c0 ≠ c14 ∧ c1 ≠ c2 ∧ c1 ≠ c10 ∧ c1 ≠ c12 ∧ c2 ≠ c5 ∧ c2 ≠ c8 ∧
-      c3 ≠ c4 ∧ c3 ≠ c5 ∧ c3 ≠ c11 ∧ c3 ≠ c12 ∧ c4 ≠ c5 ∧ c4 ≠ c9 ∧ c4 ≠ c14 ∧ c5 ≠ c8 ∧ c6 ≠ c7 ∧
-      c6 ≠ c8 ∧ c6 ≠ c9 ∧ c6 ≠ c10 ∧ c7 ≠ c8 ∧ c7 ≠ c11 ∧ c7 ≠ c13 ∧ c9 ≠ c10 ∧ c9 ≠ c14 ∧
-      c10 ≠ c12 ∧ c11 ≠ c12 ∧ c11 ≠ c13 ∧ c13 ≠ c14) := by
-  native_decide
-
 /-! ### A four-edge-colouring of the Petersen graph -/
 
 def pet10Masks : List ℕ := [3, 5, 6, 9, 10, 12, 17, 18, 20, 24]
@@ -2535,10 +2522,14 @@ namespace IsoGraph
 
 /-! ## The join, and the constructions built from it
 
-The `IsoGraph`-level `join`, defined as `(disjUnion Gᶜ Hᶜ)ᶜ` with no lift of its own, agrees
-with `CGraph.join`; that is `join_mk`, in `IsoGraph/Core/Quotient.lean`. -/
+A join is a disjoint union with every edge across, and so also the complement of the disjoint
+union of the complements.  Neither level takes the second as its definition — it asks four vertex
+comparisons where one match settles the question — but both satisfy it. -/
 
-theorem join_def (G H : IsoGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := rfl
+theorem join_def (G H : IsoGraph) : G ∇g H = (Gᶜ ⊕g Hᶜ)ᶜ := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [join_mk, compl_mk, compl_mk, disjUnion_mk, compl_mk, CGraph.join_eq_compl_disjUnion]
 
 end IsoGraph
 
@@ -2553,11 +2544,11 @@ theorem compl_complete (n : ℕ) : (complete n)ᶜ = empty n := by
 
 @[toIsoGraph simp]
 theorem compl_join (G H : CGraph) : (G ∇g H)ᶜ = Gᶜ ⊕g Hᶜ := by
-  rw [join, compl_compl]
+  rw [join_eq_compl_disjUnion, compl_compl]
 
 @[toIsoGraph simp]
 theorem compl_disjUnion (G H : CGraph) : (G ⊕g H)ᶜ = Gᶜ ∇g Hᶜ := by
-  rw [join, compl_compl, compl_compl]
+  rw [join_eq_compl_disjUnion, compl_compl, compl_compl]
 
 @[toIsoGraph simp empty_zero_disjUnion]
 def emptyZeroDisjUnion (G : CGraph) : empty 0 ⊕g G ≃cg G :=
@@ -2610,7 +2601,7 @@ def emptyZeroJoin (G : CGraph) : empty 0 ∇g G ≃cg G :=
 
 theorem join_complete_eq_compl (m n : ℕ) :
     complete m ∇g complete n = (empty m ⊕g empty n)ᶜ := by
-  rw [join, compl_complete, compl_complete]
+  rw [join_eq_compl_disjUnion, compl_complete, compl_complete]
 
 @[toIsoGraph simp join_complete]
 def joinComplete (m n : ℕ) : complete m ∇g complete n ≃cg complete (m + n) := by

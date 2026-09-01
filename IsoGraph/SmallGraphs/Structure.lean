@@ -19,7 +19,8 @@ open Fintype
 variable (G H : CGraph)
 
 @[simp] theorem isConnected_bipartite (m n : ℕ) : (bipartite (m + 1) (n + 1)).IsConnected := by
-  simp only [bipartite, CGraph.IsConnected, compl_toSimple]
+  rw [bipartite_eq_compl]
+  simp only [CGraph.IsConnected, compl_toSimple]
   show SimpleGraph.Connected ((complete (m + 1)).disjUnion (complete (n + 1))).toSimpleᶜ
   have : Nonempty ((complete (m + 1)).disjUnion (complete (n + 1))).V :=
     ⟨Sum.inl ⟨0, Nat.zero_lt_succ _⟩⟩
@@ -77,7 +78,7 @@ theorem diameter_join_left {G H : CGraph} [Nonempty H.V]
 the join of two edgeless graphs, and an edgeless graph on two or more vertices is not complete. -/
 @[simp] theorem diameter_bipartite (m n : ℕ) : (bipartite (m + 2) (n + 2)).diameter = 2 := by
   have : Nonempty (empty (n + 2)).V := ⟨⟨0, by omega⟩⟩
-  rw [show bipartite (m + 2) (n + 2) = empty (m + 2) ∇g empty (n + 2) from rfl]
+  rw [bipartite_eq_join]
   refine diameter_join_left ?_
   rw [E_empty, card_empty]
   exact Nat.choose_pos (by omega)

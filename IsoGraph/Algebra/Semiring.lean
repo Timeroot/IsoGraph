@@ -408,7 +408,7 @@ theorem IsoGraph.disjUnion_left_cancel {a b c : IsoGraph} (h : a ⊕g b = a ⊕g
 theorem IsoGraph.join_left_cancel {a b c : IsoGraph} (h : a ∇g b = a ∇g c) : b = c := by
   have h2 : aᶜ ⊕g bᶜ = aᶜ ⊕g cᶜ := by
     have h3 := congrArg (fun x : IsoGraph ↦ xᶜ) h
-    simpa only [join, compl_compl] using h3
+    simpa only [join_def, compl_compl] using h3
   have h4 := IsoGraph.disjUnion_left_cancel h2
   rw [← compl_compl b, h4, compl_compl]
 

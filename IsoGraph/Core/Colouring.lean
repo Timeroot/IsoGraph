@@ -320,11 +320,13 @@ variable (G H : CGraph)
 
 @[simp] theorem cliqueNum_join :
     (G ∇g H).cliqueNum = G.cliqueNum + H.cliqueNum := by
-  simp only [join, cliqueNum_compl, indepNum_disjUnion, indepNum_compl]
+  rw [join_eq_compl_disjUnion]
+  simp only [cliqueNum_compl, indepNum_disjUnion, indepNum_compl]
 
 @[simp] theorem indepNum_join :
     (G ∇g H).indepNum = max G.indepNum H.indepNum := by
-  simp only [join, indepNum_compl, cliqueNum_disjUnion, cliqueNum_compl]
+  rw [join_eq_compl_disjUnion]
+  simp only [indepNum_compl, cliqueNum_disjUnion, cliqueNum_compl]
 
 /-- **The lexicographic product multiplies independence numbers.**  It is the clique number of
 the complement, and complementation turns a lexicographic product into the lexicographic product
@@ -419,7 +421,7 @@ relation and
 
 Translating by `x` turns those two counts into the degree and the common-neighbour count, which
 is exactly `isSRGWith_of`.  The last step, `paleyIso`, identifies `paley q` — which is written on
-`Fin q` and reads its adjacency out of `qrTable` — with the field version over `ZMod q`. -/
+`Fin q` and reads its adjacency out of `qrMask` — with the field version over `ZMod q`. -/
 
 end
 
@@ -635,6 +637,24 @@ theorem cliqueNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
   show G.toSimple.cliqueNum ≤ n
   rw [← hcard]
   exact h s hs
+
+/-- **No clique of size `n + 1` bounds `ω` above.**  The refutation direction, as an exhaustive
+search: the `n + 1`-element sets of vertices are the length-`n + 1` sublists of the enumeration, so
+the hypothesis is `decide`-shaped, and `C(|V|, n + 1)` of them is a small number on a small graph.
+`graph_sat` proves the same goal by SAT, and on a graph of six vertices it is the slower of the two
+— bit-blasting and an LRAT replay cost what they cost however little there is to search. -/
+theorem cliqueNum_le_of_forall_sublistsLen {G : CGraph} {n : ℕ}
+    (h : ∀ l ∈ (FinEnum.toList G.V).sublistsLen (n + 1),
+      ¬ l.Pairwise fun u v ↦ G.Adj u v = true) : G.cliqueNum ≤ n := by
+  refine cliqueNum_le_of_forall_card_le fun s hs ↦ ?_
+  by_contra hlt
+  obtain ⟨t, hts, htc⟩ := Finset.exists_subset_card_eq (Nat.not_le.1 hlt)
+  obtain ⟨l, hl, hlf⟩ := FinEnum.exists_mem_sublistsLen G.V htc
+  refine h l hl ((List.Nodup.sublist (List.mem_sublistsLen.1 hl).1
+    G.toList_nodup).pairwise_of_forall_ne fun u hu v hv huv ↦ ?_)
+  rw [← toSimple_adj]
+  exact hs (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hu)))
+    (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hv))) huv
 
 /-- **The clique number of a disjoint union is the largest of the pieces.**  `sigmaUnion` puts no
 edge between two different fibres, so a clique lives inside one of them; conversely each fibre's
@@ -2289,6 +2309,21 @@ theorem indepNum_le_of_forall_card_le {G : CGraph} {n : ℕ}
   show G.toSimple.indepNum ≤ n
   rw [← hcard]
   exact h s hs
+
+/-- **No independent set of size `n + 1` bounds `α` above.**  The mirror of
+`cliqueNum_le_of_forall_sublistsLen`, and the refutation direction that `le_indepNum_of_nodup`
+leaves open. -/
+theorem indepNum_le_of_forall_sublistsLen {G : CGraph} {n : ℕ}
+    (h : ∀ l ∈ (FinEnum.toList G.V).sublistsLen (n + 1),
+      ¬ l.Pairwise fun u v ↦ G.Adj u v = false) : G.indepNum ≤ n := by
+  refine indepNum_le_of_forall_card_le fun s hs ↦ ?_
+  by_contra hlt
+  obtain ⟨t, hts, htc⟩ := Finset.exists_subset_card_eq (Nat.not_le.1 hlt)
+  obtain ⟨l, hl, hlf⟩ := FinEnum.exists_mem_sublistsLen G.V htc
+  refine h l hl ((List.Nodup.sublist (List.mem_sublistsLen.1 hl).1
+    G.toList_nodup).pairwise_of_forall_ne fun u hu v hv huv ↦ ?_)
+  refine Bool.eq_false_iff.2 fun hadj ↦ hs (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hu)))
+    (Finset.mem_coe.2 (hts (hlf ▸ List.mem_toFinset.2 hv))) huv ((toSimple_adj _ _ _).2 hadj)
 
 /-- In `G □ K₂` the two vertices of a column are adjacent, so `Prod.fst` is injective on any
 independent set. -/

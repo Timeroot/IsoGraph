@@ -15,10 +15,11 @@ quotient of which other.
 Every positive statement here carries its witness.  The searches of
 `Containment/Algorithms/Cached.lean` found the maps, but what is checked at compile time is the
 map: a table of vertices, a list of branch sets, a list of subdivision paths, a colouring — and
-`decide` on the finitely many conditions the witness has to meet.  So a positive statement costs
-what its *witness* costs to check, which is a handful of adjacency lookups, and not what the
-search cost to run.  The negative statements have no witness to give and stay on `native_decide`,
-where what is run is the exhausted search tree.
+`decide +kernel` on the finitely many conditions the witness has to meet, evaluating each table
+once, in the kernel, rather than once in the elaborator and again in the kernel.  So a positive
+statement costs what its *witness* costs to check, which is a handful of adjacency lookups, and
+not what the search cost to run.  The negative statements have no witness to give and stay on
+`native_decide`, where what is run is the exhausted search tree.
 
 Four kinds of statement, in order:
 
@@ -93,9 +94,9 @@ the cycle itself, listed vertex by vertex. -/
 theorem cycle_five_induced_petersen : cycle 5 ≤ᵢₛ petersen := by
   rw [petersen_eq, cycle_def]
   exact ⟨{ toFun := fun i ↦ pv ((![0, 5, 6, 2, 9] : Fin 5 → Fin 10) i)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- The Petersen graph is triangle-free. -/
 theorem not_cycle_three_subgraph_petersen : ¬ (cycle 3 ≤ₛ petersen) := by native_decide
@@ -107,9 +108,9 @@ theorem not_cycle_four_subgraph_petersen : ¬ (cycle 4 ≤ₛ petersen) := by na
 theorem cycle_six_induced_heawood : cycle 6 ≤ᵢₛ ⟦heawood⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 3, 4, 5] : Fin 6 → Fin 14)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- …and no pentagon. -/
 theorem not_cycle_five_subgraph_heawood : ¬ (cycle 5 ≤ₛ ⟦heawood⟧) := by native_decide
@@ -118,9 +119,9 @@ theorem not_cycle_five_subgraph_heawood : ¬ (cycle 5 ≤ₛ ⟦heawood⟧) := b
 theorem cycle_seven_induced_mcgee : cycle 7 ≤ᵢₛ ⟦mcgee⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 3, 4, 11, 12] : Fin 7 → Fin 24)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- …and no hexagon. -/
 theorem not_cycle_six_subgraph_mcgee : ¬ (cycle 6 ≤ₛ ⟦mcgee⟧) := by native_decide
@@ -129,9 +130,9 @@ theorem not_cycle_six_subgraph_mcgee : ¬ (cycle 6 ≤ₛ ⟦mcgee⟧) := by nat
 theorem cycle_eight_induced_tutteCoxeter : cycle 8 ≤ᵢₛ ⟦tutteCoxeter⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 3, 4, 5, 18, 17] : Fin 8 → Fin 30)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- …and no heptagon. -/
 theorem not_cycle_seven_subgraph_tutteCoxeter : ¬ (cycle 7 ≤ₛ ⟦tutteCoxeter⟧) := by native_decide
@@ -140,9 +141,9 @@ theorem not_cycle_seven_subgraph_tutteCoxeter : ¬ (cycle 7 ≤ₛ ⟦tutteCoxet
 theorem cycle_five_induced_dodecahedron : cycle 5 ≤ᵢₛ ⟦dodecahedron⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 12, 10] : Fin 5 → Fin 20)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- …and it has no square. -/
 theorem not_cycle_four_subgraph_dodecahedron : ¬ (cycle 4 ≤ₛ ⟦dodecahedron⟧) := by native_decide
@@ -151,17 +152,17 @@ theorem not_cycle_four_subgraph_dodecahedron : ¬ (cycle 4 ≤ₛ ⟦dodecahedro
 theorem cycle_eleven_induced_balaban11Cage : cycle 11 ≤ᵢₛ ⟦balaban11Cage⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 3, 4, 5, 6, 17, 16, 15, 111] : Fin 11 → Fin 112)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- The Tutte 12-cage has an induced twelve-cycle. -/
 theorem cycle_twelve_induced_tutte12Cage : cycle 12 ≤ᵢₛ ⟦tutte12Cage⟧ := by
   rw [cycle_def]
   exact ⟨{ toFun := (![0, 1, 2, 3, 4, 5, 6, 7, 20, 19, 18, 17] : Fin 12 → Fin 126)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-! ## Claws
 
@@ -173,23 +174,23 @@ witness is a vertex and its three neighbours. -/
 theorem claw_induced_petersen : ⟦claw⟧ ≤ᵢₛ petersen := by
   rw [petersen_eq]
   exact ⟨{ toFun := Sum.elim (fun _ ↦ pv 0) (fun i ↦ pv ((![5, 8, 9] : Fin 3 → Fin 10) i))
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- The Heawood graph has an induced claw. -/
 theorem claw_induced_heawood : ⟦claw⟧ ≤ᵢₛ ⟦heawood⟧ :=
   ⟨{ toFun := Sum.elim (fun _ ↦ (0 : Fin 14)) (fun i ↦ (![1, 5, 13] : Fin 3 → Fin 14) i)
-     injective' := by decide
-     map_adj' := by decide
-     adj_map' := by decide }⟩
+     injective' := by decide +kernel
+     map_adj' := by decide +kernel
+     adj_map' := by decide +kernel }⟩
 
 /-- The dodecahedron has an induced claw. -/
 theorem claw_induced_dodecahedron : ⟦claw⟧ ≤ᵢₛ ⟦dodecahedron⟧ :=
   ⟨{ toFun := Sum.elim (fun _ ↦ (0 : Fin 20)) (fun i ↦ (![1, 9, 10] : Fin 3 → Fin 20) i)
-     injective' := by decide
-     map_adj' := by decide
-     adj_map' := by decide }⟩
+     injective' := by decide +kernel
+     map_adj' := by decide +kernel
+     adj_map' := by decide +kernel }⟩
 
 /-! ## Kuratowski and Wagner
 
@@ -210,7 +211,7 @@ theorem complete_five_minor_heawood : complete 5 ≤ₘ ⟦heawood⟧ := by
   rw [complete_def]
   exact ⟨CGraph.MinorSearch.ofFinal _ _ false (FinEnum.toList (CGraph.complete 5).V)
     ⟨[], none, ([(0, [1, 0]), (1, [3, 2]), (2, [5, 4]), (3, [13, 8, 7, 6]), (4, [12, 11, 10, 9])] :
-      List (Fin 5 × List (Fin 14))), []⟩ (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+      List (Fin 5 × List (Fin 14))), []⟩ (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- The Heawood graph has a `K₃,₃` minor. -/
 theorem bipartite_three_three_minor_heawood : bipartite 3 3 ≤ₘ ⟦heawood⟧ := by
@@ -219,7 +220,7 @@ theorem bipartite_three_three_minor_heawood : bipartite 3 3 ≤ₘ ⟦heawood⟧
     ⟨[], none, ([(.inl 0, [0]), (.inl 1, [2]), (.inl 2, [10, 11, 6]),
       (.inr 0, [1]), (.inr 1, [5, 4, 3]), (.inr 2, [13, 9, 8, 7])] :
       List ((Fin 3 ⊕ Fin 3) × List (Fin 14))), []⟩
-    (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+    (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- The Grötzsch graph has a `K₅` minor. -/
 theorem complete_five_minor_grotzsch : complete 5 ≤ₘ grotzsch := by
@@ -227,7 +228,7 @@ theorem complete_five_minor_grotzsch : complete 5 ≤ₘ grotzsch := by
   exact ⟨CGraph.MinorSearch.ofFinal _ _ false (FinEnum.toList (CGraph.complete 5).V)
     ⟨[], none, ([(0, [gv 0]), (1, [gv 1]), (2, [gv 6, gv 3, gv 2]), (3, [gv 5, gv 4]),
       (4, [gv 9, gv 8, gv 10, gv 7])] : List (Fin 5 × List NamedGraphs.grotzsch.V)), []⟩
-    (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+    (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- The Grötzsch graph has a `K₃,₃` minor. -/
 theorem bipartite_three_three_minor_grotzsch : bipartite 3 3 ≤ₘ grotzsch := by
@@ -236,14 +237,14 @@ theorem bipartite_three_three_minor_grotzsch : bipartite 3 3 ≤ₘ grotzsch := 
     ⟨[], none, ([(.inl 0, [gv 0]), (.inl 1, [gv 2]), (.inl 2, [gv 5]),
       (.inr 0, [gv 1]), (.inr 1, [gv 4, gv 3]), (.inr 2, [gv 10, gv 6])] :
       List ((Fin 3 ⊕ Fin 3) × List NamedGraphs.grotzsch.V)), []⟩
-    (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+    (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- Tietze's graph has a `K₅` minor. -/
 theorem complete_five_minor_tietze : complete 5 ≤ₘ ⟦tietze⟧ := by
   rw [complete_def]
   exact ⟨CGraph.MinorSearch.ofFinal _ _ false (FinEnum.toList (CGraph.complete 5).V)
     ⟨[], none, ([(0, [1, 0]), (1, [6, 2]), (2, [11, 9, 3]), (3, [8, 10, 4]), (4, [7, 5])] :
-      List (Fin 5 × List (Fin 12))), []⟩ (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+      List (Fin 5 × List (Fin 12))), []⟩ (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- Tietze's graph has a `K₃,₃` minor. -/
 theorem bipartite_three_three_minor_tietze : bipartite 3 3 ≤ₘ ⟦tietze⟧ := by
@@ -252,7 +253,7 @@ theorem bipartite_three_three_minor_tietze : bipartite 3 3 ≤ₘ ⟦tietze⟧ :
     ⟨[], none, ([(.inl 0, [0]), (.inl 1, [4]), (.inl 2, [7, 5]),
       (.inr 0, [1]), (.inr 1, [6, 2]), (.inr 2, [10, 8, 3])] :
       List ((Fin 3 ⊕ Fin 3) × List (Fin 12))), []⟩
-    (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+    (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- **The Wagner graph is nonplanar because of `K₃,₃` alone.**  `V₈` is the Möbius–Kantor
 configuration on eight vertices, and it is the graph Wagner's theorem has to name: a nonplanar
@@ -263,7 +264,7 @@ theorem bipartite_three_three_minor_wagner : bipartite 3 3 ≤ₘ ⟦wagner⟧ :
     ⟨[], none, ([(.inl 0, [0]), (.inl 1, [2]), (.inl 2, [5]),
       (.inr 0, [1]), (.inr 1, [4, 3]), (.inr 2, [7, 6])] :
       List ((Fin 3 ⊕ Fin 3) × List (Fin 8))), []⟩
-    (fun x ↦ FinEnum.mem_toList x) (by decide)⟩
+    (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)⟩
 
 /-- …and it has no `K₅` minor, which is the point of it. -/
 theorem not_complete_five_minor_wagner : ¬ (complete 5 ≤ₘ ⟦wagner⟧) := by native_decide
@@ -314,13 +315,13 @@ theorem bipartite_three_three_topMinor_petersen : bipartite 3 3 ≤ₜₘ peters
     { ord := ord
       ord_inj := ord_inj
       f := fun x ↦ pv ((![0, 3, 4, 1, 6, 8] : Fin 6 → Fin 10) (FinEnum.equiv x))
-      f_inj := by decide
+      f_inj := by decide +kernel
       seg := fun x y ↦ (k33PetersenSeg (ord x) (ord y)).map pv
-      isWalk := by decide
-      ends := by decide
-      nodup := by decide
-      interior := by decide
-      disj := by decide }⟩
+      isWalk := by decide +kernel
+      ends := by decide +kernel
+      nodup := by decide +kernel
+      interior := by decide +kernel
+      disj := by decide +kernel }⟩
 
 /-- The paths of the `K₄` subdivision in the Petersen graph, indexed by `ord`. -/
 private def k4PetersenSeg : ℕ → ℕ → List (Fin 10)
@@ -339,13 +340,13 @@ theorem complete_four_topMinor_petersen : complete 4 ≤ₜₘ petersen := by
     { ord := ord
       ord_inj := ord_inj
       f := fun x ↦ pv ((![0, 1, 3, 9] : Fin 4 → Fin 10) x)
-      f_inj := by decide
+      f_inj := by decide +kernel
       seg := fun x y ↦ (k4PetersenSeg (ord x) (ord y)).map pv
-      isWalk := by decide
-      ends := by decide
-      nodup := by decide
-      interior := by decide
-      disj := by decide }⟩
+      isWalk := by decide +kernel
+      ends := by decide +kernel
+      nodup := by decide +kernel
+      interior := by decide +kernel
+      disj := by decide +kernel }⟩
 
 /-- The paths of the `K₄` subdivision in the Heawood graph, indexed by `ord`. -/
 private def k4HeawoodSeg : ℕ → ℕ → List (Fin 14)
@@ -364,13 +365,13 @@ theorem complete_four_topMinor_heawood : complete 4 ≤ₜₘ ⟦heawood⟧ := b
     { ord := ord
       ord_inj := ord_inj
       f := (![0, 1, 2, 7] : Fin 4 → Fin 14)
-      f_inj := by decide
+      f_inj := by decide +kernel
       seg := fun x y ↦ k4HeawoodSeg (ord x) (ord y)
-      isWalk := by decide
-      ends := by decide
-      nodup := by decide
-      interior := by decide
-      disj := by decide }⟩
+      isWalk := by decide +kernel
+      ends := by decide +kernel
+      nodup := by decide +kernel
+      interior := by decide +kernel
+      disj := by decide +kernel }⟩
 
 /-- `K₄` is immersed in the Petersen graph: four vertices joined by six *edge*-disjoint trails,
 which may share vertices where a subdivision's paths may not.  The subdivision above is one. -/
@@ -390,8 +391,8 @@ theorem complete_five_contraction_petersen : complete 5 ≤ₚ petersen := by
              ⟨[], none, ([(0, [pv 5, pv 0]), (1, [pv 6, pv 2]), (2, [pv 9, pv 1]),
                (3, [pv 8, pv 4]), (4, [pv 7, pv 3])] :
                List (Fin 5 × List (CGraph.kneser 5 2).V)), []⟩
-             (fun x ↦ FinEnum.mem_toList x) (by decide)
-           total' := by decide }⟩
+             (fun x ↦ FinEnum.mem_toList x) (by decide +kernel)
+           total' := by decide +kernel }⟩
 
 /-- The Petersen graph has a `K₅` minor — the contraction above, with nothing deleted. -/
 theorem complete_five_minor_petersen : complete 5 ≤ₘ petersen :=
@@ -410,9 +411,9 @@ theorem petersen_induced_kneser_six : petersen ≤ᵢₛ kneser 6 2 := by
   rw [petersen_eq, kneser_def]
   exact ⟨{ toFun := fun v ↦
              pv6 ((![0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : Fin 10 → Fin 15) (FinEnum.equiv v))
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- **The Petersen graph is an induced subgraph of the Hoffman–Singleton graph.**  Both are Moore
 graphs — girth five and diameter two — and the 50-vertex one is full of copies of the ten-vertex
@@ -421,9 +422,9 @@ theorem petersen_induced_hoffmanSingleton : petersen ≤ᵢₛ hoffmanSingleton 
   rw [petersen_eq, hoffmanSingleton_def]
   exact ⟨{ toFun := fun v ↦
              (![0, 29, 3, 28, 27, 1, 2, 26, 25, 4] : Fin 10 → Fin 50) (FinEnum.equiv v)
-           injective' := by decide
-           map_adj' := by decide
-           adj_map' := by decide }⟩
+           injective' := by decide +kernel
+           map_adj' := by decide +kernel
+           adj_map' := by decide +kernel }⟩
 
 /-- **The Petersen graph is a quotient of the Desargues graph**, which is its bipartite double
 cover: the covering map identifies the two vertices over each vertex of the Petersen graph. -/
@@ -431,8 +432,8 @@ theorem petersen_quotient_desargues : petersen ≤/ ⟦desargues⟧ := by
   rw [petersen_eq]
   exact ⟨{ toFun := fun v ↦ pv ((![0, 5, 0, 5, 6, 2, 3, 7, 1, 9,
                                   8, 6, 5, 0, 2, 6, 8, 3, 4, 0] : Fin 20 → Fin 10) v)
-           surjective' := by decide
-           map_adj' := by decide }⟩
+           surjective' := by decide +kernel
+           map_adj' := by decide +kernel }⟩
 
 /-- It is not an induced subgraph of the Desargues graph, though — the double cover is bipartite
 and the Petersen graph is not. -/
@@ -490,7 +491,7 @@ private def balStep (x y : Fin 112) : Bool :=
 private theorem balF_ne_mid (z : Fin 112) (k : Fin 8) : balF z ≠ balMidVtx k := by
   revert z k; decide
 
-private theorem balMidVtx_inj : Function.Injective balMidVtx := by decide
+private theorem balMidVtx_inj : Function.Injective balMidVtx := by decide +kernel
 
 /-- Two pairs of vertices with the same smaller and the same larger end are the same pair. -/
 private theorem sym2_of_minmax {n : ℕ} {x y x' y' : Fin n} (h1 : min x.1 y.1 = min x'.1 y'.1)
@@ -505,12 +506,12 @@ private theorem sym2_of_minmax {n : ℕ} {x y x' y' : Fin n} (h1 : min x.1 y.1 =
 /-- **The subdivision of the Balaban 11-cage that the Tutte 12-cage contains.** -/
 private def balExcision : balaban11Cage.PathTwoModel tutte12Cage where
   f := balF
-  f_inj := List.nodup_ofFn.1 (by decide)
+  f_inj := List.nodup_ofFn.1 (by decide +kernel)
   mid := balMid
   mid_symm x y := by simp only [balMid, Nat.min_comm x.1 y.1, Nat.max_comm x.1 y.1]
   step x y h := by
     show balStep x y = true
-    exact CGraph.forall_adj_ofEdges balStep (by decide) h
+    exact CGraph.forall_adj_ofEdges balStep (by decide +kernel) h
   mid_ne_f := by
     rintro x y w hw z
     obtain ⟨k, -, rfl⟩ := Option.map_eq_some_iff.1 hw

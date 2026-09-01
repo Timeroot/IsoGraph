@@ -10,22 +10,11 @@ set_option backward.isDefEq.respectTransparency false
 The Tutte 12-cage: the unique (3, 12)-cage, on 126 vertices.
 -/
 
-section
-set_option maxRecDepth 4000
-
--- the girth conditions nest bounded quantifiers over the graph's vertex type, and each level costs
-
--- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
-
--- instance-search budget runs out around the sixth
-
-end
-
 namespace NamedGraphs
 
 section
+-- A hundred and twenty-six vertices: the `Fin 126` instances alone go deeper than the default.
 set_option maxRecDepth 4000
-set_option synthInstance.maxSize 512
 open CGraph CGraph.Enum
 
 /-- The LCF code of the Tutte 12-cage. -/
@@ -58,32 +47,13 @@ def tutte12CageNb (a : tutte12Cage.V) : List tutte12Cage.V := tutte12CageTbl.get
 theorem tutte12Cage_nb : ∀ a b : tutte12Cage.V, b ∈ tutte12CageNb a ↔ tutte12Cage.Adj a b := by
   native_decide
 
--- Measured: 538 889 heartbeats.  The fifteen `native_decide` searches are free; the cost is the
--- elaborator's, in stating and typechecking the nine hypotheses of `twelve_le_girth_of_nbrList`
--- over a 126-vertex neighbour table.
-set_option maxHeartbeats 1600000 in
 /-- The Tutte 12-cage has girth twelve. -/
 @[simp] theorem girth_tutte12Cage : tutte12Cage.girth = 12 := by
-  have hcyc : tutte12Cage.girth ≤ 12 :=
-    girth_le_of_cycleList
-      (vtx 126 0) [vtx 126 17, vtx 126 16, vtx 126 15, vtx 126 14, vtx 126 13, vtx 126 12,
-        vtx 126 69, vtx 126 70, vtx 126 3, vtx 126 2, vtx 126 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ tutte12Cage.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 126 0) [vtx 126 17, vtx 126 16, vtx 126 15, vtx 126 14, vtx 126 13, vtx 126 12,
-        vtx 126 69, vtx 126 70, vtx 126 3, vtx 126 2, vtx 126 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (twelve_le_girth_of_nbrList tutte12Cage_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList tutte12Cage
+    (vtx 126 0) [vtx 126 17, vtx 126 16, vtx 126 15, vtx 126 14, vtx 126 13, vtx 126 12,
+      vtx 126 69, vtx 126 70, vtx 126 3, vtx 126 2, vtx 126 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 12 tutte12Cage_nb (by native_decide) hnac)
 
 end
 

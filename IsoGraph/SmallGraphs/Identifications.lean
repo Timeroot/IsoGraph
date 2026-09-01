@@ -61,9 +61,7 @@ isomorphism, whose lift is the equality of `IsoGraph`s. -/
 
 namespace CGraph
 
-@[toIsoGraph]
-theorem bipartite_eq_compl (m n : ℕ) :
-    bipartite m n = (complete m ⊕g complete n)ᶜ := rfl
+attribute [toIsoGraph] bipartite_eq_compl
 
 @[toIsoGraph]
 theorem star_eq_bipartite (n : ℕ) : star n = bipartite 1 n := rfl
@@ -76,9 +74,7 @@ theorem compl_bipartite (m n : ℕ) :
     (bipartite m n)ᶜ = complete m ⊕g complete n := by
   rw [bipartite_eq_compl, compl_compl]
 
-@[toIsoGraph]
-theorem bipartite_eq_join (m n : ℕ) : bipartite m n = empty m ∇g empty n := by
-  rw [join, compl_empty, compl_empty, bipartite_eq_compl]
+attribute [toIsoGraph] bipartite_eq_join
 
 @[toIsoGraph simp bipartite_zero_right]
 def bipartiteZeroRight (m : ℕ) : bipartite m 0 ≃cg empty m := by
@@ -173,9 +169,8 @@ noncomputable def completeMultipartiteSingleton (n : ℕ) :
   have : Subsingleton (Fin [n].length) := inferInstanceAs (Subsingleton (Fin 1))
   rintro ⟨i, a⟩ ⟨j, b⟩
   obtain rfl : i = j := Subsingleton.elim i j
-  show ((sigmaUnion fun i : Fin [n].length ↦ complete ([n].get i))ᶜ).Adj ⟨i, a⟩ ⟨i, b⟩ = false
-  rw [compl_adj, sigmaUnion_adj_mk, complete_adj]
-  by_cases hab : a = b <;> simp [hab]
+  rw [completeMultipartite_adj]
+  simp
 
 noncomputable def cocktailPartyOne : cocktailParty 1 ≃cg empty 2 :=
   completeMultipartiteSingleton 2
@@ -189,14 +184,14 @@ noncomputable def bookOne : book 1 ≃cg complete 3 :=
 theorem join_empty_completeMultipartite (d : ℕ) (ds : List ℕ) :
     empty d ∇g completeMultipartite ds
       = (complete d ⊕g (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i)))ᶜ := by
-  rw [join, compl_empty, completeMultipartite, compl_compl]
+  rw [join_eq_compl_disjUnion, compl_empty, completeMultipartite_eq_compl, compl_compl]
 
 /-- Peeling off the first part: the rest of the multipartite graph, joined to an independent
 set of the first part's size. -/
 @[toIsoGraph completeMultipartite_cons]
 def completeMultipartiteCons (d : ℕ) (ds : List ℕ) :
     completeMultipartite (d :: ds) ≃cg empty d ∇g completeMultipartite ds := by
-  rw [join_empty_completeMultipartite]
+  rw [join_empty_completeMultipartite, completeMultipartite_eq_compl (d :: ds)]
   exact Iso.compl (Iso.sigmaUnionSucc fun i : Fin (d :: ds).length ↦ complete ((d :: ds).get i))
 
 @[toIsoGraph simp completeMultipartite_zero_cons]

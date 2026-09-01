@@ -89,24 +89,11 @@ theorem harries_nb : ∀ a b : harries.V, b ∈ harriesNb a ↔ harries.Adj a b 
 
 /-- The Harries graph has girth ten. -/
 @[simp] theorem girth_harries : harries.girth = 10 := by
-  have hcyc : harries.girth ≤ 10 :=
-    girth_le_of_cycleList
-      (vtx 70 0) [vtx 70 41, vtx 70 40, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
-        vtx 70 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ harries.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 70 0) [vtx 70 41, vtx 70 40, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
-        vtx 70 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (ten_le_girth_of_nbrList harries_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList harries
+    (vtx 70 0) [vtx 70 41, vtx 70 40, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
+      vtx 70 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 10 harries_nb (by native_decide) hnac)
 
 @[simp] theorem card_harriesWong : FinEnum.card harriesWong.V = 70 := card_ofEdges _ _
 
@@ -132,24 +119,11 @@ theorem harriesWong_nb : ∀ a b : harriesWong.V, b ∈ harriesWongNb a ↔ harr
 
 /-- The Harries–Wong graph has girth ten. -/
 @[simp] theorem girth_harriesWong : harriesWong.girth = 10 := by
-  have hcyc : harriesWong.girth ≤ 10 :=
-    girth_le_of_cycleList
-      (vtx 70 0) [vtx 70 9, vtx 70 8, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
-        vtx 70 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ harriesWong.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 70 0) [vtx 70 9, vtx 70 8, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
-        vtx 70 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (ten_le_girth_of_nbrList harriesWong_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList harriesWong
+    (vtx 70 0) [vtx 70 9, vtx 70 8, vtx 70 7, vtx 70 6, vtx 70 5, vtx 70 4, vtx 70 3, vtx 70 2,
+      vtx 70 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 10 harriesWong_nb (by native_decide) hnac)
 
 @[simp] theorem card_gray : FinEnum.card gray.V = 54 := card_ofEdges _ _
 
@@ -175,20 +149,10 @@ theorem gray_nb : ∀ a b : gray.V, b ∈ grayNb a ↔ gray.Adj a b := by
 
 /-- The Gray graph has girth eight. -/
 @[simp] theorem girth_gray : gray.girth = 8 := by
-  have hcyc : gray.girth ≤ 8 :=
-    girth_le_of_cycleList
-      (vtx 54 0) [vtx 54 29, vtx 54 28, vtx 54 15, vtx 54 14, vtx 54 7, vtx 54 8, vtx 54 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ gray.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 54 0) [vtx 54 29, vtx 54 28, vtx 54 15, vtx 54 14, vtx 54 7, vtx 54 8, vtx 54 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (eight_le_girth_of_nbrList gray_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList gray
+    (vtx 54 0) [vtx 54 29, vtx 54 28, vtx 54 15, vtx 54 14, vtx 54 7, vtx 54 8, vtx 54 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 8 gray_nb (by native_decide) hnac)
 
 @[simp] theorem card_foster : FinEnum.card foster.V = 90 := card_ofEdges _ _
 
@@ -214,24 +178,11 @@ theorem foster_nb : ∀ a b : foster.V, b ∈ fosterNb a ↔ foster.Adj a b := b
 
 /-- The Foster graph has girth ten. -/
 @[simp] theorem girth_foster : foster.girth = 10 := by
-  have hcyc : foster.girth ≤ 10 :=
-    girth_le_of_cycleList
-      (vtx 90 0) [vtx 90 17, vtx 90 16, vtx 90 15, vtx 90 14, vtx 90 13, vtx 90 4, vtx 90 3,
-        vtx 90 2, vtx 90 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ foster.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 90 0) [vtx 90 17, vtx 90 16, vtx 90 15, vtx 90 14, vtx 90 13, vtx 90 4, vtx 90 3,
-        vtx 90 2, vtx 90 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (ten_le_girth_of_nbrList foster_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList foster
+    (vtx 90 0) [vtx 90 17, vtx 90 16, vtx 90 15, vtx 90 14, vtx 90 13, vtx 90 4, vtx 90 3,
+      vtx 90 2, vtx 90 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 10 foster_nb (by native_decide) hnac)
 
 end
 

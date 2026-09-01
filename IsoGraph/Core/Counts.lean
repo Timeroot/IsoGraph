@@ -338,7 +338,7 @@ so the handshake lemma splits along the sum. -/
 @[simp] theorem E_join :
     (G ∇g H).E = G.E + H.E + FinEnum.card G.V * FinEnum.card H.V := by
   have h1 : (G ∇g H).E + (Gᶜ ⊕g Hᶜ).E = (FinEnum.card (G ∇g H).V).choose 2 := by
-    rw [join]
+    rw [join_eq_compl_disjUnion]
     exact E_compl _
   have h2 : (Gᶜ ⊕g Hᶜ).E = Gᶜ.E + Hᶜ.E := E_disjUnion _ _
   have h3 : Gᶜ.E + G.E = (FinEnum.card G.V).choose 2 := E_compl G
@@ -870,7 +870,7 @@ theorem ofEdges_adj_val (n : ℕ) (es : List (ℕ × ℕ)) (u v : (ofEdges n es)
     (ofEdges n es).Adj u v = true ↔
       (u.1 ≠ v.1 ∧ ((u.1, v.1) ∈ es ∨ (v.1, u.1) ∈ es)) := by
   have huv : (u = v) ↔ (u.1 = v.1) := ⟨fun h ↦ by rw [h], fun h ↦ Fin.ext h⟩
-  simp only [ofEdges, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
+  simp only [ofEdges_adj, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
     ne_eq, huv, List.contains_eq_mem]
 
 /-- **A list covering the neighbours of `v` bounds its degree.**  Together with
@@ -946,7 +946,7 @@ theorem E_ofEdges_of_nodup {n : ℕ} {es : List (ℕ × ℕ)} (hn : ∀ p ∈ es
   | nil =>
     have : ofEdges n [] = empty n := by
       exact ext' rfl (heq_of_eq (funext fun i => funext fun j =>
-          by simp [ofEdges, empty]))
+          by simp [ofEdges_adj, empty]))
     rw [this, E_empty, List.length_nil]
   | cons e es' ih =>
     unfold E
@@ -982,7 +982,7 @@ theorem E_ofEdges_of_nodup {n : ℕ} {es : List (ℕ × ℕ)} (hn : ∀ p ∈ es
       | h u v =>
         simp [SimpleGraph.mem_edgeFinset, Finset.mem_insert, SimpleGraph.mem_edgeSet,
           toSimple_adj, ofEdges_adj_val]
-        dsimp only [ofEdges, ofRel] at u v
+        dsimp only [ofEdges] at u v
         simp only [edge_e]
         rw [Sym2.eq_iff]
         have heq1 : (u = ue ↔ ↑u = e.1) := by simp [ue, Fin.ext_iff]
@@ -1320,19 +1320,31 @@ theorem degree_le (G : CGraph) (v : G.V) :
   rw [Finset.card_insert_of_notMem hv, FinEnum.card_univ] at hsub
   omega
 
+theorem nbrs_join_inl (G H : CGraph) (a : G.V) :
+    (G ∇g H).nbrs (Sum.inl a)
+      = (G.nbrs a).map ⟨Sum.inl, Sum.inl_injective⟩
+        ∪ Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
+theorem nbrs_join_inr (G H : CGraph) (b : H.V) :
+    (G ∇g H).nbrs (Sum.inr b)
+      = Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩
+        ∪ (H.nbrs b).map ⟨Sum.inr, Sum.inr_injective⟩ := by
+  ext w
+  rcases w with c | d <;> simp
+
 theorem degree_join_inl (G H : CGraph) (a : G.V) :
     (G ∇g H).toSimple.degree (Sum.inl a) = G.toSimple.degree a + FinEnum.card H.V := by
-  have hd := G.degree_le a
-  show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inl a) = _
-  rw [degree_compl, degree_disjUnion_inl, degree_compl, card_disjUnion, card_compl, card_compl]
-  omega
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_join_inl,
+    Finset.card_union_of_disjoint (by simp [Finset.disjoint_left]), Finset.card_map,
+    Finset.card_map, FinEnum.card_univ]
 
 theorem degree_join_inr (G H : CGraph) (b : H.V) :
     (G ∇g H).toSimple.degree (Sum.inr b) = FinEnum.card G.V + H.toSimple.degree b := by
-  have hd := H.degree_le b
-  show ((Gᶜ ⊕g Hᶜ)ᶜ).toSimple.degree (Sum.inr b) = _
-  rw [degree_compl, degree_disjUnion_inr, degree_compl, card_disjUnion, card_compl, card_compl]
-  omega
+  rw [← card_nbrs_eq_degree, ← card_nbrs_eq_degree, nbrs_join_inr,
+    Finset.card_union_of_disjoint (by simp [Finset.disjoint_left]), Finset.card_map,
+    Finset.card_map, FinEnum.card_univ]
 
 /-- **The degree multiset of a join**: every vertex picks up all the vertices on the other side. -/
 theorem degMultiset_join (G H : CGraph) :
@@ -2688,8 +2700,9 @@ namespace IsoGraph
     | h h => exact CGraph.card_disjUnion g h
 
 @[simp] theorem V_join (G H : IsoGraph) : (G ∇g H).V = G.V + H.V := by
-  show (Gᶜ ⊕g Hᶜ)ᶜ.V = _
-  rw [V_compl, V_disjUnion, V_compl, V_compl]
+  induction G using Quotient.inductionOn with
+  | h g => induction H using Quotient.inductionOn with
+    | h h => exact CGraph.card_join g h
 
 @[simp] theorem V_cartesianProduct (G H : IsoGraph) :
     (G □g H).V = G.V * H.V := by

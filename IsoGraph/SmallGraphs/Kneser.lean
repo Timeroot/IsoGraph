@@ -508,9 +508,6 @@ It does not scale: the next case, `K(9, 3)`, asks for a four-colour refutation o
 vertices, and a probe was still running after ten minutes, so it stays out of the build.
 -/
 
--- Measured: 298 657 heartbeats, in the kernel's replay of the LRAT proof over the 56 · 3 colour
--- variables.
-set_option maxHeartbeats 800000 in
 /-- **Three colours do not suffice for `K(8, 3)`**, by a SAT refutation over the fifty-six
 triples. -/
 theorem four_le_chromNum_kneser_eight_three : 4 ≤ (kneser 8 3).chromNum := by

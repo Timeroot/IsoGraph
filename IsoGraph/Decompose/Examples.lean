@@ -47,16 +47,12 @@ example : Nonempty (CGraph.lineGraph (CGraph.hypercube 3) ≃cg NamedGraphs.cubo
   generate_graph_iso (CGraph.lineGraph (CGraph.hypercube 3)) with e
   exact ⟨e⟩
 
--- The third of the three works too, and is left here as a comment because it is the one expensive
--- example in the file: the certificate for thirty vertices is still a single `decide`, but the
--- line graph's adjacency is a decision procedure on pairs of edges and the kernel takes minutes
--- over it.
---
---   set_option maxRecDepth 40000 in
---   set_option maxHeartbeats 4000000 in
---   example : (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph NamedGraphs.dodecahedron) : IsoGraph)
---       = Quotient.mk CGraph.isoSetoid NamedGraphs.icosidodecahedron := by
---     decompose_graph (CGraph.lineGraph NamedGraphs.dodecahedron)
+/-- The line graph of the dodecahedron is the icosidodecahedron.  Thirty vertices, each of them an
+edge of a twenty-vertex graph, and the certificate is still one `decide`; it is the most expensive
+example in the file, and the only one that takes seconds rather than milliseconds. -/
+example : (Quotient.mk CGraph.isoSetoid (CGraph.lineGraph NamedGraphs.dodecahedron) : IsoGraph)
+    = Quotient.mk CGraph.isoSetoid NamedGraphs.icosidodecahedron := by
+  decompose_graph (CGraph.lineGraph NamedGraphs.dodecahedron)
 
 /-- The line graph of `K_{3,3}` is the `3 × 3` rook's graph — the edges of `K_{3,3}` are the cells
 of a `3 × 3` grid, and two of them meet exactly when they share a row or a column. -/

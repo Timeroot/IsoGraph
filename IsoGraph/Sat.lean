@@ -45,18 +45,20 @@ edge and colour.
 `bv_decide` is called once and the whole run — bit-blasting, CaDiCaL, and the kernel replay of the
 LRAT proof — is what shows up in the elaboration time.  Measured on the graphs below:
 
-| goal | vertices | time |
-| --- | --- | --- |
-| `(kneser 5 2).indepNum ≤ 4` | 10 | 5 s |
-| `(kneser 5 2).cliqueNum ≤ 2` | 10 | 6 s |
-| `3 < (mycielskian (cycle 5)).chromNum` | 11 | 2 s |
-| `(kneser 7 3).indepNum ≤ 15` | 35 | 7 s with `native`, 26 s without |
-| `4 < (mycielskian (mycielskian (cycle 5))).chromNum` | 23 | 10 s |
+| goal | vertices | constraints | time |
+| --- | --- | --- | --- |
+| `3 < (mycielskian (cycle 5)).chromNum` | 11 | 31 | 0.4 s |
+| `(kneser 5 2).indepNum ≤ 4` | 10 | 15 | 0.7 s |
+| `4 < (mycielskian (mycielskian (cycle 5))).chromNum` | 23 | 94 | 1 s |
+| `(kneser 7 3).indepNum ≤ 15` | 35 | 70 | 1.6 s with `native`, 5 s without |
+| `(kneser 5 2).cliqueNum ≤ 2` | 10 | 30 | 2 s |
+| `pentakisDodecahedron.cliqueNum ≤ 3` | 32 | 406 | 4 s |
 
-Those are deltas in the elaboration time of this file, so they include everything.  The solver is
-not the expensive part of any of them: `bv_decide` itself — bit-blasting, CaDiCaL and the kernel
-replay of the LRAT certificate — stays under a second on all five, and what the table measures is
-mostly the side conditions below and the kernel rechecking the generated script.
+Those are profiled elaboration times of the one declaration, so they include everything.  The
+solver is not the expensive part of any of them: bit-blasting, CaDiCaL and the kernel replay of
+the LRAT certificate together come to a fifth of a second even on the pentakis dodecahedron, and
+what the table measures is mostly the side conditions below and the work of matching the bundled
+constraints against the chain `bv_decide` was handed, both linear in the constraint count.
 
 The comparison is not with `decide`, which cannot do any of these — `indepNum` is an infimum over
 a set of naturals and does not reduce — but with the hand proofs the library gives elsewhere: the
@@ -196,15 +198,61 @@ theorem toNat_bvCount {w m : ℕ} (b : BitVec m) {k : ℕ} (hk : k < 2 ^ w) :
 
 Each of the three takes the graph apart into data the tactic can compute — the order `m`, the
 edge list `es` — and leaves a hypothesis about `BitVec`s and nothing else, which is the goal that
-goes to `bv_decide`. -/
+goes to `bv_decide`.
+
+The constraints go in bundled — `pairsOK b es`, one proposition — rather than one hypothesis per
+pair, and on a graph with a few hundred non-edges the difference is most of the elaboration time.
+Spelled out, the tactic has to prove `(i, j) ∈ es` for every pair, each a linear scan of a list
+literal as long as the whole encoding, and then apply a term with one argument per pair for the
+kernel to recheck; bundled, it is one traversal and one argument.  `bv_decide` preprocesses every
+hypothesis it is handed too, so it would rather be handed one than four hundred.  Each of the
+three predicates below unfolds, on a literal list, to precisely the chain of conjunctions the
+tactic writes out — the same proposition, so nothing has to be rewritten to pass one for the
+other. -/
+
+/-- The independence constraints as a single proposition: neither bit of a listed pair is set. -/
+def pairsOK {m : ℕ} (b : BitVec m) (l : List (ℕ × ℕ)) : Prop :=
+  l.foldr (fun p P ↦ (b.getLsbD p.1 && b.getLsbD p.2) = false ∧ P) True
+
+theorem pairsOK_of_forall {m : ℕ} {b : BitVec m} {l : List (ℕ × ℕ)}
+    (h : ∀ i j : ℕ, (i, j) ∈ l → (b.getLsbD i && b.getLsbD j) = false) : pairsOK b l := by
+  induction l with
+  | nil => trivial
+  | cons p l ih =>
+    exact ⟨h p.1 p.2 List.mem_cons_self, ih fun i j hij ↦ h i j (List.mem_cons_of_mem p hij)⟩
+
+/-- The colouring constraints on the vertices: each of the first `m` chunks is a nonempty set of
+colours. -/
+def chunksOK {W : ℕ} (k : ℕ) (b : BitVec W) : ℕ → Prop
+  | 0 => True
+  | i + 1 => BitVec.extractLsb' (i * k) k b ≠ 0#k ∧ chunksOK k b i
+
+theorem chunksOK_of_forall {W k m : ℕ} {b : BitVec W}
+    (h : ∀ i : ℕ, i < m → BitVec.extractLsb' (i * k) k b ≠ 0#k) : chunksOK k b m := by
+  induction m with
+  | zero => trivial
+  | succ i ih => exact ⟨h i (Nat.lt_succ_self i), ih fun j hj ↦ h j (Nat.lt_succ_of_lt hj)⟩
+
+/-- The colouring constraints on the edges: adjacent vertices get disjoint sets of colours. -/
+def disjointOK {W : ℕ} (k : ℕ) (b : BitVec W) (l : List (ℕ × ℕ)) : Prop :=
+  l.foldr (fun p P ↦
+    (BitVec.extractLsb' (p.1 * k) k b &&& BitVec.extractLsb' (p.2 * k) k b) = 0#k ∧ P) True
+
+theorem disjointOK_of_forall {W k : ℕ} {b : BitVec W} {l : List (ℕ × ℕ)}
+    (h : ∀ i j : ℕ, (i, j) ∈ l →
+      (BitVec.extractLsb' (i * k) k b &&& BitVec.extractLsb' (j * k) k b) = 0#k) :
+    disjointOK k b l := by
+  induction l with
+  | nil => trivial
+  | cons p l ih =>
+    exact ⟨h p.1 p.2 List.mem_cons_self, ih fun i j hij ↦ h i j (List.mem_cons_of_mem p hij)⟩
 
 /-- **The independence number from a refutation.**  If no `m`-bit vector with no two adjacent bits
 set has more than `n` bits set, then `α(G) ≤ n`. -/
 theorem indepNum_le_of_bv {G : CGraph} {m n w : ℕ} {es : List (ℕ × ℕ)}
     (hm : FinEnum.card G.V = m) (hes : edgeIdxList G = es)
     (hmw : m < 2 ^ w) (hnw : n < 2 ^ w)
-    (h : ∀ b : BitVec m, (∀ i j : ℕ, (i, j) ∈ es → (b.getLsbD i && b.getLsbD j) = false) →
-      bvCount w b m ≤ BitVec.ofNat w n) :
+    (h : ∀ b : BitVec m, pairsOK b es → bvCount w b m ≤ BitVec.ofNat w n) :
     G.indepNum ≤ n := by
   subst hm; subst hes
   obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNIndepSet_indepNum
@@ -227,7 +275,7 @@ theorem indepNum_le_of_bv {G : CGraph} {m n w : ℕ} {es : List (ℕ × ℕ)}
       · exact absurd hadj (hs (Finset.mem_coe.2 hu) (Finset.mem_coe.2 hv) hadj.ne)
       · simp [hv]
     · simp [hu]
-  have hle := BitVec.le_def.1 (h b hcon)
+  have hle := BitVec.le_def.1 (h b (pairsOK_of_forall hcon))
   rw [toNat_bvCount b hmw, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hnw] at hle
   have hset : ((Finset.range M).filter fun i ↦ b.getLsbD i) = s.image vIdx := by
     ext i
@@ -250,8 +298,7 @@ non-edges: a clique is an independent set of the complement. -/
 theorem cliqueNum_le_of_bv {G : CGraph} {m n w : ℕ} {es : List (ℕ × ℕ)}
     (hm : FinEnum.card G.V = m) (hes : nonEdgeIdxList G = es)
     (hmw : m < 2 ^ w) (hnw : n < 2 ^ w)
-    (h : ∀ b : BitVec m, (∀ i j : ℕ, (i, j) ∈ es → (b.getLsbD i && b.getLsbD j) = false) →
-      bvCount w b m ≤ BitVec.ofNat w n) :
+    (h : ∀ b : BitVec m, pairsOK b es → bvCount w b m ≤ BitVec.ofNat w n) :
     G.cliqueNum ≤ n := by
   subst hm; subst hes
   obtain ⟨s, hs, hcard⟩ := G.toSimple.exists_isNClique_cliqueNum
@@ -275,7 +322,7 @@ theorem cliqueNum_le_of_bv {G : CGraph} {m n w : ℕ} {es : List (ℕ × ℕ)}
         exact absurd hadj (by rw [huv]; simp)
       · simp [hv]
     · simp [hu]
-  have hle := BitVec.le_def.1 (h b hcon)
+  have hle := BitVec.le_def.1 (h b (pairsOK_of_forall hcon))
   rw [toNat_bvCount b hmw, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hnw] at hle
   have hset : ((Finset.range M).filter fun i ↦ b.getLsbD i) = s.image vIdx := by
     ext i
@@ -319,11 +366,7 @@ private theorem pair_eq {k a r a' r' : ℕ} (hr : r < k) (hr' : r' < k)
 to each vertex keeps adjacent sets disjoint, then `k < χ(G)`. -/
 theorem lt_chromNum_of_bv {G : CGraph} {m k W : ℕ} {es : List (ℕ × ℕ)}
     (hm : FinEnum.card G.V = m) (hes : edgeIdxList G = es) (hW : m * k = W)
-    (h : ∀ b : BitVec W,
-      (∀ i : ℕ, i < m → BitVec.extractLsb' (i * k) k b ≠ 0#k) →
-      (∀ i j : ℕ, (i, j) ∈ es →
-        (BitVec.extractLsb' (i * k) k b &&& BitVec.extractLsb' (j * k) k b) = 0#k) →
-      False) :
+    (h : ∀ b : BitVec W, chunksOK k b m → disjointOK k b es → False) :
     k < G.chromNum := by
   subst hm; subst hes; subst hW
   by_contra hcon
@@ -365,7 +408,7 @@ theorem lt_chromNum_of_bv {G : CGraph} {m k W : ℕ} {es : List (ℕ × ℕ)}
     have hyv' : y = v := vIdx_injective hyv.symm
     subst hxu'; subst hyv'
     exact c.valid (by rwa [toSimple_adj]) (Fin.ext (by omega))
-  exact h b hvert hedge
+  exact h b (chunksOK_of_forall hvert) (disjointOK_of_forall hedge)
 
 /-! ## The tactic
 
@@ -405,8 +448,13 @@ private def evalPairs (_e : Expr) : MetaM (List (ℕ × ℕ)) := pure []
 /-- The names the generated script shares between quotations, so they have to be raw. -/
 private def bId : Ident := mkIdent (.mkSimple "b✝gs")
 private def keyId : Ident := mkIdent (.mkSimple "key✝gs")
-private def h₁Id : Ident := mkIdent (.mkSimple "h₁✝gs")
-private def h₂Id : Ident := mkIdent (.mkSimple "h₂✝gs")
+
+/-- Run the generated script with room to recurse.  Elaborating it descends the chain of
+constraints, a handful of stack frames apiece, and past a hundred or so constraints that is more
+than the default depth allows; nothing else in the script recurses, so the bound can be generous
+and still catch a genuine runaway. -/
+private def withDepthFor (n : ℕ) (k : TacticM Unit) : TacticM Unit :=
+  withOptions (fun o ↦ o.set `maxRecDepth (Nat.max (maxRecDepth.get o) (512 + 16 * n))) k
 
 /-- The least `w` with `2 ^ w > n`, and at least one: the width of the counter. -/
 private def counterWidth (n : ℕ) : ℕ := Nat.max 1 (n + 1).size
@@ -427,22 +475,24 @@ private def countTerm (w m : ℕ) : MetaM Term := do
 /-- The `bv_decide` goal for `indepNum`/`cliqueNum`: no `m` bits with at most `n` of them set can
 avoid every listed pair. -/
 private def countStmt (m n w : ℕ) (es : List (ℕ × ℕ)) : MetaM Term := do
-  let mut concl ← `($(← countTerm w m) ≤ BitVec.ofNat $(quote w) $(quote n))
+  let mut hyp ← `(True)
   for (i, j) in es.reverse do
-    concl ← `((BitVec.getLsbD $bId $(quote i) && BitVec.getLsbD $bId $(quote j)) = false → $concl)
-  `(∀ $bId : BitVec $(quote m), $concl)
+    hyp ← `((BitVec.getLsbD $bId $(quote i) && BitVec.getLsbD $bId $(quote j)) = false ∧ $hyp)
+  `(∀ $bId : BitVec $(quote m), $hyp →
+    $(← countTerm w m) ≤ BitVec.ofNat $(quote w) $(quote n))
 
 /-- The `bv_decide` goal for `chromNum`: no assignment of a nonempty set of `k` colours to each of
 the `m` vertices keeps the listed pairs disjoint. -/
 private def colourStmt (m k W : ℕ) (es : List (ℕ × ℕ)) : MetaM Term := do
   let chunk (i : ℕ) : MetaM Term :=
     `(BitVec.extractLsb' $(quote (i * k)) $(quote k) $bId)
-  let mut concl ← `(False)
+  let mut hedge ← `(True)
   for (i, j) in es.reverse do
-    concl ← `(($(← chunk i) &&& $(← chunk j)) = BitVec.ofNat $(quote k) 0 → $concl)
+    hedge ← `(($(← chunk i) &&& $(← chunk j)) = BitVec.ofNat $(quote k) 0 ∧ $hedge)
+  let mut hvert ← `(True)
   for i in [0:m] do
-    concl ← `($(← chunk (m - 1 - i)) ≠ BitVec.ofNat $(quote k) 0 → $concl)
-  `(∀ $bId : BitVec $(quote W), $concl)
+    hvert ← `($(← chunk i) ≠ BitVec.ofNat $(quote k) 0 ∧ $hvert)
+  `(∀ $bId : BitVec $(quote W), $hvert → $hedge → False)
 
 /-- Read `FinEnum.card G.V` and the edge (or non-edge) list of `G` off the compiled code. -/
 private def graphData (G : Expr) (nonEdges : Bool) : TermElabM (ℕ × List (ℕ × ℕ)) := do
@@ -525,6 +575,9 @@ elab_rules : tactic
         `G.matchNum ≤ n`, `k < G.chromNum`, `k < G.edgeChromNum` or `k < G.cliqueCoverNum` \
         for a closed graph `G`"
     let sideTac : TSyntax `tactic ← if native then `(tactic| native_decide) else `(tactic| decide)
+    -- `bv_decide`'s embedded-constraint substitution rewrites every hypothesis with every other
+    -- one.  That is quadratic, and on this encoding it finds nothing: the constraints are one per
+    -- pair and no two of them share a subterm.  Turning it off is the single largest saving here.
     match shape with
     | .indep G n | .clique G n =>
       let isClique := match shape with | .clique .. => true | _ => false
@@ -532,27 +585,20 @@ elab_rules : tactic
       let w := counterWidth (Nat.max m n)
       let stmt ← countStmt m n w es
       let esTerm ← pairsTerm es
-      let args ← es.toArray.mapM fun (i, j) ↦ `($h₁Id $(quote i) $(quote j) (by decide))
       let bridge := mkIdent <|
         if isClique then ``CGraph.Sat.cliqueNum_le_of_bv else ``CGraph.Sat.indepNum_le_of_bv
-      evalTactic <| ← `(tactic|
-        (have $keyId : $stmt := by intros; bv_decide
-         refine $bridge (m := $(quote m)) (w := $(quote w)) (es := $esTerm)
-           (by $sideTac:tactic) (by $sideTac:tactic) (by decide) (by decide) ?_
-         intro $bId:ident $h₁Id:ident
-         exact $keyId $bId $args*))
+      withDepthFor es.length <| evalTactic <| ← `(tactic|
+        (have $keyId : $stmt := by intros; bv_decide -embeddedConstraintSubst
+         exact $bridge (m := $(quote m)) (w := $(quote w)) (es := $esTerm)
+           (by $sideTac:tactic) (by $sideTac:tactic) (by decide) (by decide) $keyId))
     | .chrom G k =>
       let (m, es) ← graphData G false
       let stmt ← colourStmt m k (m * k) es
       let esTerm ← pairsTerm es
-      let verts ← (Array.range m).mapM fun i ↦ `($h₁Id $(quote i) (by decide))
-      let args ← es.toArray.mapM fun (i, j) ↦ `($h₂Id $(quote i) $(quote j) (by decide))
-      evalTactic <| ← `(tactic|
-        (have $keyId : $stmt := by intros; bv_decide
-         refine CGraph.Sat.lt_chromNum_of_bv (m := $(quote m)) (W := $(quote (m * k)))
-           (es := $esTerm) (by $sideTac:tactic) (by $sideTac:tactic) (by decide) ?_
-         intro $bId:ident $h₁Id:ident $h₂Id:ident
-         exact $keyId $bId $verts* $args*))
+      withDepthFor (m + es.length) <| evalTactic <| ← `(tactic|
+        (have $keyId : $stmt := by intros; bv_decide -embeddedConstraintSubst
+         exact CGraph.Sat.lt_chromNum_of_bv (m := $(quote m)) (W := $(quote (m * k)))
+           (es := $esTerm) (by $sideTac:tactic) (by $sideTac:tactic) (by decide) $keyId))
 
 end Tactic
 

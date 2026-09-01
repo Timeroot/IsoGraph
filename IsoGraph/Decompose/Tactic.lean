@@ -23,11 +23,17 @@ Nothing of the search.  `decomposeWithPerm` runs as compiled code and returns a 
 with the two index lists relating the original graph to it; the tactic prints the formula as a term
 and emits
 
-    CGraph.Decompose.isoOfList G H p q (by decide)
+    CGraph.Decompose.isoOfList G H p q (by decide +kernel)
 
 so the only thing checked is `isoListOK G H p q`, one `Bool` computation, quadratic in the order of
 the graph.  No `native_decide`: a wrong answer from the elaborator is a failed `decide`, not an
 unsound proof.
+
+It is `decide +kernel` rather than plain `decide` because the computation is the expensive part of
+the whole tactic and plain `decide` runs it twice — once in the elaborator, to see that the
+proposition reduces to `True`, and once again in the kernel, to check the proof it built.  The
+`+kernel` form skips the first pass.  The cost is the error message: a certificate that does not
+check reports a kernel type mismatch rather than "decide proved the goal is False".
 
 ## Also here
 
@@ -181,7 +187,7 @@ elab_rules : tactic
     let g ← Term.exprToSyntax G
     let ty ← closedTerm (← `(($g : CGraph) ≃cg $h))
     let val ← instantiateMVars <| ← Term.elabTermEnsuringType
-      (← `(CGraph.Decompose.isoOfList $g $h $p $q (by decide))) ty
+      (← `(CGraph.Decompose.isoOfList $g $h $p $q (by decide +kernel))) ty
     Term.synthesizeSyntheticMVarsNoPostponing
     let val ← instantiateMVars val
     let name := (nm.map (·.getId)).getD `iso
@@ -202,7 +208,7 @@ private def rewriteDecomposition (G : Expr) (auto : Bool) : TacticM Unit := do
   let rw ← `(tactic|
     rw [show (Quotient.mk CGraph.isoSetoid ($g : CGraph) : IsoGraph)
           = Quotient.mk CGraph.isoSetoid $h from
-        CGraph.Decompose.mk_eq_mk_of_isoListOK (p := $p) (q := $q) (by decide)])
+        CGraph.Decompose.mk_eq_mk_of_isoListOK (p := $p) (q := $q) (by decide +kernel)])
   if auto then
     let s ← saveState
     try evalTactic rw catch _ => s.restore

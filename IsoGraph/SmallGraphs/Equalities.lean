@@ -121,17 +121,17 @@ variable {m n : ℕ}
 theorem paley_adj_eq (q : ℕ) [NeZero q] [Fact q.Prime] (a b : ZMod q) :
     (paley q).Adj (zmodEquivFin q a) (zmodEquivFin q b) = (paleyField (ZMod q)).Adj a b := by
   have key : ∀ u v : ZMod q,
-      (qrTable q)[((zmodEquivFin q v).1 + q - (zmodEquivFin q u).1) % q]!
+      (qrMask q).testBit (((zmodEquivFin q v).1 + q - (zmodEquivFin q u).1) % q)
         = decide (∃ r : ZMod q, r ≠ 0 ∧ r * r = v - u) := by
     intro u v
-    show (qrTable q)[(v.val + q - u.val) % q]! = _
-    rw [zmod_val_sub u v, qrTable_getElem q _ (ZMod.val_lt (v - u))]
+    show (qrMask q).testBit ((v.val + q - u.val) % q) = _
+    rw [zmod_val_sub u v, testBit_qrMask q _]
     simp only [exists_sq_iff_val]
   show (ofRel (Fin q) _).Adj _ _ = (cayleyAdd (ZMod q) _).Adj a b
   rw [ofRel_adj, cayleyAdd_adj]
   show (decide ((zmodEquivFin q a) ≠ (zmodEquivFin q b)) &&
-      ((qrTable q)[((zmodEquivFin q b).1 + q - (zmodEquivFin q a).1) % q]! ||
-       (qrTable q)[((zmodEquivFin q a).1 + q - (zmodEquivFin q b).1) % q]!)) = _
+      ((qrMask q).testBit (((zmodEquivFin q b).1 + q - (zmodEquivFin q a).1) % q) ||
+       (qrMask q).testBit (((zmodEquivFin q a).1 + q - (zmodEquivFin q b).1) % q))) = _
   rw [key a b, key b a,
     show decide ((zmodEquivFin q a) ≠ (zmodEquivFin q b)) = decide (a ≠ b) from by
       simp [EmbeddingLike.apply_eq_iff_eq]]
@@ -863,8 +863,8 @@ distributes over `disjUnion`: the two are exchanged by complementation. -/
 @[toIsoGraph join_lexProduct]
 def joinLexProduct (G H K : CGraph) :
     (G ∇g H) ·g K ≃cg G ·g K ∇g H ·g K := by
-  rw [show (G ∇g H) ·g K = (((G ∇g H) ·g K)ᶜ)ᶜ from (compl_compl _).symm, show G ·g K ∇g H ·g K
-      = ((G ·g K)ᶜ ⊕g (H ·g K)ᶜ)ᶜ from rfl]
+  rw [show (G ∇g H) ·g K = (((G ∇g H) ·g K)ᶜ)ᶜ from (compl_compl _).symm,
+    join_eq_compl_disjUnion (G ·g K) (H ·g K)]
   refine Iso.compl ((Iso.complLexProduct (G ∇g H) K).trans ?_)
   rw [compl_join]
   exact (Iso.lexProductDisjUnion Gᶜ Hᶜ Kᶜ).trans

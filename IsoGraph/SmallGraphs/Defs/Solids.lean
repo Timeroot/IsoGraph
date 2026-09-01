@@ -103,14 +103,9 @@ theorem isRegularWith_truncatedOctahedron : truncatedOctahedron.IsRegularWith 3 
 
 /-- The truncated octahedron has girth four: its shortest faces are squares. -/
 @[simp] theorem girth_truncatedOctahedron : truncatedOctahedron.girth = 4 := by
-  have hnac : ¬ truncatedOctahedron.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 24 0) [vtx 24 10, vtx 24 20, vtx 24 14]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hcyc : truncatedOctahedron.girth ≤ 4 :=
-    girth_le_of_cycleList
-      (vtx 24 0) [vtx 24 10, vtx 24 20, vtx 24 14]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList truncatedOctahedron
+    (vtx 24 0) [vtx 24 10, vtx 24 20, vtx 24 14]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
 @[simp] theorem card_icosidodecahedron : FinEnum.card icosidodecahedron.V = 30 := card_ofEdges _ _
@@ -170,17 +165,10 @@ theorem truncatedIcosahedron_nb :
 
 /-- The truncated icosahedron has girth five: its shortest faces are pentagons. -/
 @[simp] theorem girth_truncatedIcosahedron : truncatedIcosahedron.girth = 5 := by
-  have hcyc : truncatedIcosahedron.girth ≤ 5 :=
-    girth_le_of_cycleList
-      (vtx 60 0) [vtx 60 4, vtx 60 8, vtx 60 12, vtx 60 16]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ truncatedIcosahedron.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 60 0) [vtx 60 4, vtx 60 8, vtx 60 12, vtx 60 16]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (five_le_girth_of_nbrList truncatedIcosahedron_nb
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList truncatedIcosahedron
+    (vtx 60 0) [vtx 60 4, vtx 60 8, vtx 60 12, vtx 60 16]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 5 truncatedIcosahedron_nb (by native_decide) hnac)
 
 /-! ## The Catalan solids
 
@@ -257,14 +245,9 @@ it. -/
 
 /-- The rhombic dodecahedron has girth four: its faces are rhombi. -/
 @[simp] theorem girth_rhombicDodecahedron : rhombicDodecahedron.girth = 4 := by
-  have hnac : ¬ rhombicDodecahedron.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 14 0) [vtx 14 8, vtx 14 1, vtx 14 10]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hcyc : rhombicDodecahedron.girth ≤ 4 :=
-    girth_le_of_cycleList
-      (vtx 14 0) [vtx 14 8, vtx 14 1, vtx 14 10]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList rhombicDodecahedron
+    (vtx 14 0) [vtx 14 8, vtx 14 1, vtx 14 10]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
 @[simp] theorem card_triakisOctahedron : FinEnum.card triakisOctahedron.V = 14 := card_ofEdges _ _
@@ -329,14 +312,9 @@ icosahedron — are the other. -/
 
 /-- The rhombic triacontahedron has girth four: its faces are rhombi. -/
 @[simp] theorem girth_rhombicTriacontahedron : rhombicTriacontahedron.girth = 4 := by
-  have hnac : ¬ rhombicTriacontahedron.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 32 0) [vtx 32 20, vtx 32 1, vtx 32 21]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hcyc : rhombicTriacontahedron.girth ≤ 4 :=
-    girth_le_of_cycleList
-      (vtx 32 0) [vtx 32 20, vtx 32 1, vtx 32 21]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList rhombicTriacontahedron
+    (vtx 32 0) [vtx 32 20, vtx 32 1, vtx 32 21]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
   exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
 @[simp] theorem card_pentakisDodecahedron : FinEnum.card pentakisDodecahedron.V = 32 :=

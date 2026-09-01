@@ -477,10 +477,10 @@ theorem isConnected_join
   simp only [IsConnected, join, CGraph.toSimple]
   have hcross : ∀ (a : G.V) (b : H.V),
       ((G ∇g H).toSimple.Adj (Sum.inl a) (Sum.inr b) = true) := by
-    simp [join, CGraph.toSimple, disjUnion_adj_inl_inr]
+    simp [join, CGraph.toSimple]
   have hcross' : ∀ (a : G.V) (b : H.V),
       ((G ∇g H).toSimple.Adj (Sum.inr b) (Sum.inl a) = true) := by
-    simp [join, CGraph.toSimple, disjUnion_adj_inr_inl]
+    simp [join, CGraph.toSimple]
   set J := (G ∇g H).toSimple
   obtain ⟨a0⟩ := FinEnum.card_pos_iff.mp hG
   obtain ⟨b0⟩ := FinEnum.card_pos_iff.mp hH

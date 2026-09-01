@@ -4578,7 +4578,7 @@ set_option linter.unnecessarySeqFocus false in
 theorem mulVec_le_dynkinD4 (i : Fin 4) :
     (dynkinD4.adjMat *ᵥ marksDynkinD4) i ≤ 2 * marksDynkinD4 i := by
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinD4, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinD4, ofEdges,
       marksDynkinD4] <;> norm_num
 
 theorem two_notMem_spectrum_dynkinD4 : (2 : ℝ) ∉ dynkinD4.spectrum := by
@@ -4588,8 +4588,8 @@ theorem two_notMem_spectrum_dynkinD4 : (2 : ℝ) ∉ dynkinD4.spectrum := by
   have h1 := congrFun hv (1 : Fin 4)
   have h2 := congrFun hv (2 : Fin 4)
   have h3 := congrFun hv (3 : Fin 4)
-  simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinD4, ofEdges,
-    ofRel] at h0 h1 h2 h3
+  simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinD4, ofEdges]
+    at h0 h1 h2 h3
   refine hv0 (funext fun i ↦ ?_)
   have e0 : v (0 : Fin 4) = 0 := by linarith
   have e1 : v (1 : Fin 4) = 0 := by linarith
@@ -4618,7 +4618,7 @@ theorem mulVec_affineD4 : affineD4.adjMat *ᵥ marksAffineD4 = (2 : ℝ) • mar
   rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineD4.V)]
   refine funext fun i : Fin 5 ↦ ?_
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineD4, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineD4, ofEdges,
       marksAffineD4] <;> norm_num
 
 theorem two_mem_spectrum_affineD4 : (2 : ℝ) ∈ affineD4.spectrum := by
@@ -4643,7 +4643,7 @@ theorem marksDynkinE6_pos (i : Fin 6) : 0 < marksDynkinE6 i := by
 theorem mulVec_le_dynkinE6 (i : Fin 6) :
     (dynkinE6.adjMat *ᵥ marksDynkinE6) i ≤ 2 * marksDynkinE6 i := by
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE6, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE6, ofEdges,
       marksDynkinE6] <;> norm_num
 
 theorem two_notMem_spectrum_dynkinE6 : (2 : ℝ) ∉ dynkinE6.spectrum := by
@@ -4655,8 +4655,8 @@ theorem two_notMem_spectrum_dynkinE6 : (2 : ℝ) ∉ dynkinE6.spectrum := by
   have h3 := congrFun hv (3 : Fin 6)
   have h4 := congrFun hv (4 : Fin 6)
   have h5 := congrFun hv (5 : Fin 6)
-  simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE6, ofEdges,
-    ofRel] at h0 h1 h2 h3 h4 h5
+  simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE6, ofEdges]
+    at h0 h1 h2 h3 h4 h5
   refine hv0 (funext fun i ↦ ?_)
   have e0 : v (0 : Fin 6) = 0 := by linarith
   have e1 : v (1 : Fin 6) = 0 := by linarith
@@ -4685,7 +4685,7 @@ theorem mulVec_affineE6 : affineE6.adjMat *ᵥ marksAffineE6 = (2 : ℝ) • mar
   rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE6.V)]
   refine funext fun i : Fin 7 ↦ ?_
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE6, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE6, ofEdges,
       marksAffineE6] <;> norm_num
 
 theorem two_mem_spectrum_affineE6 : (2 : ℝ) ∈ affineE6.spectrum := by
@@ -4710,7 +4710,7 @@ theorem marksDynkinE7_pos (i : Fin 7) : 0 < marksDynkinE7 i := by
 theorem mulVec_le_dynkinE7 (i : Fin 7) :
     (dynkinE7.adjMat *ᵥ marksDynkinE7) i ≤ 2 * marksDynkinE7 i := by
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE7, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE7, ofEdges,
       marksDynkinE7] <;> norm_num
 
 theorem two_notMem_spectrum_dynkinE7 : (2 : ℝ) ∉ dynkinE7.spectrum := by
@@ -4723,8 +4723,8 @@ theorem two_notMem_spectrum_dynkinE7 : (2 : ℝ) ∉ dynkinE7.spectrum := by
   have h4 := congrFun hv (4 : Fin 7)
   have h5 := congrFun hv (5 : Fin 7)
   have h6 := congrFun hv (6 : Fin 7)
-  simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE7, ofEdges,
-    ofRel] at h0 h1 h2 h3 h4 h5 h6
+  simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE7, ofEdges]
+    at h0 h1 h2 h3 h4 h5 h6
   refine hv0 (funext fun i ↦ ?_)
   have e0 : v (0 : Fin 7) = 0 := by linarith
   have e1 : v (1 : Fin 7) = 0 := by linarith
@@ -4754,7 +4754,7 @@ theorem mulVec_affineE7 : affineE7.adjMat *ᵥ marksAffineE7 = (2 : ℝ) • mar
   rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE7.V)]
   refine funext fun i : Fin 8 ↦ ?_
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE7, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE7, ofEdges,
       marksAffineE7] <;> norm_num
 
 theorem two_mem_spectrum_affineE7 : (2 : ℝ) ∈ affineE7.spectrum := by
@@ -4779,7 +4779,7 @@ theorem marksDynkinE8_pos (i : Fin 8) : 0 < marksDynkinE8 i := by
 theorem mulVec_le_dynkinE8 (i : Fin 8) :
     (dynkinE8.adjMat *ᵥ marksDynkinE8) i ≤ 2 * marksDynkinE8 i := by
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE8, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE8, ofEdges,
       marksDynkinE8] <;> norm_num
 
 theorem two_notMem_spectrum_dynkinE8 : (2 : ℝ) ∉ dynkinE8.spectrum := by
@@ -4793,8 +4793,8 @@ theorem two_notMem_spectrum_dynkinE8 : (2 : ℝ) ∉ dynkinE8.spectrum := by
   have h5 := congrFun hv (5 : Fin 8)
   have h6 := congrFun hv (6 : Fin 8)
   have h7 := congrFun hv (7 : Fin 8)
-  simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE8, ofEdges,
-    ofRel] at h0 h1 h2 h3 h4 h5 h6 h7
+  simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, dynkinE8, ofEdges]
+    at h0 h1 h2 h3 h4 h5 h6 h7
   refine hv0 (funext fun i ↦ ?_)
   have e0 : v (0 : Fin 8) = 0 := by linarith
   have e1 : v (1 : Fin 8) = 0 := by linarith
@@ -4825,7 +4825,7 @@ theorem mulVec_affineE8 : affineE8.adjMat *ᵥ marksAffineE8 = (2 : ℝ) • mar
   rw [fintype_eq_fin (FinEnum.instFintype : Fintype affineE8.V)]
   refine funext fun i : Fin 9 ↦ ?_
   fin_cases i <;>
-    simp [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE8, ofEdges, ofRel,
+    simp +decide [Matrix.mulVec, dotProduct, adjMat_apply, Fin.sum_univ_succ, affineE8, ofEdges,
       marksAffineE8] <;> norm_num
 
 theorem two_mem_spectrum_affineE8 : (2 : ℝ) ∈ affineE8.spectrum := by
@@ -7531,7 +7531,7 @@ theorem lapSpectrum_bipartite (m n : ℕ) :
   classical
   have hcompl : (bipartite (m + 1) (n + 1))ᶜ
       = complete (m + 1) ⊕g complete (n + 1) := by
-    simp [bipartite]
+    simp [bipartite_eq_compl]
   have hcard : FinEnum.card (bipartite (m + 1) (n + 1)).V = m + 1 + (n + 1) :=
     card_bipartite _ _
   rw [lapSpectrum_eq_of_compl (isConnected_bipartite m n), hcard, hcompl,
@@ -7576,7 +7576,7 @@ theorem lapSpectrum_join (G H : CGraph)
   have hK := lapSpectrum_compl (Gᶜ ⊕g Hᶜ)
   rw [lapSpectrum_disjUnion, lapSpectrum_compl G, lapSpectrum_compl H, card_disjUnion, card_compl,
     card_compl] at hK
-  rw [join, hK]
+  rw [join_eq_compl_disjUnion, hK]
   rw [show (0 : ℝ) ::ₘ (G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x)
       + (0 : ℝ) ::ₘ (H.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card H.V : ℝ) - x)
       = 0 ::ₘ (0 ::ₘ ((G.lapSpectrum.erase 0).map (fun x ↦ (FinEnum.card G.V : ℝ) - x)

@@ -67,14 +67,13 @@ vertices see nothing in common.  Doing it directly also avoids the `2 ≤ n` sid
 the truncated subtraction in `isSRGWith_compl`'s parameters would force. -/
 @[toIsoGraph]
 theorem isSRGWith_bipartite (n : ℕ) : (bipartite n n).IsSRGWith (2 * n) n 0 n := by
-  have hnbrs : ∀ x : (complete n).V ⊕ (complete n).V, ((bipartite n n).nbrs x).card = n := by
+  have hnbrs : ∀ x : (bipartite n n).V, ((bipartite n n).nbrs x).card = n := by
     rintro (a | b)
     · rw [nbrs_bipartite_inl]; simp
     · rw [nbrs_bipartite_inr]; simp
-  refine isSRGWith_of _ ?_ hnbrs (fun (x y : (complete n).V ⊕ (complete n).V) hadj ↦ ?_)
-    (fun (x y : (complete n).V ⊕ (complete n).V) hne _ ↦ ?_)
-  · show FinEnum.card (complete n).V + FinEnum.card (complete n).V = 2 * n
-    rw [card_complete, two_mul]
+  refine isSRGWith_of _ ?_ hnbrs (fun (x y : (bipartite n n).V) hadj ↦ ?_)
+    (fun (x y : (bipartite n n).V) hne _ ↦ ?_)
+  · rw [card_bipartite, two_mul]
   · -- adjacent: one vertex on each side, and the two neighbourhoods are the two sides
     rcases x with a | b <;> rcases y with c | d <;> simp_all [nbrs_bipartite_inl,
       nbrs_bipartite_inr, Finset.eq_empty_iff_forall_notMem]
@@ -215,6 +214,12 @@ theorem filter_xor_eq (n : ℕ) (d x y : Fin n → Bool) :
     constructor
     · intro h he; exact h (by rw [he])
     · intro h he; exact h (Bool.xor_left_inj.1 he)
+
+/-- The same, for the count the cube families are defined by. -/
+theorem countP_xor_eq (n : ℕ) (d x y : Fin n → Bool) :
+    ((List.finRange n).countP fun i ↦ (x i ^^ d i) != (y i ^^ d i))
+      = (List.finRange n).countP fun i ↦ x i != y i :=
+  List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> cases d i <;> rfl
 
 theorem isVertexTransitive_hypercube (n : ℕ) : (hypercube n).IsVertexTransitive := by
   rw [hypercube_eq_ofRel]

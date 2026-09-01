@@ -27,8 +27,7 @@ namespace NamedGraphs
 open CGraph
 
 -- Building the CNF for a graph of this size recurses deeply.  The heartbeat budget, by contrast,
--- is needed by exactly one theorem in the file — see `indepNum_tutte12Cage` below — because the
--- refutations run as compiled code and cost almost nothing in heartbeats.
+-- is left alone: the refutations run as compiled code and cost almost nothing in heartbeats.
 set_option maxRecDepth 100000
 
 /-! ## The Harries graph
@@ -432,11 +431,7 @@ def tutte12CageIndepSet : List (Fin 126) :=
    50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96,
    98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124]
 
--- Measured: 283 803 heartbeats, the only theorem in the file over the default.  The 126-vertex
--- independence CNF is the largest in the library, and almost all of the cost is `bv_decide`'s
--- `bv_normalize` pre-pass: 571 `simp` calls over the 189 adjacency clauses and the 126-term
--- population count, ~16 s against ~1 s for the bit-blasting, CaDiCaL and the LRAT replay.
-set_option maxHeartbeats 800000 in
+-- The largest independence refutation in the library: 126 vertices and 189 adjacency clauses.
 /-- **The independence number of the Tutte 12-cage is sixty-three.**  A cubic bipartite graph has
 a perfect matching, so neither side of the bipartition can be beaten. -/
 @[simp] theorem indepNum_tutte12Cage : tutte12Cage.indepNum = 63 := by

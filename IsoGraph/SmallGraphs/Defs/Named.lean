@@ -597,12 +597,10 @@ abbrev balaban10Cage : CGraph := ofEdges 70 (lcfEdges balabanCode 1)
 
 /-- The Herschel graph has girth four: `0 - 1 - 5 - 2 - 0` is a square. -/
 @[simp] theorem girth_herschel : herschel.girth = 4 := by
-  have hnac : ¬ herschel.IsAcyclic :=
-    not_isAcyclic_of_cycleList (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  refine le_antisymm ?_ (four_le_girth (by native_decide) hnac)
-  exact girth_le_of_cycleList (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList herschel
+    (vtx 11 0) [vtx 11 1, vtx 11 5, vtx 11 2]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
 @[simp] theorem card_tietze : FinEnum.card tietze.V = 12 := card_ofEdges _ _
 
@@ -659,12 +657,10 @@ theorem isRegularWith_robertson : robertson.IsRegularWith 4 :=
 
 /-- The Robertson graph has girth five: `0 - 1 - 2 - 3 - 4 - 0` is a pentagon. -/
 @[simp] theorem girth_robertson : robertson.girth = 5 := by
-  have hnac : ¬ robertson.IsAcyclic :=
-    not_isAcyclic_of_cycleList (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  refine le_antisymm ?_ (five_le_girth (by native_decide) (by native_decide) hnac)
-  exact girth_le_of_cycleList (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList robertson
+    (vtx 19 0) [vtx 19 1, vtx 19 2, vtx 19 3, vtx 19 4]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (five_le_girth (by native_decide) (by native_decide) hnac)
 
 @[simp] theorem card_bidiakisCube : FinEnum.card bidiakisCube.V = 12 := card_ofEdges _ _
 
@@ -681,12 +677,10 @@ theorem isRegularWith_bidiakisCube : bidiakisCube.IsRegularWith 3 :=
 
 /-- The Bidiakis cube has girth four: `0 - 1 - 5 - 6 - 0` is a square. -/
 @[simp] theorem girth_bidiakisCube : bidiakisCube.girth = 4 := by
-  have hnac : ¬ bidiakisCube.IsAcyclic :=
-    not_isAcyclic_of_cycleList (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  refine le_antisymm ?_ (four_le_girth (by native_decide) hnac)
-  exact girth_le_of_cycleList (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList bidiakisCube
+    (vtx 12 0) [vtx 12 1, vtx 12 5, vtx 12 6]
     (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (four_le_girth (by native_decide) hnac)
 
 @[simp] theorem card_dyck : FinEnum.card dyck.V = 32 := card_ofEdges _ _
 
@@ -718,10 +712,10 @@ theorem isRegularWith_balaban10Cage : balaban10Cage.IsRegularWith 3 :=
 
 Every graph above of girth at most five got it from the hand-written ladder of
 `IsoGraph/SmallGraphs.lean`.  The graphs of girth six and beyond go through the cycle-list
-machinery instead: `girth_le_of_cycleList` turns an explicit list of vertices into an upper
-bound, and `six_le_girth_of_nbrList`, `seven_le_girth_of_nbrList`, `eight_le_girth_of_nbrList`
-and `ten_le_girth_of_nbrList` turn an exhaustive search along a neighbour table into a lower
-bound.  The last of them, at the Balaban 10-cage, searches seventy vertices to depth nine. -/
+machinery instead: `girth_le_and_not_isAcyclic_of_cycleList` turns an explicit list of vertices
+into an upper bound, and `le_girth_of_nbrList` turns an exhausted search along a neighbour table
+into a lower bound.  The deepest of them, at the Balaban 10-cage, searches seventy vertices to
+depth nine. -/
 
 /-- The neighbour table of the heawood graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -738,18 +732,10 @@ theorem heawood_nb : ∀ a b : heawood.V, b ∈ heawoodNb a ↔ heawood.Adj a b 
 six-cycle, and a search along the
 neighbour table finds no shorter one. -/
 @[simp, toIsoGraph] theorem girth_heawood : heawood.girth = 6 := by
-  have hcyc : heawood.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ heawood.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList heawood_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList heawood
+    (vtx 14 0) [vtx 14 1, vtx 14 2, vtx 14 3, vtx 14 4, vtx 14 5]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 heawood_nb (by native_decide) hnac)
 
 /-- The neighbour table of the pappus graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -766,18 +752,10 @@ theorem pappus_nb : ∀ a b : pappus.V, b ∈ pappusNb a ↔ pappus.Adj a b := b
 the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_pappus : pappus.girth = 6 := by
-  have hcyc : pappus.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 18 0) [vtx 18 1, vtx 18 2, vtx 18 3, vtx 18 4, vtx 18 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ pappus.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 18 0) [vtx 18 1, vtx 18 2, vtx 18 3, vtx 18 4, vtx 18 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList pappus_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList pappus
+    (vtx 18 0) [vtx 18 1, vtx 18 2, vtx 18 3, vtx 18 4, vtx 18 5]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 pappus_nb (by native_decide) hnac)
 
 /-- The neighbour table of the mobiusKantor graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -794,18 +772,10 @@ theorem mobiusKantor_nb : ∀ a b : mobiusKantor.V, b ∈ mobiusKantorNb a ↔ m
 search along the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_mobiusKantor : mobiusKantor.girth = 6 := by
-  have hcyc : mobiusKantor.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 16 0) [vtx 16 1, vtx 16 2, vtx 16 3, vtx 16 11, vtx 16 8]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ mobiusKantor.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 16 0) [vtx 16 1, vtx 16 2, vtx 16 3, vtx 16 11, vtx 16 8]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList mobiusKantor_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList mobiusKantor
+    (vtx 16 0) [vtx 16 1, vtx 16 2, vtx 16 3, vtx 16 11, vtx 16 8]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 mobiusKantor_nb (by native_decide) hnac)
 
 /-- The neighbour table of the desargues graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -822,18 +792,10 @@ theorem desargues_nb : ∀ a b : desargues.V, b ∈ desarguesNb a ↔ desargues.
 along the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_desargues : desargues.girth = 6 := by
-  have hcyc : desargues.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 13, vtx 20 10]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ desargues.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 13, vtx 20 10]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList desargues_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList desargues
+    (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 13, vtx 20 10]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 desargues_nb (by native_decide) hnac)
 
 /-- The neighbour table of the nauru graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -850,18 +812,10 @@ theorem nauru_nb : ∀ a b : nauru.V, b ∈ nauruNb a ↔ nauru.Adj a b := by
 along the
 neighbour table finds no shorter one. -/
 @[simp, toIsoGraph] theorem girth_nauru : nauru.girth = 6 := by
-  have hcyc : nauru.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ nauru.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList nauru_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList nauru
+    (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 14, vtx 24 19, vtx 24 12]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 nauru_nb (by native_decide) hnac)
 
 /-- The neighbour table of the mcgee graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -878,19 +832,10 @@ theorem mcgee_nb : ∀ a b : mcgee.V, b ∈ mcgeeNb a ↔ mcgee.Adj a b := by
 search along the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_mcgee : mcgee.girth = 7 := by
-  have hcyc : mcgee.girth ≤ 7 :=
-    girth_le_of_cycleList
-      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 3, vtx 24 4, vtx 24 11, vtx 24 12]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ mcgee.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 3, vtx 24 4, vtx 24 11, vtx 24 12]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (seven_le_girth_of_nbrList mcgee_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList mcgee
+    (vtx 24 0) [vtx 24 1, vtx 24 2, vtx 24 3, vtx 24 4, vtx 24 11, vtx 24 12]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 7 mcgee_nb (by native_decide) hnac)
 
 /-- The neighbour table of the coxeter graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -907,19 +852,10 @@ theorem coxeter_nb : ∀ a b : coxeter.V, b ∈ coxeterNb a ↔ coxeter.Adj a b 
 search along the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_coxeter : coxeter.girth = 7 := by
-  have hcyc : coxeter.girth ≤ 7 :=
-    girth_le_of_cycleList
-      (vtx 28 0) [vtx 28 1, vtx 28 2, vtx 28 3, vtx 28 4, vtx 28 5, vtx 28 6]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ coxeter.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 28 0) [vtx 28 1, vtx 28 2, vtx 28 3, vtx 28 4, vtx 28 5, vtx 28 6]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (seven_le_girth_of_nbrList coxeter_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList coxeter
+    (vtx 28 0) [vtx 28 1, vtx 28 2, vtx 28 3, vtx 28 4, vtx 28 5, vtx 28 6]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 7 coxeter_nb (by native_decide) hnac)
 
 /-- The neighbour table of the tutteCoxeter graph.  Looking a neighbour up in a table is what makes
 the girth search below tractable: the decision procedure would otherwise recompute the
@@ -936,20 +872,10 @@ theorem tutteCoxeter_nb : ∀ a b : tutteCoxeter.V, b ∈ tutteCoxeterNb a ↔ t
 0` is an eight-cycle, and a search along the
 neighbour table finds no shorter one. -/
 @[simp] theorem girth_tutteCoxeter : tutteCoxeter.girth = 8 := by
-  have hcyc : tutteCoxeter.girth ≤ 8 :=
-    girth_le_of_cycleList
-      (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ tutteCoxeter.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (eight_le_girth_of_nbrList tutteCoxeter_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList tutteCoxeter
+    (vtx 30 0) [vtx 30 1, vtx 30 2, vtx 30 3, vtx 30 4, vtx 30 5, vtx 30 18, vtx 30 17]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 8 tutteCoxeter_nb (by native_decide) hnac)
 
 def dyckTbl : List (List dyck.V) := dyck.nbrTable (List.finRange 32)
 
@@ -959,18 +885,10 @@ theorem dyck_nb : ∀ a b : dyck.V, b ∈ dyckNb a ↔ dyck.Adj a b := by
   native_decide
 
 @[simp] theorem girth_dyck : dyck.girth = 6 := by
-  have hcyc : dyck.girth ≤ 6 :=
-    girth_le_of_cycleList
-      (vtx 32 0) [vtx 32 1, vtx 32 2, vtx 32 3, vtx 32 4, vtx 32 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ dyck.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 32 0) [vtx 32 1, vtx 32 2, vtx 32 3, vtx 32 4, vtx 32 5]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (six_le_girth_of_nbrList dyck_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList dyck
+    (vtx 32 0) [vtx 32 1, vtx 32 2, vtx 32 3, vtx 32 4, vtx 32 5]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 6 dyck_nb (by native_decide) hnac)
 
 def balabanTbl : List (List balaban10Cage.V) := balaban10Cage.nbrTable (List.finRange 70)
 
@@ -980,24 +898,11 @@ theorem balaban_nb : ∀ a b : balaban10Cage.V, b ∈ balabanNb a ↔ balaban10C
   native_decide
 
 @[simp] theorem girth_balaban10Cage : balaban10Cage.girth = 10 := by
-  have hcyc : balaban10Cage.girth ≤ 10 :=
-    girth_le_of_cycleList
-      (vtx 70 0) [vtx 70 1, vtx 70 2, vtx 70 3, vtx 70 4, vtx 70 5, vtx 70 6, vtx 70 63,
-        vtx 70 62, vtx 70 61]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ balaban10Cage.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 70 0) [vtx 70 1, vtx 70 2, vtx 70 3, vtx 70 4, vtx 70 5, vtx 70 6, vtx 70 63,
-        vtx 70 62, vtx 70 61]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (ten_le_girth_of_nbrList balaban_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList balaban10Cage
+    (vtx 70 0) [vtx 70 1, vtx 70 2, vtx 70 3, vtx 70 4, vtx 70 5, vtx 70 6, vtx 70 63,
+      vtx 70 62, vtx 70 61]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 10 balaban_nb (by native_decide) hnac)
 
 /-! ## Four more graphs with names
 
@@ -1085,17 +990,10 @@ theorem holt_nb : ∀ a b : holt.V, b ∈ holtNb a ↔ holt.Adj a b := by
 
 /-- The Holt graph has girth five. -/
 @[simp] theorem girth_holt : holt.girth = 5 := by
-  have hcyc : holt.girth ≤ 5 :=
-    girth_le_of_cycleList
-      (vtx 27 0) [vtx 27 5, vtx 27 10, vtx 27 6, vtx 27 22]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ holt.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 27 0) [vtx 27 5, vtx 27 10, vtx 27 6, vtx 27 22]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (five_le_girth_of_nbrList holt_nb
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList holt
+    (vtx 27 0) [vtx 27 5, vtx 27 10, vtx 27 6, vtx 27 22]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 5 holt_nb (by native_decide) hnac)
 
 @[simp] theorem card_flowerSnark : FinEnum.card flowerSnark.V = 20 := card_ofEdges _ _
 
@@ -1123,17 +1021,10 @@ theorem flowerSnark_nb : ∀ a b : flowerSnark.V, b ∈ flowerSnarkNb a ↔ flow
 
 /-- The flower snark `J₅` has girth five: the five-cycle on the first leaves is shortest. -/
 @[simp] theorem girth_flowerSnark : flowerSnark.girth = 5 := by
-  have hcyc : flowerSnark.girth ≤ 5 :=
-    girth_le_of_cycleList
-      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 4]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ flowerSnark.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 4]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (five_le_girth_of_nbrList flowerSnark_nb
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList flowerSnark
+    (vtx 20 0) [vtx 20 1, vtx 20 2, vtx 20 3, vtx 20 4]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 5 flowerSnark_nb (by native_decide) hnac)
 
 @[simp] theorem card_biggsSmith : FinEnum.card biggsSmith.V = 102 := card_ofEdges _ _
 
@@ -1161,23 +1052,11 @@ theorem biggsSmith_nb : ∀ a b : biggsSmith.V, b ∈ biggsSmithNb a ↔ biggsSm
 
 /-- The Biggs–Smith graph has girth nine. -/
 @[simp] theorem girth_biggsSmith : biggsSmith.girth = 9 := by
-  have hcyc : biggsSmith.girth ≤ 9 :=
-    girth_le_of_cycleList
-      (vtx 102 0) [vtx 102 101, vtx 102 36, vtx 102 37, vtx 102 38, vtx 102 4, vtx 102 3, vtx 102 2,
-        vtx 102 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ biggsSmith.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 102 0) [vtx 102 101, vtx 102 36, vtx 102 37, vtx 102 38, vtx 102 4, vtx 102 3, vtx 102 2,
-        vtx 102 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (nine_le_girth_of_nbrList biggsSmith_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList biggsSmith
+    (vtx 102 0) [vtx 102 101, vtx 102 36, vtx 102 37, vtx 102 38, vtx 102 4, vtx 102 3, vtx 102 2,
+      vtx 102 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 9 biggsSmith_nb (by native_decide) hnac)
 
 @[simp] theorem card_ljubljana : FinEnum.card ljubljana.V = 112 := card_ofEdges _ _
 
@@ -1203,24 +1082,11 @@ theorem ljubljana_nb : ∀ a b : ljubljana.V, b ∈ ljubljanaNb a ↔ ljubljana.
 
 /-- The Ljubljana graph has girth ten. -/
 @[simp] theorem girth_ljubljana : ljubljana.girth = 10 := by
-  have hcyc : ljubljana.girth ≤ 10 :=
-    girth_le_of_cycleList
-      (vtx 112 0) [vtx 112 47, vtx 112 46, vtx 112 45, vtx 112 44, vtx 112 43, vtx 112 42,
-        vtx 112 3, vtx 112 2, vtx 112 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ ljubljana.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 112 0) [vtx 112 47, vtx 112 46, vtx 112 45, vtx 112 44, vtx 112 43, vtx 112 42,
-        vtx 112 3, vtx 112 2, vtx 112 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (ten_le_girth_of_nbrList ljubljana_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList ljubljana
+    (vtx 112 0) [vtx 112 47, vtx 112 46, vtx 112 45, vtx 112 44, vtx 112 43, vtx 112 42,
+      vtx 112 3, vtx 112 2, vtx 112 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 10 ljubljana_nb (by native_decide) hnac)
 
 end
 

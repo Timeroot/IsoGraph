@@ -39,6 +39,9 @@ theorem idxOf_lt {G : CGraph} (v : G.V) : idxOf v < FinEnum.card G.V := (FinEnum
 def vtxAt (H : CGraph) (k : ℕ) : Option H.V :=
   if h : k < FinEnum.card H.V then some (FinEnum.equiv.symm ⟨k, h⟩) else none
 
+theorem vtxAt_eq_some (H : CGraph) {k : ℕ} (h : k < FinEnum.card H.V) :
+    vtxAt H k = some (FinEnum.equiv.symm ⟨k, h⟩) := dif_pos h
+
 /-! ## The checks -/
 
 /-- `p` and `q` are mutually inverse maps `{0, …, m-1} → {0, …, n-1}`.
@@ -49,22 +52,39 @@ def permOK (m n : ℕ) (p q : List ℕ) : Bool :=
   (List.range m).all (fun i ↦ p.getD i n < n && q.getD (p.getD i n) m == i) &&
     (List.range n).all (fun j ↦ q.getD j m < m && p.getD (q.getD j m) n == j)
 
-/-- The vertices of `G` paired with their images in `H`.
+/-- The vertices of `G` paired with their images in `H`, or `none` if an index is out of range.
 
-A parameter of `adjOKAux` rather than something it recomputes: the adjacency check is a double
-loop, and the kernel would otherwise redo the whole pairing once per row. -/
-def pairing (G H : CGraph) (p : List ℕ) : List (G.V × Option H.V) :=
-  (FinEnum.toList G.V).map fun v ↦ (v, vtxAt H (p.getD (idxOf v) (FinEnum.card H.V)))
+Built once and handed to `adjOKAux` rather than recomputed there: the adjacency check is a double
+loop, and the kernel would otherwise redo the whole pairing once per row.  The range check is
+done here too, once per vertex, so that the quadratic loop below sees a pair of vertices and not
+a pair of `Option`s.
 
-/-- Adjacency is carried across the pairing, in both directions at once: the two `Bool`s agree. -/
-def adjOKAux (G H : CGraph) (l : List (G.V × Option H.V)) : Bool :=
-  l.all fun uo ↦ l.all fun vo ↦
-    match uo.2, vo.2 with
-    | some a, some b => H.Adj a b == G.Adj uo.1 vo.1
-    | _, _ => false
+The recursion is over the *indices* and not over `FinEnum.toList G.V`, because a vertex does not
+know its own index: `idxOf` is `List.idxOf` for every enumeration built from a list, so pairing a
+list of vertices with their images would search the enumeration once per vertex — and the search
+compares vertices, which for the vertex type of a line graph is itself two comparisons in the
+vertex type below.  Counting instead of searching turns that into one traversal. -/
+def pairing (G H : CGraph) (p : List ℕ) : List ℕ → Option (List (G.V × H.V))
+  | [] => some []
+  | i :: is =>
+    match vtxAt G i, vtxAt H (p.getD i (FinEnum.card H.V)), pairing G H p is with
+    | some v, some w, some l => some ((v, w) :: l)
+    | _, _, _ => none
+
+/-- Adjacency is carried across the pairing, in both directions at once: the two `Bool`s agree.
+
+Each unordered pair is visited once.  Adjacency is symmetric and irreflexive on both sides, so
+the lower half of the matrix and its diagonal say nothing the upper half does not, and it is the
+kernel that pays for them. -/
+def adjOKAux (G H : CGraph) : List (G.V × H.V) → Bool
+  | [] => true
+  | (u, a) :: l => l.all (fun vb ↦ H.Adj a vb.2 == G.Adj u vb.1) && adjOKAux G H l
 
 /-- `p` carries the adjacency of `G` to that of `H`. -/
-def adjOK (G H : CGraph) (p : List ℕ) : Bool := adjOKAux G H (pairing G H p)
+def adjOK (G H : CGraph) (p : List ℕ) : Bool :=
+  match pairing G H p (List.range (FinEnum.card G.V)) with
+  | none => false
+  | some l => adjOKAux G H l
 
 /-- **The certificate.**  `p` and `q` are mutually inverse index maps and `p` preserves adjacency;
 that is, `p` describes an isomorphism `G ≃cg H` with inverse `q`. -/
@@ -112,15 +132,63 @@ theorem vtxAt_vEquiv (h : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = tru
   rw [vtxAt, dif_pos (permOK_fwd h (idxOf_lt v)).1]
   rfl
 
+/-- The same, read off an index rather than a vertex — the form `pairing` meets it in. -/
+theorem vtxAt_vEquiv_idx (h : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = true) {i : ℕ}
+    (hi : i < FinEnum.card G.V) :
+    vtxAt H (p.getD i (FinEnum.card H.V))
+      = some (vEquiv h (FinEnum.equiv.symm ⟨i, hi⟩ : G.V)) := by
+  have h' := vtxAt_vEquiv h (FinEnum.equiv.symm ⟨i, hi⟩ : G.V)
+  simpa only [idxOf, Equiv.apply_symm_apply] using h'
+
+/-- A valid `p` pairs the vertex at every index listed with its image, and nothing is out of
+range. -/
+theorem pairing_isSome (hp : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = true) {is : List ℕ}
+    (his : ∀ i ∈ is, i < FinEnum.card G.V) :
+    ∃ l, pairing G H p is = some l ∧ ∀ v : G.V, idxOf v ∈ is → (v, vEquiv hp v) ∈ l := by
+  induction is with
+  | nil => exact ⟨[], rfl, by simp⟩
+  | cons i is ih =>
+    obtain ⟨l, hl, hmem⟩ := ih fun j hj ↦ his j (List.mem_cons_of_mem _ hj)
+    have hi : i < FinEnum.card G.V := his i (List.mem_cons_self ..)
+    refine ⟨(FinEnum.equiv.symm ⟨i, hi⟩, vEquiv hp (FinEnum.equiv.symm ⟨i, hi⟩)) :: l, ?_, ?_⟩
+    · simp only [pairing, vtxAt_eq_some G hi, vtxAt_vEquiv_idx hp hi, hl]
+    · intro v hv
+      rcases List.mem_cons.1 hv with h | h
+      · have hveq : (FinEnum.equiv.symm ⟨i, hi⟩ : G.V) = v := by
+          subst h; exact FinEnum.equiv.symm_apply_apply v
+        rw [hveq]
+        exact List.mem_cons_self ..
+      · exact List.mem_cons_of_mem _ (hmem v h)
+
+/-- What the triangular loop leaves behind: any two distinct entries of the list agree, in
+either order.  The loop sees each pair once; symmetry of adjacency supplies the other order. -/
+theorem adjOKAux_apply {l : List (G.V × H.V)} (h : adjOKAux G H l = true) :
+    ∀ x ∈ l, ∀ y ∈ l, x ≠ y → H.Adj x.2 y.2 = G.Adj x.1 y.1 := by
+  induction l with
+  | nil => simp
+  | cons z l ih =>
+    obtain ⟨u, a⟩ := z
+    rw [adjOKAux, Bool.and_eq_true] at h
+    have hhead : ∀ y ∈ l, H.Adj a y.2 = G.Adj u y.1 :=
+      fun y hy ↦ by simpa using List.all_eq_true.1 h.1 y hy
+    intro x hx y hy hxy
+    rw [List.mem_cons] at hx hy
+    rcases hx with rfl | hx <;> rcases hy with rfl | hy
+    · exact absurd rfl hxy
+    · exact hhead y hy
+    · show H.Adj x.2 a = G.Adj x.1 u
+      rw [H.symm x.2 a, G.symm x.1 u]; exact hhead x hx
+    · exact ih h.2 x hx y hy hxy
+
 theorem adj_vEquiv (hp : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = true)
     (ha : adjOK G H p = true) (u v : G.V) : H.Adj (vEquiv hp u) (vEquiv hp v) = G.Adj u v := by
-  have hmem : ∀ w : G.V, (w, vtxAt H (p.getD (idxOf w) (FinEnum.card H.V))) ∈ pairing G H p :=
-    fun w ↦ List.mem_map_of_mem (FinEnum.mem_toList w)
-  rw [adjOK, adjOKAux] at ha
-  have hrow := List.all_eq_true.1 ha _ (hmem u)
-  have hcell := List.all_eq_true.1 hrow _ (hmem v)
-  rw [vtxAt_vEquiv hp u, vtxAt_vEquiv hp v] at hcell
-  simpa using hcell
+  rcases eq_or_ne u v with rfl | huv
+  · rw [Bool.eq_false_iff.2 (H.loopless (vEquiv hp u)), Bool.eq_false_iff.2 (G.loopless u)]
+  · obtain ⟨l, hl, hmem⟩ :=
+      pairing_isSome hp (is := List.range (FinEnum.card G.V)) fun i hi ↦ List.mem_range.1 hi
+    simp only [adjOK, hl] at ha
+    exact adjOKAux_apply ha _ (hmem u (List.mem_range.2 (idxOf_lt u))) _
+      (hmem v (List.mem_range.2 (idxOf_lt v))) fun h ↦ huv (congrArg Prod.fst h)
 
 /-- **An isomorphism from a checked certificate.** -/
 def isoOfList (G H : CGraph) (p q : List ℕ) (h : isoListOK G H p q = true) : G ≃cg H :=

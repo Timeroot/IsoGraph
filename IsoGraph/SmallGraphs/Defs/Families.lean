@@ -20,36 +20,79 @@ namespace CGraph
 section
 open Fintype
 
-/-- The complete bipartite graph `K_{m,n}`. -/
+/-- The complete bipartite graph `K_{m,n}`: two independent sets with every edge across.
+
+Written directly rather than as `(complete m ⊕g complete n)ᶜ`, which it also is —
+`bipartite_eq_compl` — but which asks four vertex comparisons of an adjacency query where one
+match settles it; see the note on `CGraph.join`, of which this is the edgeless case. -/
 @[toIsoGraph]
-def bipartite (m n : ℕ) : CGraph := (complete m ⊕g complete n)ᶜ
+def bipartite (m n : ℕ) : CGraph where
+  V := Fin m ⊕ Fin n
+  Adj x y :=
+    match x, y with
+    | .inl _, .inl _ => false
+    | .inr _, .inr _ => false
+    | _, _ => true
+  symm x y := by cases x <;> cases y <;> rfl
+  loopless x := by cases x <;> simp
 
 instance (m n : ℕ) : Nonempty (bipartite (m + 1) n).V :=
   inferInstanceAs (Nonempty (Fin (m + 1) ⊕ Fin n))
 
-@[simp] theorem card_bipartite (m n : ℕ) : FinEnum.card (bipartite m n).V = m + n := by
-  simp [bipartite]
+theorem bipartite_eq_join (m n : ℕ) : bipartite m n = empty m ∇g empty n :=
+  CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ by cases x <;> cases y <;> rfl))
+
+theorem bipartite_eq_compl (m n : ℕ) : bipartite m n = (complete m ⊕g complete n)ᶜ :=
+  (bipartite_eq_join m n).trans (join_eq_compl_disjUnion (empty m) (empty n))
+
+@[simp] theorem card_bipartite (m n : ℕ) : FinEnum.card (bipartite m n).V = m + n := rfl
 
 @[simp] theorem bipartite_adj_inl_inl (m n : ℕ) (a c : Fin m) :
-    (bipartite m n).Adj (.inl a) (.inl c) = false := by
-  by_cases h : a = c <;> simp [bipartite, complete, h]
+    (bipartite m n).Adj (.inl a) (.inl c) = false := rfl
 
 @[simp] theorem bipartite_adj_inr_inr (m n : ℕ) (b d : Fin n) :
-    (bipartite m n).Adj (.inr b) (.inr d) = false := by
-  by_cases h : b = d <;> simp [bipartite, complete, h]
+    (bipartite m n).Adj (.inr b) (.inr d) = false := rfl
 
 @[simp] theorem bipartite_adj_inl_inr (m n : ℕ) (a : Fin m) (d : Fin n) :
-    (bipartite m n).Adj (.inl a) (.inr d) = true := by
-  simp [bipartite]
+    (bipartite m n).Adj (.inl a) (.inr d) = true := rfl
 
 @[simp] theorem bipartite_adj_inr_inl (m n : ℕ) (b : Fin n) (c : Fin m) :
-    (bipartite m n).Adj (.inr b) (.inl c) = true := by
-  simp [bipartite]
+    (bipartite m n).Adj (.inr b) (.inl c) = true := rfl
 
-/-- The complete multipartite graph with parts of sizes `ds`. -/
+/-- The complete multipartite graph with parts of sizes `ds`: two vertices are adjacent exactly
+when they lie in different parts.
+
+Written directly rather than as the complement of the disjoint union of the parts —
+`completeMultipartite_eq_compl` — because that form asks whether the two vertices are equal,
+then whether they share a part, and then, if they do, whether they are equal again.  The part
+indices answer on their own, and a Turán graph is queried a great many times. -/
 @[toIsoGraph]
-def completeMultipartite (ds : List ℕ) : CGraph :=
-  (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))ᶜ
+def completeMultipartite (ds : List ℕ) : CGraph where
+  V := Σ i : Fin ds.length, (complete (ds.get i)).V
+  Adj x y := decide (x.1 ≠ y.1)
+  symm x y := by simp [ne_comm]
+  loopless x := by simp
+
+/-- Two vertices of a complete multipartite graph are adjacent exactly when they lie in
+different parts. -/
+theorem completeMultipartite_adj (ds : List ℕ)
+    (x y : Σ i : Fin ds.length, (complete (ds.get i)).V) :
+    (completeMultipartite ds).Adj x y = decide (x.1 ≠ y.1) := rfl
+
+theorem completeMultipartite_eq_compl (ds : List ℕ) :
+    completeMultipartite ds = (sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))ᶜ := by
+  refine CGraph.ext' rfl (heq_of_eq (funext fun x ↦ funext fun y ↦ ?_))
+  obtain ⟨i, a⟩ := x
+  obtain ⟨j, b⟩ := y
+  show decide (i ≠ j) = (decide (_ ≠ _) && !(sigmaUnion _).Adj _ _)
+  by_cases h : i = j
+  · subst h
+    rw [sigmaUnion_adj_mk]
+    by_cases hab : a = b <;> simp [complete, hab]
+  · rw [sigmaUnion_adj_ne _ _ _ _ _ h]
+    have hne : (⟨i, a⟩ : Σ i : Fin ds.length, (complete (ds.get i)).V) ≠ ⟨j, b⟩ :=
+      fun hh ↦ h (congrArg Sigma.fst hh)
+    simp [hne, h]
 
 /-- The star with `n` leaves. -/
 @[toIsoGraph]
@@ -176,21 +219,30 @@ theorem circulant_one_eq_cycle (n : ℕ) : circulant n [1] = cycle n := by
     [1].contains ((x.1 + n - y.1) % n))) = _
   rw [decide_eq_true hxy, Bool.true_and, key x y hne, key y x (Ne.symm hne)]
 
-/-- The nonzero quadratic residues mod `q`, as a lookup table — computed once, so that the Paley
-graph answers an adjacency query with one array read.
+/-- The nonzero quadratic residues mod `q`, as a bitmask — computed once, so that the Paley graph
+answers an adjacency query with one `Nat.testBit`.
 
-Written as an `Array.ofFn` over the *defining* predicate rather than by scattering `i * i % q`
-into a mutable array: building the table then costs `O(q²)` instead of `O(q)`, which is nothing
-next to the `O(q²)` adjacency matrix it feeds, and in exchange `qrTable_getElem` reads off an
-entry with no reasoning about `Array.set!` at all. -/
-def qrTable (q : ℕ) : Array Bool :=
-  Array.ofFn (n := q) fun d ↦ decide (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = d.1)
+A `q`-element `Array Bool` would say the same thing, but the kernel reads one by walking the list
+behind it, which is `O(q)` a query on a graph that asks `q²` of them; a bit of a number is read in
+one step, the same trick and for the same reason as the adjacency mask of `CGraph.ofEdges`.  The
+residues are scattered in by squaring, `O(q)` work rather than the `O(q²)` of testing each `d` for
+being a square; `testBit_qrMask` recovers the defining predicate. -/
+def qrMask (q : ℕ) : ℕ :=
+  (List.range q).foldl (fun m i ↦ if i != 0 then m ||| 1 <<< (i * i % q) else m) 0
 
-theorem qrTable_getElem (q d : ℕ) (h : d < q) :
-    (qrTable q)[d]! = decide (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = d) := by
-  have hs : d < (qrTable q).size := by simpa [qrTable] using h
-  rw [getElem!_pos (qrTable q) d hs]
-  simp [qrTable]
+theorem testBit_qrMask (q d : ℕ) :
+    (qrMask q).testBit d = decide (∃ i : Fin q, i.1 ≠ 0 ∧ i.1 * i.1 % q = d) := by
+  rw [qrMask]
+  simp only [Nat.one_shiftLeft]
+  rw [testBit_foldl_or (f := fun i ↦ i * i % q) (p := fun i ↦ i != 0), Nat.zero_testBit,
+    Bool.false_or, Bool.eq_iff_iff]
+  simp only [List.any_eq_true, List.mem_range, Bool.and_eq_true, bne_iff_ne, ne_eq,
+    decide_eq_true_eq]
+  constructor
+  · rintro ⟨i, hi, h0, hsq⟩
+    exact ⟨⟨i, hi⟩, h0, hsq⟩
+  · rintro ⟨⟨i, hi⟩, h0, hsq⟩
+    exact ⟨i, hi, h0, hsq⟩
 
 /-- The Paley graph of order `q`: `x ~ y` when `y - x` is a nonzero square mod `q`.
 
@@ -201,29 +253,46 @@ strongly regular with parameters `(q, (q-1)/2, (q-5)/4, (q-1)/4)`; see
 `IsoGraph/SmallGraphs/Defs/SRG.lean`. -/
 @[toIsoGraph]
 def paley (q : ℕ) : CGraph :=
-  let t := qrTable q
-  ofRel (Fin q) fun x y ↦ t[(y.1 + q - x.1) % q]!
+  let t := qrMask q
+  ofRel (Fin q) fun x y ↦ t.testBit ((y.1 + q - x.1) % q)
 
 instance (q : ℕ) : Nonempty (paley (q + 1)).V := inferInstanceAs (Nonempty (Fin (q + 1)))
 
 @[simp] theorem card_paley (q : ℕ) : FinEnum.card (paley q).V = q := rfl
 
+/-- The number of coordinates at which two bit-strings differ, counted along `List.finRange n`
+instead of by building the `Finset` of them.  The same number, and the cheaper one to ask for:
+the two cube families below ask it on every adjacency query, and the `Finset` they would build
+is thrown away as soon as its cardinality has been read off. -/
+theorem card_filter_ne_eq_countP {n : ℕ} (x y : Fin n → Bool) :
+    (Finset.univ.filter fun i ↦ x i ≠ y i).card = (List.finRange n).countP fun i ↦ x i != y i := by
+  rw [← List.toFinset_finRange n, (List.nodup_finRange n).card_eq_countP]
+  exact List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
+
 /-- The hypercube `Q_n`: bit-strings of length `n`, adjacent when they differ in exactly one
 place.  This is the `n`-fold cartesian product of `complete 2`, but written directly, so that a
-vertex is a bit-string rather than the nested pair the recursion would give. -/
+vertex is a bit-string rather than the nested pair the recursion would give.
+
+`hypercube_adj` states adjacency with the `Finset` of differing coordinates, which is what the
+proofs want; the definition counts them along a list, which is what a query wants. -/
 @[toIsoGraph]
 def hypercube (n : ℕ) : CGraph where
   V := Fin n → Bool
-  Adj x y := (Finset.univ.filter fun i ↦ x i ≠ y i).card == 1
+  Adj x y := ((List.finRange n).countP fun i ↦ x i != y i) == 1
   symm x y := by
     congr 1
-    exact congrArg Finset.card (Finset.filter_congr fun i _ => by exact ne_comm)
-  loopless x := by simp
+    exact List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
+  loopless x := by
+    rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
+      List.countP_eq_zero.2 fun i _ ↦ by simp]
+    simp
 
 instance (n : ℕ) : Nonempty (hypercube n).V := inferInstanceAs (Nonempty (Fin n → Bool))
 
 @[simp] theorem hypercube_adj (n : ℕ) (x y : Fin n → Bool) :
-    (hypercube n).Adj x y = ((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) := rfl
+    (hypercube n).Adj x y = ((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) := by
+  rw [card_filter_ne_eq_countP]
+  rfl
 
 theorem hypercube_eq_ofRel (n : ℕ) :
     hypercube n = ofRel (Fin n → Bool) fun x y ↦
@@ -239,16 +308,32 @@ theorem hypercube_eq_ofRel (n : ℕ) :
 `kneser 5 2` is the Petersen graph.
 
 The disjointness test is reflexive when `k = 0` (the empty set is disjoint from itself), so the
-diagonal is deleted explicitly; it is symmetric already. -/
+diagonal has to be excluded; it is symmetric already.  `k ≠ 0` does that as well as `s ≠ t`
+would — a nonempty set meets itself — and does not cost a comparison of two `Finset`s, which is
+a comparison of two lists up to permutation, on every query.  `kneser_adj` states the relation
+in the form one wants to reason with. -/
 @[toIsoGraph]
 def kneser (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
-  Adj s t := decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)
-  symm s t := by rw [decide_ne_comm s t, Finset.inter_comm]
-  loopless s := by simp
+  Adj s t := (k != 0) && ((s.1 ∩ t.1).card == 0)
+  symm s t := by rw [Finset.inter_comm]
+  loopless s := by
+    rw [Finset.inter_self, s.2]
+    simp
 
 @[simp] theorem kneser_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
-    (kneser n k).Adj s t = (decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)) := rfl
+    (kneser n k).Adj s t = (decide (s ≠ t) && decide (s.1 ∩ t.1 = ∅)) := by
+  show ((k != 0) && ((s.1 ∩ t.1).card == 0)) = _
+  by_cases hd : s.1 ∩ t.1 = ∅
+  · rcases Nat.eq_zero_or_pos k with rfl | hk
+    · have hst : s = t :=
+        Subtype.ext ((Finset.card_eq_zero.1 s.2).trans (Finset.card_eq_zero.1 t.2).symm)
+      simp [hst]
+    · have hst : s ≠ t := fun h ↦ by
+        rw [← h, Finset.inter_self, ← Finset.card_eq_zero, s.2] at hd
+        omega
+      simp [hd, hst, hk.ne']
+  · simp [hd, Finset.card_eq_zero]
 
 theorem kneser_eq_ofRel (n k : ℕ) :
     kneser n k = ofRel {s : Finset (Fin n) // s.card = k} fun s t ↦ decide (s.1 ∩ t.1 = ∅) :=
@@ -260,18 +345,38 @@ theorem kneser_eq_ofRel (n k : ℕ) :
 `k - 1` points.  `johnson n 2` is the triangular graph `T(n)`, i.e. the line graph of `Kₙ`, and
 the complement of `kneser n 2`.
 
-Every set meets itself in `k` points, so for `k ≥ 1` the diagonal is already excluded; it is
-deleted explicitly anyway, since at `k = 0` the condition `|s ∩ t| = k - 1` degenerates to `0 = 0`
-and would put a loop at the one vertex. -/
+Every set meets itself in `k` points, so for `k ≥ 1` the diagonal is already excluded; only
+`k = 0`, where the condition `|s ∩ t| = k - 1` degenerates to `0 = 0`, would put a loop at the one
+vertex, and `k ≠ 0` rules that out without comparing two `Finset`s on every query.  `johnson_adj`
+states the relation in the form one wants to reason with. -/
 @[toIsoGraph]
 def johnson (n k : ℕ) : CGraph where
   V := {s : Finset (Fin n) // s.card = k}
-  Adj s t := decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)
-  symm s t := by rw [decide_ne_comm s t, Finset.inter_comm]
-  loopless s := by simp
+  Adj s t := (k != 0) && ((s.1 ∩ t.1).card == k - 1)
+  symm s t := by rw [Finset.inter_comm]
+  loopless s := by
+    rw [Finset.inter_self, s.2, Bool.and_eq_true]
+    rintro ⟨hk, hkk⟩
+    simp only [bne_iff_ne, ne_eq, beq_iff_eq] at hk hkk
+    omega
 
 @[simp] theorem johnson_adj (n k : ℕ) (s t : {s : Finset (Fin n) // s.card = k}) :
-    (johnson n k).Adj s t = (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) := rfl
+    (johnson n k).Adj s t = (decide (s ≠ t) && ((s.1 ∩ t.1).card == k - 1)) := by
+  show ((k != 0) && ((s.1 ∩ t.1).card == k - 1)) = _
+  by_cases hst : s = t
+  · subst hst
+    rw [Finset.inter_self, s.2]
+    have h0 : ((k != 0) && (k == k - 1)) = false := by
+      rcases Nat.eq_zero_or_pos k with rfl | hk
+      · simp
+      · simp only [Bool.and_eq_false_iff, beq_eq_false_iff_ne, ne_eq]
+        exact Or.inr (by omega)
+    rw [h0]
+    simp
+  · have hk : k ≠ 0 := by
+      rintro rfl
+      exact hst (Subtype.ext ((Finset.card_eq_zero.1 s.2).trans (Finset.card_eq_zero.1 t.2).symm))
+    simp [hst, hk]
 
 theorem johnson_eq_ofRel (n k : ℕ) :
     johnson n k = ofRel {s : Finset (Fin n) // s.card = k} fun s t ↦ (s.1 ∩ t.1).card == k - 1 :=
@@ -280,8 +385,9 @@ theorem johnson_eq_ofRel (n k : ℕ) :
       Finset.inter_comm t.1 s.1, Bool.or_self]
 
 @[simp] theorem card_johnson (n k : ℕ) : FinEnum.card (johnson n k).V = n.choose k := by
+  show FinEnum.card {s : Finset (Fin n) // s.card = k} = n.choose k
   rw [FinEnum.card_eq_fintypeCard']
-  simp [johnson, Fintype.card_finset_len]
+  simp [Fintype.card_finset_len]
 
 /-- The folded cube: `Qₙ` with each pair of antipodal vertices joined, i.e. bit-strings of length
 `n` adjacent when they differ in exactly one place *or* in all `n` of them.  Identifying antipodes
@@ -290,21 +396,41 @@ instead would halve the vertex count; this is the double cover of that, and is t
 @[toIsoGraph]
 def foldedCube (n : ℕ) : CGraph where
   V := Fin n → Bool
-  Adj x y := decide (x ≠ y) && (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
-    ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))
+  Adj x y := (n != 0) && ((((List.finRange n).countP fun i ↦ x i != y i) == 1) ||
+    (((List.finRange n).countP fun i ↦ x i != y i) == n))
   symm x y := by
-    have h : (Finset.univ.filter fun i ↦ x i ≠ y i) = (Finset.univ.filter fun i ↦ y i ≠ x i) :=
-      Finset.filter_congr fun i _ => by exact ne_comm
-    rw [decide_ne_comm x y, h]
-  loopless x := by simp
+    have h : ((List.finRange n).countP fun i ↦ x i != y i)
+        = (List.finRange n).countP fun i ↦ y i != x i :=
+      List.countP_congr fun i _ ↦ by cases x i <;> cases y i <;> rfl
+    rw [h]
+  loopless x := by
+    rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
+      List.countP_eq_zero.2 fun i _ ↦ by simp, Bool.and_eq_true]
+    rintro ⟨hn, hc⟩
+    simp only [bne_iff_ne, ne_eq] at hn
+    simp only [Bool.or_eq_true, beq_iff_eq] at hc
+    omega
 
 @[simp] theorem foldedCube_adj (n : ℕ) (x y : Fin n → Bool) :
     (foldedCube n).Adj x y = (decide (x ≠ y) &&
       (((Finset.univ.filter fun i ↦ x i ≠ y i).card == 1) ||
-        ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))) := rfl
+        ((Finset.univ.filter fun i ↦ x i ≠ y i).card == n))) := by
+  rw [card_filter_ne_eq_countP]
+  show ((n != 0) && _) = _
+  by_cases hxy : x = y
+  · subst hxy
+    rw [show ((List.finRange n).countP fun i ↦ x i != x i) = 0 from
+      List.countP_eq_zero.2 fun i _ ↦ by simp]
+    rcases Nat.eq_zero_or_pos n with rfl | hn
+    · simp
+    · simp [hn.ne', hn.ne]
+  · have hn : n ≠ 0 := by
+      rintro rfl
+      exact hxy (funext fun i ↦ i.elim0)
+    simp [hxy, hn]
 
 @[simp] theorem card_foldedCube (n : ℕ) : FinEnum.card (foldedCube n).V = 2 ^ n := by
-  simp [foldedCube, FinEnum.card_fun]
+  simp [foldedCube]
 
 /-! ## A few named families
 

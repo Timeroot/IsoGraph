@@ -10,22 +10,11 @@ set_option backward.isDefEq.respectTransparency false
 The Balaban 11-cage: the unique (3, 11)-cage, on 112 vertices.
 -/
 
-section
-set_option maxRecDepth 4000
-
--- the girth conditions nest eight bounded quantifiers over `balaban11Cage.V`, and each level costs
-
--- a `Fintype` and a `DecidableEq` that now come through the graph's `FinEnum`; the default
-
--- instance-search budget runs out at the sixth
-
-end
-
 namespace NamedGraphs
 
 section
+-- A hundred and twelve vertices: the `Fin 112` instances alone go deeper than the default.
 set_option maxRecDepth 4000
-set_option synthInstance.maxSize 512
 open CGraph CGraph.Enum
 
 /-- The LCF code of the Balaban 11-cage. -/
@@ -65,30 +54,13 @@ theorem balaban11Cage_nb :
     ∀ a b : balaban11Cage.V, b ∈ balaban11CageNb a ↔ balaban11Cage.Adj a b := by
   native_decide
 
--- Measured: 214 273 heartbeats — the same shape as `girth_tutte12Cage`, on 112 vertices and with
--- one hypothesis fewer.
-set_option maxHeartbeats 400000 in
 /-- The Balaban 11-cage has girth eleven. -/
 @[simp] theorem girth_balaban11Cage : balaban11Cage.girth = 11 := by
-  have hcyc : balaban11Cage.girth ≤ 11 :=
-    girth_le_of_cycleList
-      (vtx 112 0) [vtx 112 111, vtx 112 15, vtx 112 16, vtx 112 17, vtx 112 6, vtx 112 5, vtx 112 4,
-        vtx 112 3, vtx 112 2, vtx 112 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  have hnac : ¬ balaban11Cage.IsAcyclic :=
-    not_isAcyclic_of_cycleList
-      (vtx 112 0) [vtx 112 111, vtx 112 15, vtx 112 16, vtx 112 17, vtx 112 6, vtx 112 5, vtx 112 4,
-        vtx 112 3, vtx 112 2, vtx 112 1]
-      (by norm_num) (by native_decide) (by native_decide) (by native_decide)
-  exact le_antisymm hcyc (eleven_le_girth_of_nbrList balaban11Cage_nb
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide)
-      (by native_decide) hnac)
+  obtain ⟨hcyc, hnac⟩ := girth_le_and_not_isAcyclic_of_cycleList balaban11Cage
+    (vtx 112 0) [vtx 112 111, vtx 112 15, vtx 112 16, vtx 112 17, vtx 112 6, vtx 112 5, vtx 112 4,
+      vtx 112 3, vtx 112 2, vtx 112 1]
+    (by norm_num) (by native_decide) (by native_decide) (by native_decide)
+  exact le_antisymm hcyc (le_girth_of_nbrList 11 balaban11Cage_nb (by native_decide) hnac)
 
 end
 

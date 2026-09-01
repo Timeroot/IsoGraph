@@ -88,15 +88,16 @@ private theorem xor_eq_decide_of_filter_eq {n : ℕ} {x y : Fin n → Bool} {i�
 /-- Adding a fixed bit-string is an automorphism of the hypercube. -/
 def cubeXor (n : ℕ) (d : Fin n → Bool) : hypercube n ≃cg hypercube n :=
   autoOfPerm (G := hypercube n) ((xorPerm_involutive n d).toPerm _) fun x y ↦ by
-    show ((Finset.univ.filter fun i ↦ (x i ^^ d i) ≠ (y i ^^ d i)).card == 1) = _
-    rw [filter_xor_eq]
+    show (((List.finRange n).countP fun i ↦ (x i ^^ d i) != (y i ^^ d i)) == 1) = _
+    rw [countP_xor_eq]
     rfl
 
 /-- Permuting the coordinates is an automorphism of the hypercube: it does not change *how many*
 coordinates two strings differ in. -/
 def cubeCoord (n : ℕ) (τ : Equiv.Perm (Fin n)) : hypercube n ≃cg hypercube n :=
   autoOfPerm (G := hypercube n) (Equiv.arrowCongr τ (Equiv.refl Bool)) fun x y ↦ by
-    show ((Finset.univ.filter fun i ↦ x (τ.symm i) ≠ y (τ.symm i)).card == 1) = _
+    show (((List.finRange n).countP fun i ↦ x (τ.symm i) != y (τ.symm i)) == 1) = _
+    rw [← card_filter_ne_eq_countP, hypercube_adj]
     congr 1
     exact Finset.card_equiv τ.symm (by simp)
 
@@ -128,12 +129,11 @@ theorem isVertexTransitive_foldedCube (n : ℕ) : (foldedCube n).IsVertexTransit
   intro u v
   refine ⟨autoOfPerm (G := foldedCube n)
     ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _) fun x y ↦ ?_, ?_⟩
-  · show (decide ((fun i ↦ x i ^^ _) ≠ (fun i ↦ y i ^^ _)) &&
-      (((Finset.univ.filter fun i ↦ (x i ^^ _) ≠ (y i ^^ _)).card == 1) ||
-        ((Finset.univ.filter fun i ↦ (x i ^^ _) ≠ (y i ^^ _)).card == n))) = _
-    rw [filter_xor_eq]
-    congr 1
-    exact decide_eq_decide.2 ((xorPerm_involutive n fun i ↦ u i ^^ v i).toPerm _).injective.ne_iff
+  · show ((n != 0) &&
+      ((((List.finRange n).countP fun i ↦ (x i ^^ _) != (y i ^^ _)) == 1) ||
+        (((List.finRange n).countP fun i ↦ (x i ^^ _) != (y i ^^ _)) == n))) = _
+    rw [countP_xor_eq]
+    rfl
   · funext i
     show (u i ^^ (u i ^^ v i)) = v i
     simp
@@ -207,7 +207,7 @@ more from `isSRGWith_compl`.  What is left is `cycle 5`, `clebsch` and `shrikhan
 
 set_option maxRecDepth 4000 in
 @[toIsoGraph cycle_five_srg]
-theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by decide
+theorem cycle_five_srg : (cycle 5).IsSRGWith 5 2 0 1 := by decide +kernel
 
 @[toIsoGraph bipartite_srg]
 theorem bipartite_srg : (bipartite 3 3).IsSRGWith 6 3 0 3 := isSRGWith_bipartite 3
@@ -239,14 +239,14 @@ theorem triangular_six_srg : (triangular 6).IsSRGWith 15 8 4 4 :=
 
 set_option maxRecDepth 100000 in
 @[toIsoGraph clebsch_srg]
-theorem clebsch_srg : clebsch.IsSRGWith 16 5 0 2 := by decide
+theorem clebsch_srg : clebsch.IsSRGWith 16 5 0 2 := by decide +kernel
 
 @[toIsoGraph rook_four_srg]
 theorem rook_four_srg : (rook 4 4).IsSRGWith 16 6 2 2 := isSRGWith_rook 4
 
 set_option maxRecDepth 100000 in
 @[toIsoGraph shrikhande_srg]
-theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide
+theorem shrikhande_srg : shrikhande.IsSRGWith 16 6 2 2 := by decide +kernel
 
 @[toIsoGraph compl_clebsch_srg]
 theorem compl_clebsch_srg : clebschᶜ.IsSRGWith 16 10 6 6 := isSRGWith_compl _ clebsch_srg
@@ -472,12 +472,12 @@ theorem circulant_neg_cons (n k : ℕ) (hk : k ≤ n) (S : List ℕ) :
 /-- The connection set of `Paley(13)` is `{±1, ±3, ±4}`. -/
 @[toIsoGraph]
 theorem paley_thirteen_eq_circulant : paley 13 = circulant 13 [1, 3, 4] :=
-  eq_ofRel _ _ (by decide)
+  eq_ofRel _ _ (by decide +kernel)
 
 /-- The connection set of `Paley(17)` is `{±1, ±2, ±4, ±8}`. -/
 @[toIsoGraph]
 theorem paley_seventeen_eq_circulant : paley 17 = circulant 17 [1, 2, 4, 8] :=
-  eq_ofRel _ _ (by decide)
+  eq_ofRel _ _ (by decide +kernel)
 
 /-- A tadpole with no tail is a cycle. -/
 @[simp, toIsoGraph] theorem tadpole_zero (m : ℕ) : tadpole m 0 = cycle m := by
@@ -625,7 +625,7 @@ theorem thetaGraph_replicate_zero (j : ℕ) :
   have hx : x.1 < 2 := x.isLt
   have hy : y.1 < 2 := y.isLt
   have hne : x.1 ≠ y.1 := fun h ↦ hxy (Fin.ext h)
-  simp only [ofEdges, ofRel_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
+  simp only [ofEdges_adj, hxy, ne_eq, not_false_eq_true, decide_true, Bool.true_and,
     List.contains_eq_mem]
   rw [Bool.eq_iff_iff]
   simp only [Bool.or_eq_true, decide_eq_true_eq, mem_thetaEdges_replicate_zero, or_self, iff_true]
@@ -748,15 +748,16 @@ theorem not_isBipartite_johnson {n k : ℕ} (hk : 0 < k) (h : k + 2 ≤ n) :
 
 /-- The outer five-cycle of the Petersen graph, as a walk in `kneser 5 2`. -/
 private def petersenWalk (k : ℕ) : (CGraph.kneser 5 2).V :=
-  if k % 5 = 0 then ⟨{0, 1}, by decide⟩
-  else if k % 5 = 1 then ⟨{2, 3}, by decide⟩
-  else if k % 5 = 2 then ⟨{4, 0}, by decide⟩
-  else if k % 5 = 3 then ⟨{1, 2}, by decide⟩
-  else ⟨{3, 4}, by decide⟩
+  if k % 5 = 0 then ⟨{0, 1}, by decide +kernel⟩
+  else if k % 5 = 1 then ⟨{2, 3}, by decide +kernel⟩
+  else if k % 5 = 2 then ⟨{4, 0}, by decide +kernel⟩
+  else if k % 5 = 3 then ⟨{1, 2}, by decide +kernel⟩
+  else ⟨{3, 4}, by decide +kernel⟩
 
 /-- **The Petersen graph is not bipartite**: it has no triangle, but it does have a five-cycle. -/
 theorem not_isBipartite_kneser_five_two : ¬ (CGraph.kneser 5 2).IsBipartite :=
-  not_isBipartite_of_odd_walk petersenWalk 5 (by decide) (by decide) (by decide)
+  not_isBipartite_of_odd_walk petersenWalk 5 (by decide +kernel) (by decide +kernel)
+    (by decide +kernel)
 
 @[simp, toIsoGraph] theorem degSequence_kneser {n k : ℕ} (hk : 1 ≤ k) :
     (kneser n k).degSequence = List.replicate (n.choose k) ((n - k).choose k) := by

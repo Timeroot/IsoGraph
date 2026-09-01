@@ -49,7 +49,7 @@ variable (G H : CGraph)
   rw [h2] at h1
   rw [card_disjUnion, card_complete, card_complete] at h1
   -- bipartite m n = Gᶜ
-  have hbip : bipartite m n = Gᶜ := rfl
+  have hbip : bipartite m n = Gᶜ := bipartite_eq_compl m n
   rw [hbip]
   have hdiv (k : ℕ) : 2 ∣ k * (k - 1) := by
     rcases k with _ | _ | k <;> simp [Nat.mul_succ, parity_simps]
@@ -82,7 +82,9 @@ variable (G H : CGraph)
 
 @[simp] theorem card_completeMultipartite (ds : List ℕ) :
     FinEnum.card (completeMultipartite ds).V = ds.sum := by
-  simp only [completeMultipartite, card_compl, card_sigmaUnion, card_complete]
+  show FinEnum.card (Σ i : Fin ds.length, (complete (ds.get i)).V) = _
+  rw [FinEnum.card_sigma]
+  simp only [card_complete]
   rw [Finset.sum_univ_inst_eq _ (Fin.fintype ds.length), ← Fin.sum_ofFn, List.ofFn_get]
 
 @[simp] theorem card_star (n : ℕ) : FinEnum.card (star n).V = 1 + n := by
@@ -92,7 +94,7 @@ variable (G H : CGraph)
   simp [star, E_bipartite]
 
 @[simp] theorem card_hypercube (n : ℕ) : FinEnum.card (hypercube n).V = 2 ^ n := by
-  simp [hypercube, FinEnum.card_fun]
+  simp [hypercube]
 
 /-! ### Kneser, line and Mycielskian -/
 
@@ -253,16 +255,16 @@ theorem card_inter_eq_one_of_ne (s t : (kneser n 2).V) (hne : s ≠ t) (hd : s.1
 
 /-! ### Complete bipartite graphs -/
 
-theorem nbrs_bipartite_inl (m n : ℕ) (a : (complete m).V) :
+theorem nbrs_bipartite_inl (m n : ℕ) (a : Fin m) :
     (bipartite m n).nbrs (Sum.inl a) = Finset.univ.map ⟨Sum.inr, Sum.inr_injective⟩ := by
-  refine Finset.ext (α := (complete m).V ⊕ (complete n).V) fun x ↦ ?_
+  refine Finset.ext (α := (bipartite m n).V) fun x ↦ ?_
   cases x with
   | inl b => rw [mem_nbrs]; simp
   | inr b => rw [mem_nbrs]; simp
 
-theorem nbrs_bipartite_inr (m n : ℕ) (b : (complete n).V) :
+theorem nbrs_bipartite_inr (m n : ℕ) (b : Fin n) :
     (bipartite m n).nbrs (Sum.inr b) = Finset.univ.map ⟨Sum.inl, Sum.inl_injective⟩ := by
-  refine Finset.ext (α := (complete m).V ⊕ (complete n).V) fun x ↦ ?_
+  refine Finset.ext (α := (bipartite m n).V) fun x ↦ ?_
   cases x with
   | inl c => rw [mem_nbrs]; simp
   | inr d => rw [mem_nbrs]; simp
@@ -273,26 +275,6 @@ theorem nbrs_bipartite_inr (m n : ℕ) (b : (complete n).V) :
 vertices are adjacent exactly when they lie in different parts.  Once that is said, every count
 the strong-regularity definition asks for is a sum of part sizes over a complement, and for equal
 parts those sums are products. -/
-
-/-- Two vertices of a complete multipartite graph are adjacent exactly when they lie in different
-parts. -/
-theorem completeMultipartite_adj (ds : List ℕ)
-    (x y : Σ i : Fin ds.length, (complete (ds.get i)).V) :
-    (completeMultipartite ds).Adj x y = decide (x.1 ≠ y.1) := by
-  show ((sigmaUnion fun i : Fin ds.length ↦ complete (ds.get i))ᶜ).Adj x y = _
-  rw [compl_adj]
-  obtain ⟨i, a⟩ := x
-  obtain ⟨j, b⟩ := y
-  by_cases h : i = j
-  · subst h
-    rw [sigmaUnion_adj_mk, complete_adj]
-    by_cases hab : a = b
-    · subst hab; simp
-    · simp [hab]
-  · rw [sigmaUnion_adj_ne _ _ _ _ _ h]
-    have hne : (⟨i, a⟩ : Σ i : Fin ds.length, (complete (ds.get i)).V) ≠ ⟨j, b⟩ :=
-      fun hh ↦ h (congrArg Sigma.fst hh)
-    simp [hne, h]
 
 /-- The neighbourhood of `x` is everything outside `x`'s own part. -/
 theorem nbrs_completeMultipartite (ds : List ℕ)
