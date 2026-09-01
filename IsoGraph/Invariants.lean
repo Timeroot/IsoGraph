@@ -4,6 +4,7 @@ import IsoGraph.Invariants.Fractional
 import IsoGraph.Invariants.FracProducts
 import IsoGraph.Invariants.Connectivity
 import IsoGraph.Invariants.Hamiltonian
+import IsoGraph.Invariants.LongestPath
 import IsoGraph.Invariants.Certificates
 import IsoGraph.Invariants.Symmetry
 
