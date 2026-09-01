@@ -1,11 +1,26 @@
 import IsoGraph.Containment.Algorithms.Cached
 
 /-!
+
 # Longest paths and longest induced paths
 
-This file defines the maximum order and length of a path and of an induced path in an
-`IsoGraph`.  Path order counts vertices, while path length counts edges.  Working with order
-internally gives every graph the order-zero path as a common base case.
+This module defines invariants of an `IsoGraph` defined in terms of path
+
+## Main definitions
+
+- `longestPathOrder` : The maximum order (number of vertices) of a path in `G`.
+- `longestInducedPathOrder` : The maximum order (number of vertices) of an induced path in `G`.
+
+## Main theorems
+
+- `longestPathOrder_eq_sSup` : Characterization of `longestPathOrder` as the supremum over all path orders in `G`.
+- `longestInducedPathOrder_eq_sSup` : Characterization of `longestInducedPathOrder` as the supremum over all induced path orders in `G`.
+
+## Design choices
+
+- In the literature, "length of a path" refers to the number of edges in the path, but internally it is more convenient to use the number of vertices, which we call the "order" of the path. This is because every graph has a path of order 0. We define `longestPath = longestPathOrder - 1`, etc.
+- We define the invariants directly on `IsoGraph` rather than on `CGraph`/`SimpleGraph`
+
 -/
 
 set_option autoImplicit false

@@ -28,6 +28,7 @@ import IsoGraph.SmallGraphs.CageValues
 import IsoGraph.SmallGraphs.CubicValues
 import IsoGraph.SmallGraphs.BipartiteCageValues
 import IsoGraph.SmallGraphs.ConnectedValues
+import IsoGraph.SmallGraphs.LongestPath
 
 /-!
 # The named graphs
@@ -50,10 +51,11 @@ bounds rather than computed directly.
 `Kneser` hangs off `Circulants`, for what the Erdős–Ko–Rado theorem and the fractional chromatic
 number say about `K(n, k)`.
 
-Six leaves hang off `Operators`, all holding values whose hard half is a refutation:
+Seven leaf modules hold headline values or values whose hard half is a refutation:
 `SatValues` for the Chvátal, Tietze and Robertson graphs, `SolidValues` for the Platonic,
 Archimedean and Catalan solids, `CageValues` for the cages and the small named cubic graphs,
 `CubicValues` for five more cubic graphs, the Wagner graph up to the truncated icosahedron,
 `BipartiteCageValues` for the six large bipartite cages, the Harries graph up to the Tutte
-12-cage, and `ConnectedValues` for every connected graph on at most six vertices.
+12-cage, `ConnectedValues` for every connected graph on at most six vertices, and `LongestPath`
+for longest-path values such as the five-dimensional snake-in-the-box.
 -/
