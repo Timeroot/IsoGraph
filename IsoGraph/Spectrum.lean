@@ -82,8 +82,9 @@ isomorphism (`Cospectral.of_iso`) and it implies equality of `V` and of `E`, and
 moments — of the triangle count (`Cospectral.cliqueCount_three_eq`) and of the number of closed
 walks of every length (`Cospectral.sum_card_closedWalks_eq`).  A graph is
 *determined by its spectrum*, `IsDS`, when the converse holds for it.  Two families are proved to
-be: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
-`sum_sq_spectrum` and `SimpleGraph.degree_lt_card_verts`.
+be here: `isDS_empty` and `isDS_complete`, the latter by squeezing the degree sequence between
+`sum_sq_spectrum` and `SimpleGraph.degree_lt_card_verts`; the cycle is a third, in
+`IsoGraph/TwoRegular.lean`.
 
 ## The extreme eigenvalues and the Rayleigh quotient
 
@@ -514,8 +515,9 @@ spectral for connected regular graphs (`Cospectral.isBipartite`).
 ## Not proved here
 
 The full multiset spectrum of a complement (which needs simultaneous diagonalisation with `J`),
-`IsDS` for the path and the cycle (which needs the converse direction of Smith's theorem), and
-Smith's theorem itself — that the list above is complete.
+`IsDS` for the path (which needs the converse direction of Smith's theorem), and Smith's theorem
+itself — that the list above is complete.  `IsDS` for the cycle is in `IsoGraph/TwoRegular.lean`,
+which reads it off a classification of the 2-regular graphs instead of off Smith.
 -/
 
 set_option autoImplicit false
@@ -2339,7 +2341,7 @@ theorem degree_of_isSRGWith_moore {G : CGraph} {k : ℕ} (hk : 2 ≤ k)
     · exact_mod_cast (by linarith : (k : ℝ) = 2)
 
 /-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
-@[toIsoGraph]
+@[toIsoGraph spectrum_kneser_five_two]
 theorem spectrum_petersen :
     SRG.petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2)) := by
   have : Nonempty SRG.petersen.V :=
@@ -7990,7 +7992,7 @@ theorem energy_compl_of_isRegularWith {G : CGraph}
   rw [Function.comp_apply, show (-1 : ℝ) - x = -(1 + x) from by ring, abs_neg]
 
 /-- **The energy of the Petersen graph** is `16`: `3 + 5 · 1 + 4 · 2`. -/
-@[toIsoGraph]
+@[toIsoGraph energy_kneser_five_two]
 theorem energy_petersen : SRG.petersen.energy = 16 := by
   rw [energy, spectrum_petersen]
   norm_num [Multiset.map_add, Multiset.map_replicate]
@@ -10722,6 +10724,7 @@ theorem algConn_cartesianProduct (G H : CGraph)
 /-- **The largest Laplacian eigenvalue of a circulant**, once an index minimising the cosine sum
 is known: the Laplacian eigenvalues are `deg - circulantEig n S m`, so the largest sits where the
 adjacency eigenvalue is smallest. -/
+@[toIsoGraph]
 theorem lapLambdaMax_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₀ : Fin n)
     (hmin : ∀ m : Fin n, circulantEig n S m₀.1 ≤ circulantEig n S m.1) :
     (circulant n S).lapLambdaMax = (circulantDeg n S : ℝ) - circulantEig n S m₀.1 := by
@@ -10736,6 +10739,7 @@ theorem lapLambdaMax_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₀ : Fin
 /-- **The algebraic connectivity of a circulant**, once an index other than `0` maximising the
 cosine sum is known.  The index `0` carries the trivial eigenvalue, because `circulantEig n S 0`
 is the degree. -/
+@[toIsoGraph]
 theorem algConn_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₁ : Fin n) (hm₁ : m₁ ≠ ⟨0, hn⟩)
     (hmax : ∀ m : Fin n, m ≠ ⟨0, hn⟩ → circulantEig n S m.1 ≤ circulantEig n S m₁.1) :
     (circulant n S).algConn = (circulantDeg n S : ℝ) - circulantEig n S m₁.1 :=
@@ -10746,6 +10750,7 @@ theorem algConn_circulant {n : ℕ} (hn : 0 < n) (S : List ℕ) (m₁ : Fin n) (
 /-- **The largest Laplacian eigenvalue of the line graph of a `k`-regular graph** is `2 k`, as
 soon as `G` has more edges than vertices: the `|E| - |V|` extra eigenvalues sit at `2 k`, which is
 the ceiling `2 Δ` that no Laplacian eigenvalue exceeds. -/
+@[toIsoGraph]
 theorem lapLambdaMax_lineGraph_of_isRegularWith {G : CGraph} [Nonempty G.V] {k : ℕ}
     (h : G.IsRegularWith k) (hk : 1 ≤ k) (hlt : FinEnum.card G.V < G.E) :
     (lineGraph G).lapLambdaMax = 2 * k := by
@@ -10765,6 +10770,7 @@ theorem lapLambdaMax_lineGraph_of_isRegularWith {G : CGraph} [Nonempty G.V] {k :
 /-- **The line graph of a regular graph has the same algebraic connectivity.**  Its Laplacian
 spectrum is that of `G` together with `|E| - |V|` copies of `2 k`, and `2 k` is the largest
 Laplacian eigenvalue `G` itself could have, so it never wins the minimum. -/
+@[toIsoGraph]
 theorem algConn_lineGraph_of_isRegularWith {G : CGraph} {k : ℕ}
     (h : G.IsRegularWith k) (hk : 1 ≤ k) (hle : FinEnum.card G.V ≤ G.E)
     (hcard : 2 ≤ FinEnum.card G.V) :
@@ -10878,7 +10884,7 @@ theorem algConn_of_spectrum_eq {G : CGraph} {k : ℕ} (h : G.IsRegularWith k)
 /-! ### The Laplacian of the named strongly regular graphs -/
 
 /-- **The Laplacian spectrum of the Petersen graph**: `0`, `2` five times, `5` four times. -/
-@[toIsoGraph]
+@[toIsoGraph lapSpectrum_kneser_five_two]
 theorem lapSpectrum_petersen :
     SRG.petersen.lapSpectrum = 0 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 5) := by
   have h := lapSpectrum_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (by norm_num)
@@ -10886,14 +10892,14 @@ theorem lapSpectrum_petersen :
   rw [h]
   norm_num
 
-@[toIsoGraph]
+@[toIsoGraph algConn_kneser_five_two]
 theorem algConn_petersen : SRG.petersen.algConn = 2 := by
   have h := algConn_of_spectrum_eq (k := 3) SRG.petersen_srg.regular (f := 5) (g := 4)
     (by norm_num) (by norm_num) (by norm_num) spectrum_petersen
   rw [h]
   norm_num
 
-@[toIsoGraph]
+@[toIsoGraph lapLambdaMax_kneser_five_two]
 theorem lapLambdaMax_petersen : SRG.petersen.lapLambdaMax = 5 := by
   have : Nonempty SRG.petersen.V :=
     Fintype.card_pos_iff.1 (by rw [SRG.petersen_srg.card]; norm_num)
@@ -11813,6 +11819,18 @@ theorem isDS_mk_iff (G : CGraph) : IsDS ⟦G⟧ ↔ G.IsDS := by
 theorem isDS_empty (n : ℕ) : IsDS (empty n) := (isDS_mk_iff _).2 (CGraph.isDS_empty n)
 
 theorem isDS_complete (n : ℕ) : IsDS (complete n) := (isDS_mk_iff _).2 (CGraph.isDS_complete n)
+
+/-- **A regular graph is determined by its spectrum exactly when its complement is.**  The
+statement is symmetric in the two graphs because complementation is an involution; the transfer
+across the quotient has to be written out because `IsDS` quantifies over graphs. -/
+theorem isDS_compl_iff {G : IsoGraph} {k : ℕ} (hreg : G.IsRegularWith k) (hconn : G.IsConnected)
+    (hconn' : Gᶜ.IsConnected) : IsDS Gᶜ ↔ IsDS G := by
+  induction G using Quotient.inductionOn with | _ g =>
+  rw [compl_mk] at hconn' ⊢
+  rw [isDS_mk_iff, isDS_mk_iff]
+  rw [isRegularWith_mk] at hreg
+  rw [isConnected_mk] at hconn hconn'
+  exact CGraph.isDS_compl_iff hreg hconn hconn'
 
 /-- **Not every graph is determined by its spectrum.**  The star `K₁,₄` is cospectral with
 `K₂,₂ ⊔ K₁`, which is disconnected. -/
@@ -13174,7 +13192,29 @@ theorem lapCharpoly_paleyField {F : Type} [Field F] [FinEnum F] {t : ℕ} (ht : 
 /-! ### The sporadic strongly regular graphs
 
 Ten graphs and their complements, each with three eigenvalues; the polynomials below are the
-factorizations of the spectra proved in `spectrum_petersen` and the sequence after it. -/
+factorizations of the spectra proved in `spectrum_kneser_five_two` and the sequence after it.  The
+Petersen graph is the Kneser graph `K(5, 2)` by definition, so its spectral data arrives under the
+name the Kneser family gives it; the five restatements below put it under the name the graph is
+actually known by. -/
+
+/-- **The spectrum of the Petersen graph**: `3` once, `1` five times, `-2` four times. -/
+theorem spectrum_petersen :
+    petersen.spectrum = 3 ::ₘ (Multiset.replicate 5 1 + Multiset.replicate 4 (-2)) :=
+  spectrum_kneser_five_two
+
+/-- **The energy of the Petersen graph** is `16`: `3 + 5 · 1 + 4 · 2`. -/
+theorem energy_petersen : petersen.energy = 16 := energy_kneser_five_two
+
+/-- **The Laplacian spectrum of the Petersen graph**: `0`, `2` five times, `5` four times. -/
+theorem lapSpectrum_petersen :
+    petersen.lapSpectrum = 0 ::ₘ (Multiset.replicate 5 2 + Multiset.replicate 4 5) :=
+  lapSpectrum_kneser_five_two
+
+/-- **The algebraic connectivity of the Petersen graph** is `2`. -/
+theorem algConn_petersen : petersen.algConn = 2 := algConn_kneser_five_two
+
+/-- **The largest Laplacian eigenvalue of the Petersen graph** is `5`. -/
+theorem lapLambdaMax_petersen : petersen.lapLambdaMax = 5 := lapLambdaMax_kneser_five_two
 
 /-- **The characteristic polynomial of the Petersen graph.** -/
 theorem charpoly_petersen :

@@ -82,6 +82,10 @@ graph, and the first pair to show that the parameters do not determine a strongl
 @[simp] theorem edgeConn_shrikhande : shrikhande.edgeConn = 6 :=
   shrikhande_srg.edgeConn_eq (by omega) (by omega)
 
+/-- Plesník prices edges, not vertices; for `κ` all the parameters give is `μ`. -/
+theorem two_le_vertexConn_shrikhande : 2 ≤ shrikhande.vertexConn :=
+  shrikhande_srg.mu_le_vertexConn (by omega)
+
 /-- `ℓ = 2`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_shrikhande : shrikhande.girth = 3 :=
   shrikhande_srg.girth_eq_three (by omega) (by omega) (by omega)
@@ -128,10 +132,42 @@ theorem six_le_cliqueCoverNum_shrikhande : 6 ≤ shrikhande.cliqueCoverNum := by
   rw [V_shrikhande, cliqueNum_shrikhande] at h
   omega
 
+/-- Four triangles and two edges covering the Shrikhande graph, as a colouring of the complement:
+the vertex with `FinEnum` index `i` gets the `i`th entry. -/
+def shrikhandeCliqueColTable : List ℕ := [0, 0, 1, 2, 2, 0, 1, 2, 3, 3, 4, 5, 5, 3, 4, 5]
+
+/-- The table `shrikhandeCliqueColTable` read as a colouring, clamped into `Fin 6`. -/
+def shrikhandeCliqueCol (v : (_root_.SRG.shrikhande.compl).V) : Fin 6 :=
+  ⟨min (shrikhandeCliqueColTable.getD
+    (FinEnum.equiv (α := (_root_.SRG.shrikhande.compl).V) v).1 0) 5, by omega⟩
+
+theorem shrikhandeCliqueCol_proper : ∀ u v : (_root_.SRG.shrikhande.compl).V,
+    (_root_.SRG.shrikhande.compl).Adj u v = true →
+      shrikhandeCliqueCol u ≠ shrikhandeCliqueCol v := by native_decide
+
+/-- **The clique cover number of the Shrikhande graph is six.**  The triangles hold three vertices
+each, so five cliques cannot reach sixteen; `shrikhandeCliqueColTable` is a cover of six. -/
+@[simp] theorem cliqueCoverNum_shrikhande : shrikhande.cliqueCoverNum = 6 :=
+  le_antisymm (by
+    rw [cliqueCoverNum_eq, shrikhande_def, compl_mk, chromNum_mk]
+    exact CGraph.chromNum_le_of_colouring shrikhandeCliqueCol shrikhandeCliqueCol_proper)
+    six_le_cliqueCoverNum_shrikhande
+
 theorem three_le_domNum_shrikhande : 3 ≤ shrikhande.domNum := by
   have h := le_domNum_of_regular (G := shrikhande) (k := 6) maxDeg_shrikhande
   rw [V_shrikhande] at h
   omega
+
+/-- A dominating set of the Shrikhande graph, as `FinEnum` indices. -/
+def shrikhandeDominating : List (Fin 16) := [0, 6, 9]
+
+/-- **Three vertices dominate the Shrikhande graph**, which is as few as the counting bound
+allows. -/
+@[simp] theorem domNum_shrikhande : shrikhande.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_shrikhande
+  rw [shrikhande_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.shrikhande.V))
+    shrikhandeDominating (by native_decide)
 
 /-- A perfect matching of the Shrikhande graph, as pairs of `FinEnum` indices. -/
 def shrikhandeMatching : List (Fin 16 × Fin 16) :=
@@ -189,6 +225,9 @@ adjacent when they meet.  Its complement is the Schläfli graph. -/
 @[simp] theorem edgeConn_linesOnCubic : linesOnCubic.edgeConn = 10 :=
   linesOnCubic_srg.edgeConn_eq (by omega) (by omega)
 
+theorem five_le_vertexConn_linesOnCubic : 5 ≤ linesOnCubic.vertexConn :=
+  linesOnCubic_srg.mu_le_vertexConn (by omega)
+
 /-- `ℓ = 1`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_linesOnCubic : linesOnCubic.girth = 3 :=
   linesOnCubic_srg.girth_eq_three (by omega) (by omega) (by omega)
@@ -234,6 +273,17 @@ theorem three_le_domNum_linesOnCubic : 3 ≤ linesOnCubic.domNum := by
   have h := le_domNum_of_regular (G := linesOnCubic) (k := 10) maxDeg_linesOnCubic
   rw [V_linesOnCubic] at h
   omega
+
+/-- Three lines meeting all twenty-seven, as `FinEnum` indices. -/
+def linesOnCubicDominating : List (Fin 27) := [0, 8, 25]
+
+/-- **Three of the twenty-seven lines meet all of them**, which is as few as the counting bound
+allows. -/
+@[simp] theorem domNum_linesOnCubic : linesOnCubic.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_linesOnCubic
+  rw [linesOnCubic_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.linesOnCubic.V))
+    linesOnCubicDominating (by native_decide)
 
 /-- A maximum matching of the lines on a cubic surface: thirteen disjoint pairs of
 meeting lines, leaving the sixth line out. -/
@@ -290,6 +340,9 @@ adjacent here when they are *skew*. -/
 @[simp] theorem edgeConn_schlafli : schlafli.edgeConn = 16 :=
   schlafli_srg.edgeConn_eq (by omega) (by omega)
 
+theorem eight_le_vertexConn_schlafli : 8 ≤ schlafli.vertexConn :=
+  schlafli_srg.mu_le_vertexConn (by omega)
+
 /-- `ℓ = 10`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_schlafli : schlafli.girth = 3 :=
   schlafli_srg.girth_eq_three (by omega) (by omega) (by omega)
@@ -345,10 +398,22 @@ theorem five_le_cliqueCoverNum_schlafli : 5 ≤ schlafli.cliqueCoverNum := by
   rw [V_schlafli, cliqueNum_schlafli] at h
   omega
 
-theorem two_le_domNum_schlafli : 2 ≤ schlafli.domNum := by
-  have h := le_domNum_of_regular (G := schlafli) (k := 16) maxDeg_schlafli
-  rw [V_schlafli] at h
-  omega
+/-- Counting only gives `γ ≥ 2` here — two closed neighbourhoods have room for `34` vertices and
+there are `27` — so the pairs are ruled out one at a time instead. -/
+theorem three_le_domNum_schlafli : 3 ≤ schlafli.domNum := by
+  rw [schlafli_def, domNum_mk]
+  exact CGraph.lt_domNum_of_forall_tuples
+    (FinEnum.equiv (α := _root_.SRG.schlafli.V)) (by native_decide)
+
+/-- A dominating set of the Schläfli graph, as `FinEnum` indices. -/
+def schlafliDominating : List (Fin 27) := [0, 2, 7]
+
+/-- **Three vertices dominate the Schläfli graph.** -/
+@[simp] theorem domNum_schlafli : schlafli.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_schlafli
+  rw [schlafli_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.schlafli.V))
+    schlafliDominating (by native_decide)
 
 /-- A maximum matching of the Schläfli graph: thirteen disjoint pairs of skew lines. -/
 def schlafliMatching : List (Fin 27 × Fin 27) :=
@@ -403,6 +468,9 @@ obtained from it by switching on a perfect matching of `K₈`. -/
 
 @[simp] theorem edgeConn_chang₁ : chang₁.edgeConn = 12 :=
   chang₁_srg.edgeConn_eq (by omega) (by omega)
+
+theorem four_le_vertexConn_chang₁ : 4 ≤ chang₁.vertexConn :=
+  chang₁_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 6`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_chang₁ : chang₁.girth = 3 :=
@@ -459,6 +527,17 @@ theorem three_le_domNum_chang₁ : 3 ≤ chang₁.domNum := by
   rw [V_chang₁] at h
   omega
 
+/-- A dominating set of the first Chang graph, as `FinEnum` indices. -/
+def chang₁Dominating : List (Fin 28) := [0, 1, 7]
+
+/-- **Three vertices dominate the first Chang graph**, which is as few as the counting bound
+allows. -/
+@[simp] theorem domNum_chang₁ : chang₁.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_chang₁
+  rw [chang₁_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.chang₁.V))
+    chang₁Dominating (by native_decide)
+
 /-- A perfect matching of the first Chang graph. -/
 def chang₁Matching : List (Fin 28 × Fin 28) :=
   [(0, 26), (1, 27), (2, 23), (3, 24), (4, 22), (5, 25), (6, 21), (7, 19), (8, 17), (9, 18),
@@ -510,6 +589,9 @@ Switching `T(8)` on a disjoint union `C₃ ∪ C₅` instead. -/
 
 @[simp] theorem edgeConn_chang₂ : chang₂.edgeConn = 12 :=
   chang₂_srg.edgeConn_eq (by omega) (by omega)
+
+theorem four_le_vertexConn_chang₂ : 4 ≤ chang₂.vertexConn :=
+  chang₂_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 6`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_chang₂ : chang₂.girth = 3 :=
@@ -566,6 +648,17 @@ theorem three_le_domNum_chang₂ : 3 ≤ chang₂.domNum := by
   rw [V_chang₂] at h
   omega
 
+/-- A dominating set of the second Chang graph, as `FinEnum` indices. -/
+def chang₂Dominating : List (Fin 28) := [0, 1, 7]
+
+/-- **Three vertices dominate the second Chang graph**, which is as few as the counting bound
+allows. -/
+@[simp] theorem domNum_chang₂ : chang₂.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_chang₂
+  rw [chang₂_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.chang₂.V))
+    chang₂Dominating (by native_decide)
+
 /-- A perfect matching of the second Chang graph. -/
 def chang₂Matching : List (Fin 28 × Fin 28) :=
   [(0, 26), (1, 12), (2, 25), (3, 27), (4, 22), (5, 19), (6, 20), (7, 21), (8, 23), (9, 17),
@@ -617,6 +710,9 @@ Switching `T(8)` on an eight-cycle. -/
 
 @[simp] theorem edgeConn_chang₃ : chang₃.edgeConn = 12 :=
   chang₃_srg.edgeConn_eq (by omega) (by omega)
+
+theorem four_le_vertexConn_chang₃ : 4 ≤ chang₃.vertexConn :=
+  chang₃_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 6`, so the two ends of an edge have a common neighbour. -/
 @[simp] theorem girth_chang₃ : chang₃.girth = 3 :=
@@ -670,6 +766,17 @@ theorem three_le_domNum_chang₃ : 3 ≤ chang₃.domNum := by
   have h := le_domNum_of_regular (G := chang₃) (k := 12) maxDeg_chang₃
   rw [V_chang₃] at h
   omega
+
+/-- A dominating set of the third Chang graph, as `FinEnum` indices. -/
+def chang₃Dominating : List (Fin 28) := [0, 1, 7]
+
+/-- **Three vertices dominate the third Chang graph**, which is as few as the counting bound
+allows. -/
+@[simp] theorem domNum_chang₃ : chang₃.domNum = 3 := by
+  refine le_antisymm ?_ three_le_domNum_chang₃
+  rw [chang₃_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.chang₃.V))
+    chang₃Dominating (by native_decide)
 
 /-- A perfect matching of the third Chang graph. -/
 def chang₃Matching : List (Fin 28 × Fin 28) :=
@@ -765,6 +872,18 @@ theorem seven_le_domNum_hoffmanSingleton : 7 ≤ hoffmanSingleton.domNum := by
   rw [V_hoffmanSingleton] at h
   omega
 
+/-- A dominating set of the Hoffman–Singleton graph, as `FinEnum` indices. -/
+def hoffmanSingletonDominating : List (Fin 50) := [0, 2, 26, 31, 36, 41, 46]
+
+/-- **Seven vertices dominate the Hoffman–Singleton graph.**  The counting bound is tight: seven
+closed neighbourhoods hold `7 * 8 = 56` vertices and the graph has `50`, so they overlap barely at
+all. -/
+@[simp] theorem domNum_hoffmanSingleton : hoffmanSingleton.domNum = 7 := by
+  refine le_antisymm ?_ seven_le_domNum_hoffmanSingleton
+  rw [hoffmanSingleton_def, domNum_mk]
+  exact CGraph.domNum_le_length (FinEnum.equiv (α := _root_.SRG.hoffmanSingleton.V))
+    hoffmanSingletonDominating (by native_decide)
+
 /-- A perfect matching of the Hoffman–Singleton graph. -/
 def hoffmanSingletonMatching : List (Fin 50 × Fin 50) :=
   [(0, 45), (1, 46), (2, 47), (3, 48), (4, 49), (5, 43), (6, 44), (7, 40), (8, 41), (9, 42),
@@ -827,6 +946,9 @@ two blocks adjacent when they are disjoint. -/
 
 @[simp] theorem edgeConn_gewirtz : gewirtz.edgeConn = 10 :=
   gewirtz_srg.edgeConn_eq (by omega) (by omega)
+
+theorem two_le_vertexConn_gewirtz : 2 ≤ gewirtz.vertexConn :=
+  gewirtz_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 0` rules out a triangle and `μ = 2 ≥ 2` supplies the fourth corner of a
 square. -/
@@ -930,6 +1052,9 @@ point, again with disjointness for adjacency. -/
 
 @[simp] theorem edgeConn_m22 : m22.edgeConn = 16 :=
   m22_srg.edgeConn_eq (by omega) (by omega)
+
+theorem four_le_vertexConn_m22 : 4 ≤ m22.vertexConn :=
+  m22_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 0` rules out a triangle and `μ = 4 ≥ 2` supplies the fourth corner of a
 square. -/
@@ -1040,6 +1165,9 @@ Higman–Sims group with index two. -/
 
 @[simp] theorem edgeConn_higmanSims : higmanSims.edgeConn = 22 :=
   higmanSims_srg.edgeConn_eq (by omega) (by omega)
+
+theorem six_le_vertexConn_higmanSims : 6 ≤ higmanSims.vertexConn :=
+  higmanSims_srg.mu_le_vertexConn (by omega)
 
 /-- `ℓ = 0` rules out a triangle and `μ = 6 ≥ 2` supplies the fourth corner of a
 square. -/
@@ -1192,6 +1320,66 @@ of vertices is the whole graph and no orbit of arcs is all of them.
 
 @[simp] theorem isVertexTransitive_higmanSims : IsVertexTransitive higmanSims :=
   isArcTransitive_higmanSims.isVertexTransitive (by rw [minDeg_higmanSims]; omega)
+
+/-! ### Automorphism counts
+
+Arc-transitivity moves any arc to any other, so the automorphism group is at least as large as the
+number of arcs, `2E`.  That is far from the truth in every case here — `M₂₂` alone has `887 040`
+automorphisms against the `1232` below — but it is what transitivity alone gives, and it is enough
+to separate these graphs from anything with a small group. -/
+
+theorem le_autCount_linesOnCubic : 270 ≤ linesOnCubic.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_linesOnCubic
+  rw [E_linesOnCubic] at h
+  omega
+
+theorem le_autCount_schlafli : 432 ≤ schlafli.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_schlafli
+  rw [E_schlafli] at h
+  omega
+
+theorem le_autCount_hoffmanSingleton : 350 ≤ hoffmanSingleton.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_hoffmanSingleton
+  rw [E_hoffmanSingleton] at h
+  omega
+
+theorem le_autCount_gewirtz : 560 ≤ gewirtz.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_gewirtz
+  rw [E_gewirtz] at h
+  omega
+
+theorem le_autCount_m22 : 1232 ≤ m22.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_m22
+  rw [E_m22] at h
+  omega
+
+theorem le_autCount_higmanSims : 2200 ≤ higmanSims.autCount := by
+  have h := two_mul_E_le_autCount_of_isArcTransitive isArcTransitive_higmanSims
+  rw [E_higmanSims] at h
+  omega
+
+/-! Four of the ten have groups small enough to count exactly rather than bound.  That is
+`autCountCheck`: enumerate the group from the stabiliser chain, check the enumeration really is
+closed under the generators and has no repeats, and count it.  The cost grows with the square of
+the answer, so it gives out well before `M₂₂`, but these four are comfortably inside it.  The
+Chang numbers are worth comparing with the `40 320` automorphisms of the `T(8)` they are
+switchings of: the switching keeps almost nothing. -/
+
+@[simp] theorem autCount_shrikhande : shrikhande.autCount = 192 := by
+  rw [shrikhande_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+@[simp] theorem autCount_chang₁ : chang₁.autCount = 384 := by
+  rw [chang₁_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+@[simp] theorem autCount_chang₂ : chang₂.autCount = 96 := by
+  rw [chang₂_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+@[simp] theorem autCount_chang₃ : chang₃.autCount = 360 := by
+  rw [chang₃_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
 
 /-! ## Chromatic indices
 
@@ -1837,6 +2025,10 @@ theorem isHamiltonian_hoffmanSingleton : hoffmanSingleton.IsHamiltonian := by
   exact CGraph.isHamiltonian_of_cyclicNumbering (n := 50) hoffmanSingletonCycle (by norm_num)
     (by native_decide) (by native_decide) (by native_decide)
 
+/-- `μ = 1` here, so the spanning cycle is the better lower bound on `κ` of the two. -/
+theorem two_le_vertexConn_hoffmanSingleton : 2 ≤ hoffmanSingleton.vertexConn :=
+  isHamiltonian_hoffmanSingleton.two_le_vertexConn (by rw [V_hoffmanSingleton]; omega)
+
 /-- A Hamiltonian cycle of the Gewirtz graph, as `FinEnum` indices. -/
 def gewirtzCycle : ℕ → _root_.SRG.gewirtz.V := fun i ↦
   (FinEnum.equiv (α := _root_.SRG.gewirtz.V)).symm
@@ -1952,6 +2144,10 @@ theorem edgeConn_paleyField (hq : Fintype.card F % 4 = 1) (hq5 : 5 ≤ Fintype.c
     (paleyField F).edgeConn = (Fintype.card F - 1) / 2 :=
   (isSRGWith_paleyField (F := F) hq).edgeConn_eq (by omega) (by omega)
 
+theorem mu_le_vertexConn_paleyField (hq : Fintype.card F % 4 = 1) :
+    (Fintype.card F - 1) / 4 ≤ (paleyField F).vertexConn :=
+  (isSRGWith_paleyField (F := F) hq).mu_le_vertexConn (Nat.div_le_self _ _)
+
 /-- `ℓ = (q-5)/4` is positive once `q ≥ 9`, so the two ends of an edge have a common neighbour.
 For `q = 5` the graph is `C₅` and the girth is five. -/
 theorem girth_paleyField (hq : Fintype.card F % 4 = 1) (hq9 : 9 ≤ Fintype.card F) :
@@ -2039,6 +2235,34 @@ theorem three_le_cliqueCoverNum_paleyField (hq : Fintype.card F % 4 = 1)
     (hq5 : 5 ≤ Fintype.card F) : 3 ≤ (paleyField F).cliqueCoverNum := by
   have h := chromNum_eq_cliqueCoverNum_paleyField hq
   have h2 := three_le_chromNum_paleyField hq hq5
+  omega
+
+/-- **The Paley bound read as a bound on vertex covers**: `α ≤ √q`, and Gallai's identity turns
+that into `τ = q - α ≥ q - √q`.  Only a bound, because `α` itself is only bounded. -/
+theorem coverNum_paleyField_ge (hq : Fintype.card F % 4 = 1) :
+    Fintype.card F - Nat.sqrt (Fintype.card F) ≤ (paleyField F).coverNum := by
+  have hc := cliqueNum_sq_le_paleyField (F := F) hq
+  have hi := indepNum_eq_cliqueNum_paleyField (F := F) hq
+  have hsum := coverNum_add_indepNum (paleyField F)
+  rw [V_paleyField] at hsum
+  have hle : (paleyField F).indepNum ≤ Nat.sqrt (Fintype.card F) := by
+    rw [hi]
+    exact Nat.le_sqrt.2 (by rw [← Nat.pow_two]; exact hc)
+  omega
+
+/-- **Paley graphs of fields are class two**, exactly as `paley q` is: they are regular of odd
+order, so `Δ` colours leave an edge uncoloured. -/
+theorem maxDeg_lt_edgeChromNum_paleyField (hq : Fintype.card F % 4 = 1)
+    (h5 : 5 ≤ Fintype.card F) : maxDeg (paleyField F) < (paleyField F).edgeChromNum := by
+  refine maxDeg_lt_edgeChromNum_of_isRegularWith_odd (isRegularWith_paleyField hq) (by omega) ?_
+  rw [V_paleyField]
+  omega
+
+/-- Spelling the previous bound out: `χ' ≥ (q + 1) / 2`. -/
+theorem edgeChromNum_paleyField_ge (hq : Fintype.card F % 4 = 1) (h5 : 5 ≤ Fintype.card F) :
+    (Fintype.card F + 1) / 2 ≤ (paleyField F).edgeChromNum := by
+  have h := maxDeg_lt_edgeChromNum_paleyField hq h5
+  rw [maxDeg_paleyField hq] at h
   omega
 
 end

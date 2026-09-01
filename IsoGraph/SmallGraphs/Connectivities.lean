@@ -278,6 +278,41 @@ theorem edgeConn_johnson {n k : ℕ} (hk : k ≤ n) (h2 : min k (n - k) = 2) :
   rw [edgeConn_eq_minDeg_of_diameter_eq_two (by rw [diameter_johnson hk]; exact h2),
     minDeg_johnson hk]
 
+/-! ### The strongly regular families, from below
+
+Plesník says nothing about `κ`, and the theorem that does — that a strongly regular graph is
+`k`-connected — is spectral.  What is left over is `IsSRGWith.mu_le_vertexConn`: a separator has
+to hold all `μ` of the common neighbours of the pair it separates. -/
+
+theorem mu_le_vertexConn_paley (q : ℕ) [NeZero q] [Fact q.Prime] (hq : q % 4 = 1) :
+    (q - 1) / 4 ≤ (paley q).vertexConn :=
+  (isSRGWith_paley q hq).mu_le_vertexConn (Nat.div_le_self _ _)
+
+/-- Two non-adjacent vertices of `J(n, 2)` are disjoint pairs `{a, b}` and `{c, d}`, and the four
+pairs `{a, c}`, `{a, d}`, `{b, c}`, `{b, d}` meet both — so `μ = 4`, and a separator needs four
+vertices. -/
+theorem four_le_vertexConn_johnson_two {n : ℕ} (hn : 4 ≤ n) : 4 ≤ (johnson n 2).vertexConn :=
+  (isSRGWith_johnson_two n hn).mu_le_vertexConn (by
+    have h := Nat.choose_le_choose 2 hn
+    rw [show Nat.choose 4 2 = 6 from rfl] at h
+    omega)
+
+@[inherit_doc four_le_vertexConn_johnson_two]
+theorem four_le_vertexConn_triangular {n : ℕ} (hn : 4 ≤ n) : 4 ≤ (triangular n).vertexConn :=
+  four_le_vertexConn_johnson_two hn
+
+/-- Two non-adjacent vertices of `K(n, 2)` are two pairs sharing a point, so they use three points
+between them and have `C(n-3, 2)` common neighbours: the pairs on the points they leave alone. -/
+theorem mu_le_vertexConn_kneser_two (n : ℕ) : (n - 3).choose 2 ≤ (kneser n 2).vertexConn := by
+  refine (isSRGWith_kneser_two n).mu_le_vertexConn ?_
+  rcases Nat.lt_or_ge n 5 with hn | hn
+  · interval_cases n <;> decide
+  · obtain ⟨m, rfl⟩ : ∃ m, n = m + 5 := ⟨n - 5, by omega⟩
+    have h1 : (m + 2).choose 2 ≤ (m + 4).choose 2 := Nat.choose_le_choose 2 (by omega)
+    have h2 : (m + 5).choose 2 = (m + 4).choose 2 + (m + 4) := choose_two_succ (m + 4)
+    rw [show m + 5 - 3 = m + 2 from rfl]
+    omega
+
 /-- **The complement of a disconnected graph with an edge has `λ = δ`**, and its minimum degree is
 what the largest degree of the original leaves behind. -/
 theorem edgeConn_compl {G : IsoGraph} (h : ¬ IsConnected G) (hE : 0 < G.E) :
@@ -389,5 +424,180 @@ theorem two_le_vertexConn_lcf (ss : List ℤ) (r : ℕ) (h3 : 3 ≤ ss.length * 
 theorem two_le_edgeConn_lcf (ss : List ℤ) (r : ℕ) (h3 : 3 ≤ ss.length * r) :
     2 ≤ (lcf ss r).edgeConn :=
   (isHamiltonian_lcf ss r h3).two_le_edgeConn (by rw [V_lcf]; omega)
+
+/-! ### The generalised Petersen graphs
+
+`gp n k` is connected for every `n` and `k` — the spokes tie the inner vertices to the outer cycle
+— so both its connectivities are at least one.  How much more they are depends on `k`, which is
+what decides whether the inner vertices are joined to each other at all. -/
+
+theorem one_le_vertexConn_gp {n k : ℕ} (hn : 0 < n) : 1 ≤ (gp n k).vertexConn :=
+  ((gp n k).one_le_vertexConn_iff (by rw [V_gp]; omega)).2 (isConnected_gp hn)
+
+theorem one_le_edgeConn_gp {n k : ℕ} (hn : 0 < n) : 1 ≤ (gp n k).edgeConn :=
+  ((gp n k).one_le_edgeConn_iff (by rw [V_gp]; omega)).2 (isConnected_gp hn)
+
+/-! ### Mycielskians
+
+The Mycielskian of a graph with no isolated vertex is connected, and `edgeConn_mycielskian` pins
+its edge connectivity at `δ(G) + 1`; Whitney's `κ ≤ λ` turns that into an upper bound on `κ`. -/
+
+/-- The Mycielskian of a graph with no isolated vertex is connected, so `κ ≥ 1`. -/
+theorem one_le_vertexConn_mycielskian {G : IsoGraph} (hV : 0 < G.V) (h : 0 < G.minDeg) :
+    1 ≤ (mycielskian G).vertexConn :=
+  ((mycielskian G).one_le_vertexConn_iff (by rw [V_mycielskian]; omega)).2
+    (isConnected_mycielskian G h)
+
+/-- `κ(μ G) ≤ δ(G) + 1`, from `λ(μ G) = δ(G) + 1`. -/
+theorem vertexConn_mycielskian_le {G : IsoGraph} (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.V) : (mycielskian G).vertexConn ≤ G.minDeg + 1 :=
+  le_of_le_of_eq (vertexConn_le_edgeConn (mycielskian G)) (edgeConn_mycielskian hG hdG h2)
+
+/-! ### Theta graphs
+
+A theta graph on one arc is a path and on two arcs a cycle, which settles both connectivities in
+those two cases.  (Three arcs or more and `κ = λ = 2` again — the two branch vertices are the only
+thing worth cutting — but that needs a separator argument rather than an identification.) -/
+
+/-- A theta graph on one arc is a path: `λ = 1`. -/
+theorem edgeConn_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).edgeConn = 1 := by
+  rw [thetaGraph_singleton, edgeConn_path]
+
+/-- A theta graph on one arc is a path: `κ = 1`. -/
+theorem vertexConn_thetaGraph_singleton (k : ℕ) : (thetaGraph [k]).vertexConn = 1 := by
+  rw [thetaGraph_singleton, vertexConn_path]
+
+/-- A theta graph on two arcs is a cycle, so `λ = 2` unless both arcs are empty (when the graph is
+`K₂`). -/
+theorem edgeConn_thetaGraph_pair {a b : ℕ} (h : 0 < a + b) :
+    (thetaGraph [a, b]).edgeConn = 2 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = m + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hm, edgeConn_cycle]
+
+/-- A theta graph on two arcs is a cycle, so `κ = 2` unless both arcs are empty. -/
+theorem vertexConn_thetaGraph_pair {a b : ℕ} (h : 0 < a + b) :
+    (thetaGraph [a, b]).vertexConn = 2 := by
+  obtain ⟨m, hm⟩ : ∃ m, 2 + a + b = m + 3 := ⟨a + b - 1, by omega⟩
+  rw [thetaGraph_pair, hm, vertexConn_cycle]
+
+/-! ### The prism
+
+Whitney's chain `κ ≤ λ ≤ δ` collapses whenever its two ends meet, and for the prism they already
+have: `minDeg_prism` and `vertexConn_prism` are both `3`. -/
+
+@[simp] theorem edgeConn_prism (n : ℕ) : (prism (n + 3)).edgeConn = 3 := by
+  rw [edgeConn_eq_minDeg _ (by rw [V_prism]; omega) (by rw [minDeg_prism, vertexConn_prism]),
+    minDeg_prism]
+
+/-! ### The families with a second description
+
+A family member that the gallery already holds under another name arrives with that name's
+connectivities, so the identifications settle a row of cases that no general argument reaches.
+The circulant on a single shift is a cycle; `GP(4, 1)`, `[3, -3]⁴` and the four-point crown are
+all the cube; `GP(5, 2)` is the Petersen graph and the three-point crown the hexagon; the Kneser
+and Johnson graphs on singletons are complete, as is `T(3)`, while `T(4)` is the octahedron; the
+folded cubes on two and three dimensions are `K₄` and `K₄,₄`; and the Paley graphs on five and
+nine points are the pentagon and `K₃,₃,₃`. -/
+
+theorem vertexConn_circulant_one (n : ℕ) : (circulant (n + 3) [1]).vertexConn = 2 := by
+  rw [circulant_one]; exact vertexConn_cycle n
+
+theorem edgeConn_circulant_one (n : ℕ) : (circulant (n + 3) [1]).edgeConn = 2 := by
+  rw [circulant_one]; exact edgeConn_cycle n
+
+theorem vertexConn_gp_four_one : (gp 4 1).vertexConn = 3 := by
+  rw [gp_four_one_iso_hypercube]; exact vertexConn_hypercube 2
+
+theorem edgeConn_gp_four_one : (gp 4 1).edgeConn = 3 := by
+  rw [gp_four_one_iso_hypercube]; exact edgeConn_hypercube 2
+
+theorem vertexConn_gp_five_two : (gp 5 2).vertexConn = 3 := by
+  rw [gp_five_two_iso_petersen]; exact vertexConn_petersen
+
+theorem edgeConn_gp_five_two : (gp 5 2).edgeConn = 3 := by
+  rw [gp_five_two_iso_petersen]; exact edgeConn_petersen
+
+theorem vertexConn_lcf_cube : (lcf [3, -3] 4).vertexConn = 3 := by
+  rw [hypercube_three_lcf]; exact vertexConn_hypercube 2
+
+theorem edgeConn_lcf_cube : (lcf [3, -3] 4).edgeConn = 3 := by
+  rw [hypercube_three_lcf]; exact edgeConn_hypercube 2
+
+theorem vertexConn_crown_three : (crown 3).vertexConn = 2 := by
+  rw [crown_three]; exact vertexConn_cycle 3
+
+theorem edgeConn_crown_three : (crown 3).edgeConn = 2 := by
+  rw [crown_three]; exact edgeConn_cycle 3
+
+theorem vertexConn_crown_four : (crown 4).vertexConn = 3 := by
+  rw [crown_four]; exact vertexConn_hypercube 2
+
+theorem edgeConn_crown_four : (crown 4).edgeConn = 3 := by
+  rw [crown_four]; exact edgeConn_hypercube 2
+
+theorem vertexConn_kneser_one (n : ℕ) : (kneser (n + 1) 1).vertexConn = n := by
+  rw [kneser_one, vertexConn_complete, Nat.add_sub_cancel]
+
+theorem edgeConn_kneser_one (n : ℕ) : (kneser (n + 1) 1).edgeConn = n := by
+  rw [kneser_one, edgeConn_complete, Nat.add_sub_cancel]
+
+theorem vertexConn_johnson_one (n : ℕ) : (johnson (n + 1) 1).vertexConn = n := by
+  rw [johnson_one, vertexConn_complete, Nat.add_sub_cancel]
+
+theorem edgeConn_johnson_one (n : ℕ) : (johnson (n + 1) 1).edgeConn = n := by
+  rw [johnson_one, edgeConn_complete, Nat.add_sub_cancel]
+
+theorem vertexConn_triangular_three : (triangular 3).vertexConn = 2 := by
+  rw [triangular_three, vertexConn_complete]
+
+/-- `T(4)` is the octahedron, so `four_le_vertexConn_triangular` is sharp at `n = 4`. -/
+theorem vertexConn_triangular_four : (triangular 4).vertexConn = 4 := by
+  rw [triangular_four]; exact vertexConn_cocktailParty 2
+
+theorem vertexConn_foldedCube_two : (foldedCube 2).vertexConn = 3 := by
+  rw [foldedCube_two, vertexConn_complete]
+
+theorem vertexConn_foldedCube_three : (foldedCube 3).vertexConn = 4 := by
+  rw [foldedCube_three, vertexConn_bipartite, min_self]
+
+theorem vertexConn_paley_five : (paley 5).vertexConn = 2 := by
+  rw [paley_five]; exact vertexConn_cycle 2
+
+theorem vertexConn_paley_nine : (paley 9).vertexConn = 6 := by
+  rw [paley_nine, vertexConn_completeMultipartite]
+  rfl
+
+/-! ### The operators with a second description
+
+Three of the operators hand back a graph the gallery already has.  The line graph of a cycle is
+that cycle again and the line graph of a star is complete; a strong product of edgeless graphs is
+edgeless; and the Mycielskian of an edgeless graph is a star beside an independent set, so both
+its connectivities are the zero that any disconnected graph has. -/
+
+theorem vertexConn_lineGraph_cycle (n : ℕ) : ((cycle (n + 3)).lineGraph).vertexConn = 2 := by
+  rw [lineGraph_cycle]; exact vertexConn_cycle n
+
+theorem edgeConn_lineGraph_cycle (n : ℕ) : ((cycle (n + 3)).lineGraph).edgeConn = 2 := by
+  rw [lineGraph_cycle]; exact edgeConn_cycle n
+
+theorem vertexConn_lineGraph_star (n : ℕ) : ((star (n + 1)).lineGraph).vertexConn = n := by
+  rw [lineGraph_star, vertexConn_complete, Nat.add_sub_cancel]
+
+theorem edgeConn_lineGraph_star (n : ℕ) : ((star (n + 1)).lineGraph).edgeConn = n := by
+  rw [lineGraph_star, edgeConn_complete, Nat.add_sub_cancel]
+
+theorem vertexConn_strongProduct_empty (m n : ℕ) : (empty m ⊠g empty n).vertexConn = 0 := by
+  rw [strongProduct_empty]; exact vertexConn_empty _
+
+theorem edgeConn_strongProduct_empty (m n : ℕ) : (empty m ⊠g empty n).edgeConn = 0 := by
+  rw [strongProduct_empty]; exact edgeConn_empty _
+
+theorem vertexConn_mycielskian_empty (n : ℕ) : (mycielskian (empty (n + 1))).vertexConn = 0 := by
+  rw [mycielskian_empty]
+  exact vertexConn_disjUnion (by simp) (by simp)
+
+theorem edgeConn_mycielskian_empty (n : ℕ) : (mycielskian (empty (n + 1))).edgeConn = 0 := by
+  rw [mycielskian_empty]
+  exact edgeConn_disjUnion (by simp) (by simp)
 
 end IsoGraph

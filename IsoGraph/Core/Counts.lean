@@ -2141,6 +2141,80 @@ theorem cycle_aut_eq {N : ℕ} (hN : 3 ≤ N) {f g : cycle N ≃cg cycle N}
   obtain ⟨v, hv⟩ := x
   exact key v hv
 
+/-- **Reversing a path is an automorphism of it.**  Relabelling `i` as `n - 1 - i` turns each
+step `i → i + 1` into the step `n - 1 - i → n - 2 - i`, so adjacency is preserved. -/
+def pathReverse (n : ℕ) : path n ≃cg path n :=
+  isoOfAdj (G := path n) (H := path n) (Fin.revPerm (n := n)) fun x y ↦ by
+    have hx := x.isLt
+    have hy := y.isLt
+    have hrx : ((Fin.revPerm (n := n)) x).1 = n - (x.1 + 1) := rfl
+    have hry : ((Fin.revPerm (n := n)) y).1 = n - (y.1 + 1) := rfl
+    rw [Bool.eq_iff_iff, path_adj_val, path_adj_val]
+    omega
+
+/-- Consecutive vertices of a path are adjacent. -/
+theorem path_adj_of_succ {n : ℕ} {u v : (path n).V} (h : u.1 + 1 = v.1) :
+    (path n).Adj u v = true := by
+  rw [path_adj_val]
+  exact ⟨by omega, Or.inl h⟩
+
+/-- **A vertex of a path has at most two neighbours**: of three neighbours of `y`, if `v` and `w`
+both differ from `u` then they are equal. -/
+theorem path_nbr_unique {n : ℕ} {y u v w : (path n).V}
+    (hu : (path n).Adj y u = true) (hv : (path n).Adj y v = true)
+    (hw : (path n).Adj y w = true) (huv : u ≠ v) (huw : u ≠ w) : v = w := by
+  rw [path_adj_val] at hu hv hw
+  have huv' : u.1 ≠ v.1 := fun h ↦ huv (Fin.ext h)
+  have huw' : u.1 ≠ w.1 := fun h ↦ huw (Fin.ext h)
+  exact Fin.ext (by omega)
+
+/-- **An endpoint of a path has only one neighbour**: a vertex labelled `0` is adjacent to the
+vertex labelled `1` and to nothing else. -/
+theorem path_zero_nbr_unique {n : ℕ} {z v w : (path n).V} (hz : z.1 = 0)
+    (hv : (path n).Adj z v = true) (hw : (path n).Adj z w = true) : v = w := by
+  rw [path_adj_val] at hv hw
+  exact Fin.ext (by omega)
+
+/-- **An automorphism of a path is pinned down by where it sends the first two vertices.**  Walk
+along the path: each next vertex is the unique neighbour of the current one other than the
+previous, so agreement propagates from the first step to every vertex. -/
+theorem path_aut_eq {n : ℕ} (hn : 2 ≤ n) {f g : path n ≃cg path n}
+    (h0 : f ⟨0, by omega⟩ = g ⟨0, by omega⟩) (h1 : f ⟨1, by omega⟩ = g ⟨1, by omega⟩) :
+    f = g := by
+  have key : ∀ k, ∀ hk : k < n, f ⟨k, hk⟩ = g ⟨k, hk⟩ := by
+    intro k
+    induction k using Nat.strong_induction_on with
+    | _ k ih =>
+      intro hk
+      match k, ih with
+      | 0, _ => exact h0
+      | 1, _ => exact h1
+      | (m + 2), ih =>
+        have hm : m < n := by omega
+        have hm1 : m + 1 < n := by omega
+        have hfa : f ⟨m, hm⟩ = g ⟨m, hm⟩ := ih m (by omega) hm
+        have hfb : f ⟨m + 1, hm1⟩ = g ⟨m + 1, hm1⟩ := ih (m + 1) (by omega) hm1
+        have hba : (path n).Adj ⟨m + 1, hm1⟩ ⟨m, hm⟩ = true := by
+          rw [(path n).symm]
+          exact path_adj_of_succ rfl
+        have hbc : (path n).Adj ⟨m + 1, hm1⟩ ⟨m + 2, hk⟩ = true := path_adj_of_succ rfl
+        have hac : f ⟨m, hm⟩ ≠ f ⟨m + 2, hk⟩ := fun h ↦ by
+          have h2 : (⟨m, hm⟩ : Fin n) = ⟨m + 2, hk⟩ := f.injective h
+          simp only [Fin.mk.injEq] at h2
+          omega
+        refine path_nbr_unique (y := f ⟨m + 1, hm1⟩) (u := f ⟨m, hm⟩) ?_ ?_ ?_ hac ?_
+        · rw [f.adj_eq]; exact hba
+        · rw [f.adj_eq]; exact hbc
+        · rw [hfb, g.adj_eq]; exact hbc
+        · rw [hfa]
+          refine fun h ↦ ?_
+          have h2 : (⟨m, hm⟩ : Fin n) = ⟨m + 2, hk⟩ := g.injective h
+          simp only [Fin.mk.injEq] at h2
+          omega
+  refine RelIso.ext fun x ↦ ?_
+  obtain ⟨v, hv⟩ := x
+  exact key v hv
+
 /-- An arc-transitive graph has at least `2|E|` automorphisms, one for each arc. -/
 @[toIsoGraph]
 theorem two_mul_E_le_autCount_of_isArcTransitive (G : CGraph) (h : G.IsArcTransitive) :

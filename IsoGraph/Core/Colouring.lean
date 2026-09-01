@@ -32,6 +32,40 @@ written out here, for two reasons:
 
 end
 
+namespace List
+
+/-- Every list of length `k` with entries drawn from `L`. -/
+def tuples {α : Type*} (L : List α) : ℕ → List (List α)
+  | 0 => [[]]
+  | k + 1 => (tuples L k).flatMap fun l ↦ L.map (· :: l)
+
+theorem mem_tuples {α : Type*} {L : List α} {k : ℕ} {l : List α} :
+    l ∈ tuples L k ↔ l.length = k ∧ ∀ a ∈ l, a ∈ L := by
+  induction k generalizing l with
+  | zero =>
+    simp only [tuples, mem_cons, not_mem_nil, or_false, length_eq_zero_iff]
+    refine ⟨fun h ↦ ⟨h, ?_⟩, And.left⟩
+    subst h
+    simp
+  | succ k ih =>
+    constructor
+    · intro hl
+      simp only [tuples, mem_flatMap, mem_map] at hl
+      obtain ⟨t, ht, a, ha, rfl⟩ := hl
+      obtain ⟨h1, h2⟩ := ih.1 ht
+      refine ⟨by simp [h1], fun b hb ↦ ?_⟩
+      rcases mem_cons.1 hb with rfl | hb
+      · exact ha
+      · exact h2 b hb
+    · rintro ⟨h1, h2⟩
+      match l with
+      | a :: t =>
+        simp only [tuples, mem_flatMap, mem_map]
+        exact ⟨t, ih.2 ⟨by simpa using h1, fun b hb ↦ h2 b (mem_cons_of_mem _ hb)⟩,
+          a, h2 a mem_cons_self, rfl⟩
+
+end List
+
 namespace CGraph
 
 section
@@ -1697,6 +1731,57 @@ theorem exists_isDominatingSet_domNum (G : CGraph) :
     ⟨Finset.univ.card, Finset.univ, rfl, isDominatingSet_univ G⟩
   obtain ⟨s, hcard, hs⟩ := Nat.sInf_mem hne
   exact ⟨s, hcard, hs⟩
+
+/-- **A dominating set given by indices bounds the domination number.**  Reading a list of
+indices back through an indexing `e` of `G.V` gives a set of vertices; if every vertex is in the
+list or has a neighbour in it, the domination number is at most the length of the list. -/
+theorem domNum_le_length {G : CGraph} {n : ℕ} (e : G.V ≃ Fin n) (l : List (Fin n))
+    (hdom : ∀ v : Fin n, ∃ i ∈ l, i = v ∨ G.Adj (e.symm i) (e.symm v) = true) :
+    G.domNum ≤ l.length := by
+  classical
+  have hd : G.IsDominatingSet (l.map e.symm).toFinset := by
+    intro v
+    obtain ⟨i, hi, h⟩ := hdom (e v)
+    have hmem : e.symm i ∈ (l.map e.symm).toFinset := by
+      simp only [List.mem_toFinset, List.mem_map]
+      exact ⟨i, hi, rfl⟩
+    rcases h with h | h
+    · exact Or.inl (by rw [h, Equiv.symm_apply_apply] at hmem; exact hmem)
+    · exact Or.inr ⟨e.symm i, hmem, by rwa [Equiv.symm_apply_apply] at h⟩
+  refine (domNum_le_card_of_isDominatingSet hd).trans ?_
+  calc (l.map e.symm).toFinset.card ≤ (l.map e.symm).length := List.toFinset_card_le _
+    _ = l.length := List.length_map _
+
+/-- **A lower bound on the domination number by exhaustive search.**  Read through an indexing `e`
+of `G.V`, a set of at most `k` vertices is a list of at most `k` indices; if every such list leaves
+some vertex outside it with no neighbour in it, then no `k` vertices dominate `G`.  The search runs
+over lists rather than over `Finset`s: a `Finset`-bounded quantifier goes through
+`Quotient.recOnSubsingleton`, which the compiler cannot see through, so it is out of reach of
+`native_decide`. -/
+theorem lt_domNum_of_forall_tuples {G : CGraph} {n k : ℕ} (e : G.V ≃ Fin n)
+    (h : ∀ j ∈ List.range (k + 1), ∀ l ∈ List.tuples (List.finRange n) j,
+      ∃ v ∈ List.finRange n, v ∉ l ∧ ∀ i ∈ l, G.Adj (e.symm i) (e.symm v) = false) :
+    k < G.domNum := by
+  classical
+  obtain ⟨s, hcard, hs⟩ := G.exists_isDominatingSet_domNum
+  by_contra hlt
+  push Not at hlt
+  set l : List (Fin n) := s.toList.map e with hl
+  have hlen : l.length = s.card := by rw [hl, List.length_map, Finset.length_toList]
+  obtain ⟨v, -, hv, hadj⟩ := h l.length (List.mem_range.2 (by omega)) l
+    (List.mem_tuples.2 ⟨rfl, fun a _ ↦ List.mem_finRange a⟩)
+  rcases hs (e.symm v) with hmem | ⟨u, hu, huv⟩
+  · refine hv ?_
+    have hveq : v = e (e.symm v) := (Equiv.apply_symm_apply e v).symm
+    rw [hl, hveq]
+    exact List.mem_map_of_mem (Finset.mem_toList.2 hmem)
+  · have hmem : e u ∈ l := by
+      rw [hl]
+      exact List.mem_map_of_mem (Finset.mem_toList.2 hu)
+    have hfalse := hadj (e u) hmem
+    rw [Equiv.symm_apply_apply] at hfalse
+    rw [hfalse] at huv
+    exact Bool.noConfusion huv
 
 @[toIsoGraph domNum_le_V]
 theorem domNum_le_card (G : CGraph) : G.domNum ≤ FinEnum.card G.V := by

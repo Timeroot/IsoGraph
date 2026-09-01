@@ -608,6 +608,16 @@ theorem cliqueCoverNum_grotzsch : grotzsch.cliqueCoverNum = 6 := by
 /-- Twenty edges on eleven vertices, so not even acyclic, let alone a tree. -/
 theorem not_isTree_grotzsch : ¬ IsTree grotzsch := fun h ↦ not_isAcyclic_grotzsch h.2
 
+/-- **The Grötzsch graph has ten automorphisms**, the symmetries of the pentagon it is built from
+and nothing else.  `autCount_le_autCount_mycielskian` gives the ten for free; that there are no
+more is because the apex is the only vertex of degree five and so is fixed, after which an
+automorphism is determined by what it does to the five original vertices.  The proof below is the
+blunter one — list the group and check the list. -/
+@[simp] theorem autCount_grotzsch : grotzsch.autCount = 10 := by
+  rw [show (grotzsch : IsoGraph) = mycielskian (cycle 5) from rfl, cycle_def, mycielskian_mk,
+    autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
 /-- The sorted form of `degMultiset_grotzsch`. -/
 @[simp] theorem degSequence_grotzsch :
     grotzsch.degSequence = [3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5] := by

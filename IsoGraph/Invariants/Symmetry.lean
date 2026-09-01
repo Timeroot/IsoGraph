@@ -1,4 +1,5 @@
 import IsoGraph.Canon.Group
+import IsoGraph.Canon.Order
 import IsoGraph.Canon.Transitive
 import IsoGraph.Cache
 import IsoGraph.Invariants.Basic
@@ -66,6 +67,18 @@ example : ¬ H.IsArcTransitive := by rw [← CGraph.arcTransitiveB_iff]; native_
 `CGraph.IsVertexTransitive` also has a `Decidable` instance (in `Invariants/Basic.lean`) which
 enumerates all `n!` permutations; that is the one `decide` uses, and it is the right choice only
 for very small graphs.
+
+## Counting automorphisms
+
+`autOrder?` reports the order of the automorphism group but proves nothing.  `autCountCheck k`,
+from `Canon/Order.lean`, decides `G.autCount = k` outright:
+
+```
+example : G.autCount = 384 := CGraph.autCount_eq_of_check (by native_decide)
+```
+
+It lists the whole group and checks the list, so the cost grows with the square of the answer;
+past a few thousand automorphisms use `autOrder?` to find the number and a bound to justify it.
 -/
 
 set_option autoImplicit false
@@ -251,6 +264,38 @@ def autGroupOrder? (e : G.V ≃ Fin n) (limit : Nat := 100000) : Option Nat :=
 /-- **The order of the automorphism group of `G`**, with no indexing of `G.V` supplied. -/
 def autOrder? (limit : Nat := 100000) : Option Nat :=
   G.cacheFin.autGroupOrder? G.cacheFinEquiv limit
+
+/-! ## Counting automorphisms
+
+Unlike the generators, the *number* of automorphisms is an isomorphism invariant, so this is a
+statement about `G.autCount` and not merely about the `Fin n` model. -/
+
+/-- **The automorphisms of `G` are the automorphism group of its `Fin n` model.** -/
+def autEquivFin (e : G.V ≃ Fin n) : (G ≃cg G) ≃ autGroup n (G.finAdj e) where
+  toFun φ := ⟨G.finAuto e φ, G.finAuto_mem e φ⟩
+  invFun σ := G.autoOfFin e σ
+  left_inv _ := RelIso.ext fun _ => by simp
+  right_inv _ := Subtype.ext (Equiv.ext fun _ => by simp)
+
+/-- **Does `G` have exactly `k` automorphisms?** -/
+def autCountCheckOfEquiv (e : G.V ≃ Fin n) (limit k : Nat) : Bool :=
+  _root_.IsoGraph.Canon.autOrderCheck n (matLookup n (G.finAdjArray e)) limit k
+
+theorem autCount_eq_of_checkOfEquiv {G : CGraph} {k : Nat} (e : G.V ≃ Fin n) (limit : Nat)
+    (h : G.autCountCheckOfEquiv e limit k = true) : G.autCount = k := by
+  have h1 : Nat.card (autGroup n (matLookup n (G.finAdjArray e))) = k :=
+    _root_.IsoGraph.Canon.card_autGroup_eq h
+  rw [matLookup_finAdjArray] at h1
+  rw [show G.autCount = Nat.card (G ≃cg G) from rfl, Nat.card_congr (G.autEquivFin e), h1]
+
+/-- **Does `G` have exactly `k` automorphisms?**, with no indexing of `G.V` supplied. -/
+def autCountCheck (k : Nat) : Bool :=
+  G.cacheFin.autCountCheckOfEquiv G.cacheFinEquiv 100000 k
+
+theorem autCount_eq_of_check {G : CGraph} {k : Nat} (h : G.autCountCheck k = true) :
+    G.autCount = k := by
+  rw [autCount_eq_of_iso G.isoCacheFin]
+  exact autCount_eq_of_checkOfEquiv _ _ h
 
 end CGraph
 

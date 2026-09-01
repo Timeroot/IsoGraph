@@ -1211,6 +1211,30 @@ attribute [simp] IsoGraph.maxDeg_disjUnion
   | succ m ih =>
     rw [hypercube_succ, minDeg_cartesianProduct (by simp) (by simp), ih, minDeg_complete]
 
+/-- **The hypercube is maximally edge connected**: `λ(Q n) = n`.  Each `Q (n+1)` is `Q n □ K₂`,
+and a cartesian product of maximally edge connected graphs is again one. -/
+@[simp] theorem edgeConn_hypercube (n : ℕ) : (hypercube (n + 1)).edgeConn = n + 1 := by
+  induction n with
+  | zero =>
+    rw [hypercube_one, edgeConn_complete]
+  | succ m ih =>
+    rw [hypercube_succ, edgeConn_cartesianProduct (isConnected_hypercube _) (isConnected_complete 1)
+      (by rw [V_hypercube]; exact Nat.one_lt_two_pow_iff.2 (by omega)) (by rw [V_complete])
+      (by rw [ih, minDeg_hypercube]) (by rw [edgeConn_complete, minDeg_complete])]
+    rw [minDeg_hypercube, minDeg_complete]
+
+/-- **The hypercube is maximally connected**: `κ(Qₙ) = n`. -/
+@[simp] theorem vertexConn_hypercube (n : ℕ) : (hypercube (n + 1)).vertexConn = n + 1 := by
+  induction n with
+  | zero =>
+    rw [hypercube_one, vertexConn_complete]
+  | succ m ih =>
+    rw [hypercube_succ, vertexConn_cartesianProduct (isConnected_hypercube _)
+      (isConnected_complete 1)
+      (by rw [V_hypercube]; exact Nat.one_lt_two_pow_iff.2 (by omega)) (by rw [V_complete])
+      (by rw [ih, minDeg_hypercube]) (by rw [vertexConn_complete, minDeg_complete])]
+    rw [minDeg_hypercube, minDeg_complete]
+
 example : maxDeg (bipartite 3 5) = 5 := by
   refine maxDeg_eq_of_degMultiset (by simp) fun d hd ↦ ?_
   rw [degMultiset_bipartite] at hd

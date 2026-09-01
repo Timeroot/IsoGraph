@@ -514,6 +514,125 @@ theorem two_step_join (G H : CGraph) [Nonempty G.V]
   · exact Or.inl (by simp)
   · exact Or.inr ⟨Sum.inl a₀, by simp, by simp⟩
 
+/-- A graph whose vertices are pairwise adjacent or two steps apart has no isolated vertex, as
+soon as it has two vertices at all. -/
+theorem exists_adj_of_two_step (G : CGraph) (h2 : 2 ≤ G.card)
+    (h : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
+    (u : G.V) : ∃ w, G.toSimple.Adj u w := by
+  have h3 : Fintype.card G.V = G.card := G.fintypeCard
+  have hc : 1 < Fintype.card G.V := by omega
+  obtain ⟨v, hv⟩ := Fintype.exists_ne_of_one_lt_card hc u
+  rcases h u v (Ne.symm hv) with hadj | ⟨w, hw, -⟩
+  · exact ⟨v, hadj⟩
+  · exact ⟨w, hw⟩
+
+/-- Two steps suffice in a strong product of two graphs in which two steps suffice: fix the
+coordinates that already agree and walk the others in parallel. -/
+theorem two_step_strongProduct (G H : CGraph)
+    (hG : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
+    (hH : ∀ u v : H.V, u ≠ v → H.toSimple.Adj u v ∨ ∃ w, H.toSimple.Adj u w ∧ H.toSimple.Adj w v)
+    (p q : (G ⊠g H).V) (hpq : p ≠ q) :
+    (G ⊠g H).toSimple.Adj p q ∨
+      ∃ w, (G ⊠g H).toSimple.Adj p w ∧ (G ⊠g H).toSimple.Adj w q := by
+  have hadj : ∀ r s : G.V × H.V, (G ⊠g H).toSimple.Adj r s ↔
+      r ≠ s ∧ (r.1 = s.1 ∨ G.toSimple.Adj r.1 s.1) ∧ (r.2 = s.2 ∨ H.toSimple.Adj r.2 s.2) := by
+    intro r s; simp [CGraph.toSimple_adj, strongProduct_adj]
+  have hne1 : ∀ (u v : G.V) (s t : H.V), u ≠ v → ((u, s) : G.V × H.V) ≠ (v, t) :=
+    fun u v s t h hh ↦ h (congrArg Prod.fst hh)
+  have hne2 : ∀ (u v : G.V) (s t : H.V), s ≠ t → ((u, s) : G.V × H.V) ≠ (v, t) :=
+    fun u v s t h hh ↦ h (congrArg Prod.snd hh)
+  obtain ⟨a, x⟩ := p
+  obtain ⟨b, y⟩ := q
+  by_cases hab : a = b
+  · subst hab
+    have hxy : x ≠ y := fun h ↦ hpq (by rw [h])
+    rcases hH x y hxy with h | ⟨z, h1, h2⟩
+    · exact Or.inl ((hadj _ _).2 ⟨hpq, Or.inl rfl, Or.inr h⟩)
+    · exact Or.inr ⟨(a, z), (hadj _ _).2 ⟨hne2 _ _ _ _ h1.ne, Or.inl rfl, Or.inr h1⟩,
+        (hadj _ _).2 ⟨hne2 _ _ _ _ h2.ne, Or.inl rfl, Or.inr h2⟩⟩
+  · by_cases hxy : x = y
+    · subst hxy
+      rcases hG a b hab with h | ⟨c, h1, h2⟩
+      · exact Or.inl ((hadj _ _).2 ⟨hpq, Or.inr h, Or.inl rfl⟩)
+      · exact Or.inr ⟨(c, x), (hadj _ _).2 ⟨hne1 _ _ _ _ h1.ne, Or.inr h1, Or.inl rfl⟩,
+          (hadj _ _).2 ⟨hne1 _ _ _ _ h2.ne, Or.inr h2, Or.inl rfl⟩⟩
+    · rcases hG a b hab with hg | ⟨c, hc1, hc2⟩
+      · rcases hH x y hxy with hh | ⟨z, hz1, hz2⟩
+        · exact Or.inl ((hadj _ _).2 ⟨hpq, Or.inr hg, Or.inr hh⟩)
+        · exact Or.inr ⟨(b, z), (hadj _ _).2 ⟨hne1 _ _ _ _ hg.ne, Or.inr hg, Or.inr hz1⟩,
+            (hadj _ _).2 ⟨hne2 _ _ _ _ hz2.ne, Or.inl rfl, Or.inr hz2⟩⟩
+      · rcases hH x y hxy with hh | ⟨z, hz1, hz2⟩
+        · exact Or.inr ⟨(c, y), (hadj _ _).2 ⟨hne1 _ _ _ _ hc1.ne, Or.inr hc1, Or.inr hh⟩,
+            (hadj _ _).2 ⟨hne1 _ _ _ _ hc2.ne, Or.inr hc2, Or.inl rfl⟩⟩
+        · exact Or.inr ⟨(c, z), (hadj _ _).2 ⟨hne1 _ _ _ _ hc1.ne, Or.inr hc1, Or.inr hz1⟩,
+            (hadj _ _).2 ⟨hne1 _ _ _ _ hc2.ne, Or.inr hc2, Or.inr hz2⟩⟩
+
+/-- Two steps suffice in a blow-up `G ·g H` as soon as they suffice in `G` and `G` has no isolated
+vertex: two vertices in the same fibre that are not adjacent hop out through a neighbouring
+fibre. -/
+theorem two_step_lexProduct (G H : CGraph)
+    (hG : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
+    (hdeg : ∀ u : G.V, ∃ w, G.toSimple.Adj u w)
+    (p q : (G ·g H).V) (hpq : p ≠ q) :
+    (G ·g H).toSimple.Adj p q ∨
+      ∃ w, (G ·g H).toSimple.Adj p w ∧ (G ·g H).toSimple.Adj w q := by
+  have hadj : ∀ r s : G.V × H.V, (G ·g H).toSimple.Adj r s ↔
+      G.toSimple.Adj r.1 s.1 ∨ (r.1 = s.1 ∧ H.toSimple.Adj r.2 s.2) := by
+    intro r s; simp [CGraph.toSimple_adj, lexProduct_adj]
+  obtain ⟨a, x⟩ := p
+  obtain ⟨b, y⟩ := q
+  by_cases hab : a = b
+  · subst hab
+    have hxy : x ≠ y := fun h ↦ hpq (by rw [h])
+    by_cases hh : H.toSimple.Adj x y
+    · exact Or.inl ((hadj _ _).2 (Or.inr ⟨rfl, hh⟩))
+    · obtain ⟨c, hc⟩ := hdeg a
+      exact Or.inr ⟨(c, x), (hadj _ _).2 (Or.inl hc), (hadj _ _).2 (Or.inl hc.symm)⟩
+  · rcases hG a b hab with hg | ⟨c, hc1, hc2⟩
+    · exact Or.inl ((hadj _ _).2 (Or.inl hg))
+    · exact Or.inr ⟨(c, x), (hadj _ _).2 (Or.inl hc1), (hadj _ _).2 (Or.inl hc2)⟩
+
+/-- Two steps suffice in a Mycielskian as soon as they suffice in the base and the base has no
+isolated vertex: the shadows inherit the walks of their originals, and the apex is one step from
+every shadow. -/
+theorem two_step_mycielskian (G : CGraph)
+    (hG : ∀ u v : G.V, u ≠ v → G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v)
+    (hdeg : ∀ u : G.V, ∃ w, G.toSimple.Adj u w)
+    (p q : (mycielskian G).V) (hpq : p ≠ q) :
+    (mycielskian G).toSimple.Adj p q ∨
+      ∃ w, (mycielskian G).toSimple.Adj p w ∧ (mycielskian G).toSimple.Adj w q := by
+  have hcommon : ∀ a b : G.V,
+      G.toSimple.Adj a b ∨ ∃ c, G.toSimple.Adj a c ∧ G.toSimple.Adj c b := by
+    intro a b
+    by_cases hab : a = b
+    · subst hab
+      obtain ⟨c, hc⟩ := hdeg a
+      exact Or.inr ⟨c, hc, hc.symm⟩
+    · exact hG a b hab
+  rcases p with _ | (a | a) <;> rcases q with _ | (b | b)
+  · exact absurd rfl hpq
+  · obtain ⟨c, hc⟩ := hdeg b
+    exact Or.inr ⟨some (.inr c), by simp [CGraph.toSimple_adj],
+      by simpa [CGraph.toSimple_adj] using hc.symm⟩
+  · exact Or.inl (by simp [CGraph.toSimple_adj])
+  · obtain ⟨c, hc⟩ := hdeg a
+    exact Or.inr ⟨some (.inr c), by simpa [CGraph.toSimple_adj] using hc,
+      by simp [CGraph.toSimple_adj]⟩
+  · rcases hcommon a b with h | ⟨c, h1, h2⟩
+    · exact Or.inl (by simpa [CGraph.toSimple_adj] using h)
+    · exact Or.inr ⟨some (.inl c), by simpa [CGraph.toSimple_adj] using h1,
+        by simpa [CGraph.toSimple_adj] using h2⟩
+  · rcases hcommon a b with h | ⟨c, h1, h2⟩
+    · exact Or.inl (by simpa [CGraph.toSimple_adj] using h)
+    · exact Or.inr ⟨some (.inl c), by simpa [CGraph.toSimple_adj] using h1,
+        by simpa [CGraph.toSimple_adj] using h2⟩
+  · exact Or.inl (by simp [CGraph.toSimple_adj])
+  · rcases hcommon a b with h | ⟨c, h1, h2⟩
+    · exact Or.inl (by simpa [CGraph.toSimple_adj] using h)
+    · exact Or.inr ⟨some (.inl c), by simpa [CGraph.toSimple_adj] using h1,
+        by simpa [CGraph.toSimple_adj] using h2⟩
+  · exact Or.inr ⟨none, by simp [CGraph.toSimple_adj], by simp [CGraph.toSimple_adj]⟩
+
 /-! ### Turán's theorem -/
 
 /-- **Turán's theorem**: a graph whose clique number is at most `r` has `2r·|E| ≤ (r - 1)·|V|²`

@@ -18,6 +18,7 @@ import IsoGraph.Canon.Spec
 import IsoGraph.Canon.Group
 import IsoGraph.Canon.Subtree
 import IsoGraph.Canon.Chain
+import IsoGraph.Canon.Order
 import IsoGraph.Canon.Transitive
 
 /-!

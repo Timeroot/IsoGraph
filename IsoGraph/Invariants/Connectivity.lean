@@ -1000,6 +1000,191 @@ theorem IsSRGWith.edgeConn_eq {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n
     (hk : k + 1 < n) : G.edgeConn = k := by
   rw [G.edgeConn_eq_minDeg_of_diameter_eq_two (h.diameter_eq_two hμ hk), h.minDeg_eq (by omega)]
 
+/-- Two vertices left on opposite sides of a separator are non-adjacent, so the `μ` vertices
+adjacent to both of them have nowhere to sit but the separator itself. -/
+theorem IsSRGWith.mu_le_card_of_isSeparator {G : CGraph} {n k ℓ μ : ℕ}
+    (h : G.IsSRGWith n k ℓ μ) {s : Finset G.V} (hs : G.IsSeparator s) : μ ≤ s.card := by
+  have h' : G.toSimple.IsSRGWith n k ℓ μ := h
+  obtain ⟨f, ⟨a, ha, hfa⟩, ⟨b, hb, hfb⟩, hconst⟩ := hs
+  have hne : a ≠ b := by
+    rintro rfl
+    rw [hfa] at hfb
+    exact Bool.noConfusion hfb
+  have hnadj : ¬ G.toSimple.Adj a b := fun hadj ↦ by
+    have hab := hconst a b ha hb ((toSimple_adj G a b).1 hadj)
+    rw [hfa, hfb] at hab
+    exact Bool.noConfusion hab
+  have hsub : (G.toSimple.commonNeighbors a b).toFinset ⊆ s := by
+    intro c hc
+    rw [Set.mem_toFinset, SimpleGraph.mem_commonNeighbors] at hc
+    by_contra hcs
+    have h1 := hconst a c ha hcs ((toSimple_adj G a c).1 hc.1)
+    have h2 := hconst b c hb hcs ((toSimple_adj G b c).1 hc.2)
+    rw [hfa] at h1
+    rw [hfb, ← h1] at h2
+    exact Bool.noConfusion h2
+  have hle := Finset.card_le_card hsub
+  rwa [Set.toFinset_card, h'.of_not_adj hne hnadj] at hle
+
+/-- **A strongly regular graph is at least `μ`-connected.**  Deleting fewer than `μ` vertices
+leaves every surviving pair of the two sides a common neighbour to meet at.  The bound is far from
+the truth — a strongly regular graph is in fact `k`-connected — but that is a spectral theorem and
+this one is not. -/
+@[toIsoGraph]
+theorem IsSRGWith.mu_le_vertexConn {G : CGraph} {n k ℓ μ : ℕ} (h : G.IsSRGWith n k ℓ μ)
+    (hμ : μ ≤ n - 1) : μ ≤ G.vertexConn :=
+  G.le_vertexConn (by have hc : G.card = n := h.card_eq; omega)
+    fun _ hs ↦ h.mu_le_card_of_isSeparator hs
+
+/-! ### The line graph
+
+`λ(G) ≤ κ(L(G))`: a set of vertices of the line graph is a set of edges of `G`, and deleting fewer
+of them than the edge connectivity allows cannot break the line graph apart.  The argument reads a
+separator of `L(G)` back as a cut of `G`, and needs one arithmetic fact to get started — that a
+graph with two edges has an edge to spare. -/
+
+/-- **A graph with two edges has an edge to spare**: `λ < E`.  One edge is not enough — `K₂` has
+`λ = E = 1` — but from two on, a minimum cut always leaves something behind. -/
+theorem edgeConn_lt_E (G : CGraph) (hE : 2 ≤ G.E) : G.edgeConn < G.E := by
+  have hmax := G.two_mul_E_le_card_mul_maxDeg
+  have hmin := G.card_mul_minDeg_le
+  have hpos : 0 < FinEnum.card G.V := by
+    rcases Nat.eq_zero_or_pos (FinEnum.card G.V) with h0 | hp
+    · rw [h0, Nat.zero_mul] at hmax; omega
+    · exact hp
+  have hne : Nonempty G.V := Fintype.card_pos_iff.1 (by rw [G.fintypeCard]; exact hpos)
+  have hlt : G.maxDeg < FinEnum.card G.V := maxDeg_lt_card
+  have hcard2 : 2 ≤ FinEnum.card G.V := by
+    by_contra hc
+    have h1 : G.maxDeg = 0 := by omega
+    rw [h1, Nat.mul_zero] at hmax
+    omega
+  have hle : G.edgeConn ≤ G.minDeg := G.edgeConn_le_minDeg hcard2
+  have hmm : G.minDeg ≤ G.maxDeg := G.minDeg_le_maxDeg
+  rcases Nat.lt_or_ge G.minDeg 2 with hd | hd
+  · omega
+  · have h1 : (G.minDeg + 1) * G.minDeg ≤ FinEnum.card G.V * G.minDeg :=
+      Nat.mul_le_mul (by omega) (le_refl _)
+    have h2 : 2 * G.minDeg ≤ G.minDeg * G.minDeg := Nat.mul_le_mul hd (le_refl _)
+    have h3 : (G.minDeg + 1) * G.minDeg = G.minDeg * G.minDeg + G.minDeg := by ring
+    omega
+
+/-- **A separator of the line graph is a cut of the graph.**  Colour the edges the separator does
+not take `true` and `false`, and let `A` be the set of vertices covered by a `true` edge.  No
+`false` edge touches `A`: two edges sharing a vertex are adjacent in the line graph, so the
+colouring would have to give them the same value.  That makes `A` a cut, and an edge of `G` leaving
+`A` has one end covered and the other not — which can only happen if the separator took it. -/
+theorem edgeConn_le_card_of_isSeparator_lineGraph {G : CGraph} {F : Finset (lineGraph G).V}
+    (hF : (lineGraph G).IsSeparator F) : G.edgeConn ≤ F.card := by
+  classical
+  obtain ⟨f, ⟨e₀, he₀, hfe₀⟩, ⟨e₁, he₁, hfe₁⟩, hconst⟩ := hF
+  have hex : ∀ e : Sym2 G.V, ∃ v, v ∈ e := fun e ↦ Sym2.ind (fun x y ↦ ⟨x, by simp⟩) e
+  set A : Finset G.V := Finset.univ.filter
+      (fun v ↦ ∃ e : (lineGraph G).V, e ∉ F ∧ f e = true ∧ v ∈ (e.1 : Sym2 G.V)) with hAdef
+  have hmemA : ∀ v : G.V, v ∈ A ↔
+      ∃ e : (lineGraph G).V, e ∉ F ∧ f e = true ∧ v ∈ (e.1 : Sym2 G.V) := by
+    intro v
+    rw [hAdef, Finset.mem_filter]
+    simp only [Finset.mem_univ, true_and]
+  have hsame : ∀ e e' : (lineGraph G).V, e ∉ F → e' ∉ F → ∀ v, v ∈ (e.1 : Sym2 G.V) →
+      v ∈ (e'.1 : Sym2 G.V) → f e = f e' := by
+    intro e e' he he' v hv hv'
+    rcases eq_or_ne e e' with rfl | hne
+    · rfl
+    · refine hconst e e' he he' ?_
+      rw [lineGraph_adj, Bool.and_eq_true, decide_eq_true_eq, decide_eq_true_eq]
+      exact ⟨hne, v, hv, hv'⟩
+  have hfalse : ∀ e : (lineGraph G).V, e ∉ F → f e = false →
+      ∀ v, v ∈ (e.1 : Sym2 G.V) → v ∉ A := by
+    intro e he hfe v hv hvA
+    obtain ⟨e', he', hfe', hv'⟩ := (hmemA v).1 hvA
+    rw [hsame e e' he he' v hv hv', hfe'] at hfe
+    exact Bool.noConfusion hfe
+  obtain ⟨u₀, hu₀⟩ := hex (e₀.1 : Sym2 G.V)
+  obtain ⟨u₁, hu₁⟩ := hex (e₁.1 : Sym2 G.V)
+  have hcut : G.IsCut A :=
+    ⟨⟨u₀, (hmemA u₀).2 ⟨e₀, he₀, hfe₀, hu₀⟩⟩,
+      ⟨u₁, Finset.mem_compl.2 (hfalse e₁ he₁ hfe₁ u₁ hu₁)⟩⟩
+  refine le_trans (G.edgeConn_le_of_isCut hcut) ?_
+  show (G.crossing A).card ≤ F.card
+  have hmaps : ∀ p ∈ G.crossing A, (s(p.1, p.2) : Sym2 G.V) ∈ F.image Subtype.val := by
+    rintro ⟨u, w⟩ hp
+    rw [mem_crossing] at hp
+    obtain ⟨huA, hwA, huw⟩ := hp
+    have hmem : (s(u, w) : Sym2 G.V) ∈ G.toSimple.edgeSet :=
+      (SimpleGraph.mem_edgeSet _).2 ((toSimple_adj G u w).2 huw)
+    refine Finset.mem_image.2 ⟨⟨s(u, w), hmem⟩, ?_, rfl⟩
+    by_contra hnF
+    obtain ⟨e', he', hfe', hu'⟩ := (hmemA u).1 huA
+    have hft : f ⟨s(u, w), hmem⟩ = true :=
+      (hsame ⟨s(u, w), hmem⟩ e' hnF he' u (by simp) hu').trans hfe'
+    exact hwA ((hmemA w).2 ⟨⟨s(u, w), hmem⟩, hnF, hft, by simp⟩)
+  have hinj : Set.InjOn (fun p : G.V × G.V ↦ (s(p.1, p.2) : Sym2 G.V)) (G.crossing A) := by
+    rintro ⟨u, w⟩ hp ⟨u', w'⟩ hq hpq
+    rw [Finset.mem_coe, mem_crossing] at hp hq
+    rw [Sym2.eq_iff] at hpq
+    rcases hpq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · simp only [Prod.mk.injEq]
+      exact ⟨h1, h2⟩
+    · exact absurd (h1 ▸ hp.1) hq.2.1
+  exact le_trans (Finset.card_le_card_of_injOn _ hmaps hinj) Finset.card_image_le
+
+/-- **Whitney's inequality for line graphs**: `λ(G) ≤ κ(L(G))`.  Deleting fewer than `λ(G)`
+vertices of the line graph is deleting fewer than `λ(G)` edges of `G`, and that cannot disconnect
+anything. -/
+theorem edgeConn_le_vertexConn_lineGraph (G : CGraph) (hE : 2 ≤ G.E) :
+    G.edgeConn ≤ (lineGraph G).vertexConn :=
+  (lineGraph G).le_vertexConn
+    (by have hc : (lineGraph G).card = G.E := card_lineGraph G
+        have := G.edgeConn_lt_E hE
+        omega)
+    fun _ hF ↦ edgeConn_le_card_of_isSeparator_lineGraph hF
+
+/-- `λ(G) ≤ λ(L(G))`, the edge form of `edgeConn_le_vertexConn_lineGraph`. -/
+theorem edgeConn_le_edgeConn_lineGraph (G : CGraph) (hE : 2 ≤ G.E) :
+    G.edgeConn ≤ (lineGraph G).edgeConn :=
+  (G.edgeConn_le_vertexConn_lineGraph hE).trans (lineGraph G).vertexConn_le_edgeConn
+
+/-! ### The tensor product
+
+`isConnected_tensorProduct` needs a non-bipartite factor, and it has to: two bipartite factors give
+a disconnected product.  That is the other half of Weichsel's theorem, and it pins both
+connectivities of such a product at zero. -/
+
+/-- **The tensor product of two bipartite graphs falls apart.**  Colour `(u, v)` by whether the two
+sides agree.  An edge of the product steps across both factors at once, so it flips both colours
+and leaves the answer alone — the colouring is constant along every edge, and an edge in each
+factor supplies a vertex of either colour. -/
+theorem isSeparator_empty_tensorProduct {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).IsSeparator ∅ := by
+  obtain ⟨c, hc⟩ := hG
+  obtain ⟨d, hd⟩ := hH
+  obtain ⟨a, a', haa'⟩ := exists_adj_of_E_pos hGE
+  obtain ⟨b, _, hbb'⟩ := exists_adj_of_E_pos hHE
+  have hstep : ∀ x y x' y' z : Bool, x ≠ x' → y ≠ y' → ((x == y) == z) = ((x' == y') == z) := by
+    decide
+  have hflip : ∀ x x' y : Bool, x ≠ x' → ((x' == y) == (x == y)) = false := by decide
+  refine ⟨fun p ↦ ((c p.1 == d p.2) == (c a == d b)), ⟨(a, b), by simp, by simp⟩,
+    ⟨(a', b), by simp, hflip _ _ _ (hc a a' haa')⟩, ?_⟩
+  rintro ⟨u, v⟩ ⟨u', v'⟩ - - hadj
+  rw [tensorProduct_adj, Bool.and_eq_true] at hadj
+  exact hstep _ _ _ _ _ (hc u u' hadj.1) (hd v v' hadj.2)
+
+/-- The tensor product of two bipartite graphs with an edge apiece is disconnected. -/
+theorem not_isConnected_tensorProduct {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : ¬ (G ⊗g H).IsConnected :=
+  (G ⊗g H).not_isConnected_of_isSeparator_empty (isSeparator_empty_tensorProduct hG hH hGE hHE)
+
+/-- `κ(G ⊗ H) = 0` when both factors are bipartite and have an edge. -/
+theorem vertexConn_tensorProduct_eq_zero {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).vertexConn = 0 :=
+  (G ⊗g H).vertexConn_eq_zero_iff.2 (Or.inr (not_isConnected_tensorProduct hG hH hGE hHE))
+
+/-- `λ(G ⊗ H) = 0` when both factors are bipartite and have an edge. -/
+theorem edgeConn_tensorProduct_eq_zero {G H : CGraph} (hG : G.IsBipartite) (hH : H.IsBipartite)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).edgeConn = 0 :=
+  (G ⊗g H).edgeConn_eq_zero_iff.2 (Or.inr (not_isConnected_tensorProduct hG hH hGE hHE))
+
 end CGraph
 
 /-! ## The two connectivities on `IsoGraph`
@@ -1082,5 +1267,44 @@ theorem vertexConn_eq_one (h2 : 2 ≤ G.V) (hc : G.IsConnected) (hd : G.minDeg �
 theorem edgeConn_eq_one (h2 : 2 ≤ G.V) (hc : G.IsConnected) (hd : G.minDeg ≤ 1) :
     G.edgeConn = 1 :=
   le_antisymm (le_trans (G.edgeConn_le_minDeg h2) hd) ((G.one_le_edgeConn_iff h2).2 hc)
+
+/-- **A graph with two edges has an edge to spare**: `λ < E`. -/
+theorem edgeConn_lt_E (hE : 2 ≤ G.E) : G.edgeConn < G.E := by
+  induction G using Quotient.inductionOn with | _ G =>
+  simp only [edgeConn_mk, E_mk] at *
+  exact G.edgeConn_lt_E hE
+
+/-- **Whitney's inequality for line graphs**: `λ(G) ≤ κ(L(G))`. -/
+theorem edgeConn_le_vertexConn_lineGraph (hE : 2 ≤ G.E) :
+    G.edgeConn ≤ (lineGraph G).vertexConn := by
+  induction G using Quotient.inductionOn with | _ G =>
+  simp only [edgeConn_mk, E_mk, lineGraph_mk, vertexConn_mk] at *
+  exact G.edgeConn_le_vertexConn_lineGraph hE
+
+/-- `λ(G) ≤ λ(L(G))`, the edge form of `edgeConn_le_vertexConn_lineGraph`. -/
+theorem edgeConn_le_edgeConn_lineGraph (hE : 2 ≤ G.E) :
+    G.edgeConn ≤ (lineGraph G).edgeConn :=
+  (G.edgeConn_le_vertexConn_lineGraph hE).trans (lineGraph G).vertexConn_le_edgeConn
+
+/-- The tensor product of two bipartite graphs with an edge apiece is disconnected — the converse
+half of Weichsel's theorem `isConnected_tensorProduct`. -/
+theorem not_isConnected_tensorProduct {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : ¬ IsConnected (G ⊗g H) := by
+  induction G using Quotient.inductionOn with | _ G =>
+  induction H using Quotient.inductionOn with | _ H =>
+  rw [isBipartite_mk] at hG hH
+  rw [E_mk] at hGE hHE
+  rw [tensorProduct_mk, isConnected_mk]
+  exact CGraph.not_isConnected_tensorProduct hG hH hGE hHE
+
+/-- `κ(G ⊗ H) = 0` when both factors are bipartite and have an edge. -/
+theorem vertexConn_tensorProduct_eq_zero {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).vertexConn = 0 :=
+  (G ⊗g H).vertexConn_eq_zero_iff.2 (Or.inr (not_isConnected_tensorProduct hG hH hGE hHE))
+
+/-- `λ(G ⊗ H) = 0` when both factors are bipartite and have an edge. -/
+theorem edgeConn_tensorProduct_eq_zero {G H : IsoGraph} (hG : IsBipartite G) (hH : IsBipartite H)
+    (hGE : 0 < G.E) (hHE : 0 < H.E) : (G ⊗g H).edgeConn = 0 :=
+  (G ⊗g H).edgeConn_eq_zero_iff.2 (Or.inr (not_isConnected_tensorProduct hG hH hGE hHE))
 
 end IsoGraph

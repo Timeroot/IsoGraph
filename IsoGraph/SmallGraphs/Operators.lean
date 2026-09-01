@@ -391,6 +391,11 @@ than two and are not settled here. -/
 theorem edgeConn_foldedCube_four : (foldedCube 4).edgeConn = 5 :=
   clebsch_srg.edgeConn_eq (by omega) (by omega)
 
+/-- `κ` is not settled the same way — Plesník is a statement about edges — but `μ = 2` says a
+separator of the Clebsch graph needs two vertices. -/
+theorem two_le_vertexConn_foldedCube_four : 2 ≤ (foldedCube 4).vertexConn :=
+  clebsch_srg.mu_le_vertexConn (by omega)
+
 /-- Regularity again, this time through `IsRegularWith.maxDeg_eq`. -/
 theorem maxDeg_foldedCube (n : ℕ) : maxDeg (foldedCube (n + 2)) = n + 3 :=
   IsRegularWith.maxDeg_eq (isRegularWith_foldedCube n) (by simp [V_foldedCube])
@@ -736,6 +741,12 @@ theorem domNum_foldedCube_le (n : ℕ) :
   have h := domNum_add_maxDeg_le_V (foldedCube (n + 2))
   rw [V_foldedCube, maxDeg_foldedCube] at h
   omega
+
+/-- **The first folded cube with a domination number worth naming.**  `□₃` is `K₄,₄`, so one vertex
+from each side dominates it, and the two bounds above only give `2 ≤ γ ≤ 3`. -/
+@[simp] theorem domNum_foldedCube_three : (foldedCube 3).domNum = 2 := by
+  rw [foldedCube_three]
+  exact domNum_bipartite 2 2
 
 theorem le_edgeChromNum_foldedCube (n : ℕ) :
     n + 3 ≤ (foldedCube (n + 2)).edgeChromNum := by

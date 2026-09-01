@@ -9,8 +9,13 @@ import IsoGraph.Core
 import IsoGraph.SmallGraphs
 import IsoGraph.Algebra
 import IsoGraph.Spectrum
+import IsoGraph.Edgeless
+import IsoGraph.TwoRegular
+import IsoGraph.Degenerate
+import IsoGraph.NonEdges
 import IsoGraph.Containment
 import IsoGraph.Exhaustion
 import IsoGraph.Sat
 import IsoGraph.Fractional
 import IsoGraph.Decompose
+import IsoGraph.Moments

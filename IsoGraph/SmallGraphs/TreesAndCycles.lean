@@ -547,6 +547,400 @@ theorem chromNum_lollipop (m k : ℕ) : (lollipop (m + 2) k).chromNum = m + 2 :=
   exact le_antisymm (chromNum_lollipop_le m k)
     ((le_cliqueNum_lollipop m k).trans (CGraph.cliqueNum_le_chromNum _))
 
+/-! ### Independent sets and clique covers of the lollipop -/
+
+/-- The lollipop's clique together with the leg, cut into consecutive pairs: colour `0` on the
+clique and colour `1 + i` on the `i`-th pair of the leg. -/
+private def lollipopCliqueCol (m k : ℕ) (v : ((CGraph.lollipop (m + 2) k)ᶜ).V) :
+    Fin ((k + 3) / 2) :=
+  ⟨if v.1 < m + 2 then 0 else 1 + (v.1 - (m + 2)) / 2, by
+    have h : v.1 < m + 2 + k := v.isLt
+    split <;> omega⟩
+
+private theorem lollipop_adj_of_lt (m k : ℕ) (u v : (CGraph.lollipop (m + 2) k).V)
+    (hu : u.1 < m + 2) (hv : v.1 < m + 2) (huv : u ≠ v) :
+    (CGraph.lollipop (m + 2) k).Adj u v = true := by
+  have hne : u.1 ≠ v.1 := fun h ↦ huv (Fin.ext h)
+  rw [CGraph.lollipop_adj_val]
+  refine ⟨hne, ?_⟩
+  rcases Nat.lt_or_ge u.1 v.1 with h | h
+  · exact Or.inl (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2 ⟨h, hv⟩))
+  · exact Or.inr (List.mem_append_left _ ((CGraph.mem_cliqueEdges _ _ _).2
+      ⟨by omega, hu⟩))
+
+private theorem lollipop_adj_of_succ (m k : ℕ) (u v : (CGraph.lollipop (m + 2) k).V)
+    (hu : m + 2 ≤ u.1) (h : v.1 = u.1 + 1) :
+    (CGraph.lollipop (m + 2) k).Adj u v = true := by
+  have hv : v.1 < m + 2 + k := v.isLt
+  rw [CGraph.lollipop_adj_val]
+  exact ⟨by omega, Or.inl (List.mem_append_right _ ((CGraph.mem_legEdges _ _ _ _ _).2
+    (Or.inr ⟨hu, h, by omega⟩)))⟩
+
+private theorem lollipopCliqueCol_proper (m k : ℕ) : ∀ u v : ((CGraph.lollipop (m + 2) k)ᶜ).V,
+    ((CGraph.lollipop (m + 2) k)ᶜ).Adj u v = true →
+      lollipopCliqueCol m k u ≠ lollipopCliqueCol m k v := by
+  intro u v hadj hcol
+  rw [CGraph.compl_adj] at hadj
+  simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_eq_eq_not, Bool.not_true] at hadj
+  obtain ⟨hne, hnadj⟩ := hadj
+  have hcol' : (if u.1 < m + 2 then 0 else 1 + (u.1 - (m + 2)) / 2)
+      = (if v.1 < m + 2 then 0 else 1 + (v.1 - (m + 2)) / 2) := congrArg Fin.val hcol
+  by_cases hu : u.1 < m + 2 <;> by_cases hv : v.1 < m + 2
+  · rw [lollipop_adj_of_lt m k u v hu hv hne] at hnadj
+    simp at hnadj
+  · simp only [hu, hv, if_true, if_false] at hcol'; omega
+  · simp only [hu, hv, if_true, if_false] at hcol'; omega
+  · simp only [hu, hv, if_false] at hcol'
+    have hne' : u.1 ≠ v.1 := fun h ↦ hne (Fin.ext h)
+    have hstep : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1 := by omega
+    rcases hstep with h | h
+    · rw [lollipop_adj_of_succ m k u v (by omega) h] at hnadj
+      simp at hnadj
+    · rw [(CGraph.lollipop (m + 2) k).symm u v, lollipop_adj_of_succ m k v u (by omega) h] at hnadj
+      simp at hnadj
+
+private theorem cliqueCoverNum_lollipop_le (m k : ℕ) :
+    (CGraph.lollipop (m + 2) k).cliqueCoverNum ≤ (k + 3) / 2 :=
+  CGraph.chromNum_le_of_colouring _ (lollipopCliqueCol_proper m k)
+
+private theorem lollipop_adj_eq_false (m k : ℕ) (u v : (CGraph.lollipop (m + 2) k).V)
+    (h1 : ¬ (u.1 < m + 2 ∧ v.1 < m + 2)) (h2 : ¬ (u.1 = 0 ∧ v.1 = m + 2))
+    (h3 : ¬ (v.1 = 0 ∧ u.1 = m + 2)) (h4 : ¬ (m + 2 ≤ u.1 ∧ v.1 = u.1 + 1))
+    (h5 : ¬ (m + 2 ≤ v.1 ∧ u.1 = v.1 + 1)) :
+    (CGraph.lollipop (m + 2) k).Adj u v = false := by
+  rw [← Bool.not_eq_true, CGraph.lollipop_adj_val]
+  rintro ⟨hne, h⟩
+  simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges] at h
+  omega
+
+/-- One vertex of the clique and every other vertex of the leg. -/
+private def lollipopIndep (m k : ℕ) : List ((CGraph.lollipop (m + 2) k).V) :=
+  (⟨1, by omega⟩ : (CGraph.lollipop (m + 2) k).V) :: (List.range ((k + 1) / 2)).map
+    (fun i ↦ ⟨min (m + 2 + 2 * i) (m + 1 + k), by omega⟩)
+
+private theorem length_lollipopIndep (m k : ℕ) : (lollipopIndep m k).length = (k + 3) / 2 := by
+  rw [lollipopIndep]
+  simp only [List.length_cons, List.length_map, List.length_range]
+  omega
+
+private theorem mem_lollipopIndep (m k : ℕ) {v : (CGraph.lollipop (m + 2) k).V}
+    (hv : v ∈ lollipopIndep m k) :
+    v.1 = 1 ∨ (m + 2 ≤ v.1 ∧ v.1 ≤ m + 1 + k ∧ (v.1 - m) % 2 = 0) := by
+  rw [lollipopIndep, List.mem_cons] at hv
+  rcases hv with rfl | hv
+  · exact Or.inl rfl
+  · simp only [List.mem_map, List.mem_range] at hv
+    obtain ⟨i, hi, rfl⟩ := hv
+    exact Or.inr ⟨by simp only; omega, by simp only; omega, by simp only; omega⟩
+
+private theorem lollipopIndep_nodup (m k : ℕ) : (lollipopIndep m k).Nodup := by
+  rw [lollipopIndep]
+  refine List.nodup_cons.2 ⟨?_, List.nodup_range.map_on ?_⟩
+  · simp only [List.mem_map, List.mem_range, not_exists]
+    rintro i ⟨hi, hEq⟩
+    have := congrArg Fin.val hEq
+    simp only at this
+    omega
+  · intro x hx y hy hxy
+    simp only [List.mem_range] at hx hy
+    have := congrArg Fin.val hxy
+    simp only at this
+    omega
+
+private theorem le_indepNum_lollipop_leg (m k : ℕ) :
+    (k + 3) / 2 ≤ (CGraph.lollipop (m + 2) k).indepNum := by
+  rw [← length_lollipopIndep m k]
+  refine CGraph.le_indepNum_of_nodup (lollipopIndep_nodup m k) fun u hu v hv huv ↦ ?_
+  have hu' := mem_lollipopIndep m k hu
+  have hv' := mem_lollipopIndep m k hv
+  have hne : u.1 ≠ v.1 := fun h ↦ huv (Fin.ext h)
+  exact lollipop_adj_eq_false m k u v (by omega) (by omega) (by omega) (by omega) (by omega)
+
+
+/-- **The independence number of a lollipop**: one vertex of the clique, and every other vertex
+of the leg.  The clique contributes only one because it is a clique, and the leg is a path. -/
+@[simp] theorem indepNum_lollipop (m k : ℕ) :
+    (lollipop (m + 2) k).indepNum = (k + 3) / 2 := by
+  simp only [lollipop_def, indepNum_mk]
+  refine le_antisymm ?_ (le_indepNum_lollipop_leg m k)
+  have h : (CGraph.lollipop (m + 2) k).indepNum = ((CGraph.lollipop (m + 2) k)ᶜ).cliqueNum := by
+    rw [← CGraph.indepNum_compl, CGraph.compl_compl]
+  rw [h]
+  exact le_trans (CGraph.cliqueNum_le_chromNum _) (cliqueCoverNum_lollipop_le m k)
+
+/-- **A lollipop is covered by its clique and by the pairs of its leg**, and no fewer cliques
+will do: the independent set of `indepNum_lollipop` meets each of them once. -/
+@[simp] theorem cliqueCoverNum_lollipop (m k : ℕ) :
+    (lollipop (m + 2) k).cliqueCoverNum = (k + 3) / 2 := by
+  simp only [lollipop_def, cliqueCoverNum_mk]
+  refine le_antisymm (cliqueCoverNum_lollipop_le m k) ?_
+  show (k + 3) / 2 ≤ ((CGraph.lollipop (m + 2) k)ᶜ).chromNum
+  have h : ((CGraph.lollipop (m + 2) k)ᶜ).cliqueNum = (CGraph.lollipop (m + 2) k).indepNum := by
+    rw [← CGraph.indepNum_compl, CGraph.compl_compl]
+  have h2 := CGraph.cliqueNum_le_chromNum ((CGraph.lollipop (m + 2) k)ᶜ)
+  have h3 := le_indepNum_lollipop_leg m k
+  omega
+
+/-- **The vertex cover number of a lollipop**, by Gallai's identity. -/
+@[simp] theorem coverNum_lollipop (m k : ℕ) :
+    (lollipop (m + 2) k).coverNum = m + 1 + k / 2 := by
+  have h := coverNum_add_indepNum (lollipop (m + 2) k)
+  rw [indepNum_lollipop, V_lollipop] at h
+  omega
+
+/-! ### Independent sets and clique covers of the tadpole -/
+
+/-- An even cycle carrying a leg, cut into consecutive pairs: colour `i` on the `i`-th pair of the
+cycle and colour `t + 2 + i` on the `i`-th pair of the leg. -/
+private def tadpoleCliqueCol (t k : ℕ) (v : ((CGraph.tadpole (2 * t + 4) k)ᶜ).V) :
+    Fin (t + 2 + (k + 1) / 2) :=
+  ⟨if v.1 < 2 * t + 4 then v.1 / 2 else t + 2 + (v.1 - (2 * t + 4)) / 2, by
+    have h : v.1 < 2 * t + 4 + k := v.isLt
+    split <;> omega⟩
+
+private theorem tadpole_adj_of_succ_cycle (t k : ℕ) (u v : (CGraph.tadpole (2 * t + 4) k).V)
+    (hv : v.1 < 2 * t + 4) (h : v.1 = u.1 + 1) :
+    (CGraph.tadpole (2 * t + 4) k).Adj u v = true := by
+  rw [CGraph.tadpole_adj_val]
+  exact ⟨by omega, Or.inl (List.mem_append_left _ ((CGraph.mem_cycleEdges _ _ _).2
+    (Or.inl ⟨h, by omega⟩)))⟩
+
+private theorem tadpole_adj_of_succ_leg (t k : ℕ) (u v : (CGraph.tadpole (2 * t + 4) k).V)
+    (hu : 2 * t + 4 ≤ u.1) (h : v.1 = u.1 + 1) :
+    (CGraph.tadpole (2 * t + 4) k).Adj u v = true := by
+  have hv : v.1 < 2 * t + 4 + k := v.isLt
+  rw [CGraph.tadpole_adj_val]
+  exact ⟨by omega, Or.inl (List.mem_append_right _ ((CGraph.mem_legEdges _ _ _ _ _).2
+    (Or.inr ⟨hu, h, by omega⟩)))⟩
+
+private theorem tadpoleCliqueCol_proper (t k : ℕ) :
+    ∀ u v : ((CGraph.tadpole (2 * t + 4) k)ᶜ).V,
+      ((CGraph.tadpole (2 * t + 4) k)ᶜ).Adj u v = true →
+        tadpoleCliqueCol t k u ≠ tadpoleCliqueCol t k v := by
+  intro u v hadj hcol
+  rw [CGraph.compl_adj] at hadj
+  simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_eq_eq_not, Bool.not_true] at hadj
+  obtain ⟨hne, hnadj⟩ := hadj
+  have hne' : u.1 ≠ v.1 := fun h ↦ hne (Fin.ext h)
+  have hcol' : (if u.1 < 2 * t + 4 then u.1 / 2 else t + 2 + (u.1 - (2 * t + 4)) / 2)
+      = (if v.1 < 2 * t + 4 then v.1 / 2 else t + 2 + (v.1 - (2 * t + 4)) / 2) :=
+    congrArg Fin.val hcol
+  by_cases hu : u.1 < 2 * t + 4 <;> by_cases hv : v.1 < 2 * t + 4
+  · simp only [hu, hv, if_true] at hcol'
+    rcases (by omega : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1) with h | h
+    · rw [tadpole_adj_of_succ_cycle t k u v hv h] at hnadj
+      simp at hnadj
+    · rw [(CGraph.tadpole (2 * t + 4) k).symm u v,
+        tadpole_adj_of_succ_cycle t k v u hu h] at hnadj
+      simp at hnadj
+  · simp only [hu, hv, if_true, if_false] at hcol'; omega
+  · simp only [hu, hv, if_true, if_false] at hcol'; omega
+  · simp only [hu, hv, if_false] at hcol'
+    rcases (by omega : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1) with h | h
+    · rw [tadpole_adj_of_succ_leg t k u v (by omega) h] at hnadj
+      simp at hnadj
+    · rw [(CGraph.tadpole (2 * t + 4) k).symm u v,
+        tadpole_adj_of_succ_leg t k v u (by omega) h] at hnadj
+      simp at hnadj
+
+private theorem cliqueCoverNum_tadpole_le (t k : ℕ) :
+    (CGraph.tadpole (2 * t + 4) k).cliqueCoverNum ≤ t + 2 + (k + 1) / 2 :=
+  CGraph.chromNum_le_of_colouring _ (tadpoleCliqueCol_proper t k)
+
+private theorem tadpole_adj_eq_false (t k : ℕ) (u v : (CGraph.tadpole (2 * t + 4) k).V)
+    (h1 : ¬ (v.1 = u.1 + 1 ∧ v.1 < 2 * t + 4)) (h2 : ¬ (u.1 = v.1 + 1 ∧ u.1 < 2 * t + 4))
+    (h3 : ¬ (2 * t + 4 ≤ u.1 ∧ v.1 = u.1 + 1)) (h4 : ¬ (2 * t + 4 ≤ v.1 ∧ u.1 = v.1 + 1))
+    (h5 : ¬ (u.1 + 1 = 2 * t + 4 ∧ v.1 = 0)) (h6 : ¬ (v.1 + 1 = 2 * t + 4 ∧ u.1 = 0))
+    (h7 : ¬ (u.1 = 0 ∧ v.1 = 2 * t + 4)) (h8 : ¬ (v.1 = 0 ∧ u.1 = 2 * t + 4)) :
+    (CGraph.tadpole (2 * t + 4) k).Adj u v = false := by
+  rw [← Bool.not_eq_true, CGraph.tadpole_adj_val]
+  rintro ⟨hne, h⟩
+  simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges] at h
+  omega
+
+/-- Every other vertex of the cycle, starting next to the join, and every other vertex of the
+leg. -/
+private def tadpoleIndep (t k : ℕ) : List ((CGraph.tadpole (2 * t + 4) k).V) :=
+  (List.range (t + 2)).map (fun i ↦ ⟨min (2 * i + 1) (2 * t + 3), by omega⟩) ++
+    (List.range ((k + 1) / 2)).map (fun i ↦ ⟨min (2 * t + 4 + 2 * i) (2 * t + 3 + k), by omega⟩)
+
+private theorem length_tadpoleIndep (t k : ℕ) :
+    (tadpoleIndep t k).length = t + 2 + (k + 1) / 2 := by
+  rw [tadpoleIndep]
+  simp only [List.length_append, List.length_map, List.length_range]
+
+private theorem mem_tadpoleIndep (t k : ℕ) {v : (CGraph.tadpole (2 * t + 4) k).V}
+    (hv : v ∈ tadpoleIndep t k) :
+    (v.1 % 2 = 1 ∧ v.1 ≤ 2 * t + 3) ∨
+      (2 * t + 4 ≤ v.1 ∧ v.1 ≤ 2 * t + 3 + k ∧ v.1 % 2 = 0) := by
+  rw [tadpoleIndep, List.mem_append] at hv
+  rcases hv with hv | hv <;> simp only [List.mem_map, List.mem_range] at hv <;>
+    obtain ⟨i, hi, rfl⟩ := hv
+  · exact Or.inl ⟨by simp only; omega, by simp only; omega⟩
+  · exact Or.inr ⟨by simp only; omega, by simp only; omega, by simp only; omega⟩
+
+private theorem tadpoleIndep_nodup (t k : ℕ) : (tadpoleIndep t k).Nodup := by
+  rw [tadpoleIndep]
+  refine List.Nodup.append (List.nodup_range.map_on ?_) (List.nodup_range.map_on ?_) ?_
+  · intro x hx y hy hxy
+    simp only [List.mem_range] at hx hy
+    have := congrArg Fin.val hxy
+    simp only at this
+    omega
+  · intro x hx y hy hxy
+    simp only [List.mem_range] at hx hy
+    have := congrArg Fin.val hxy
+    simp only at this
+    omega
+  · simp only [List.disjoint_left, List.mem_map, List.mem_range, forall_exists_index, and_imp]
+    rintro a x hx rfl ⟨y, hy, hxy⟩
+    have := congrArg Fin.val hxy
+    simp only at this
+    omega
+
+private theorem le_indepNum_tadpole_cycle (t k : ℕ) :
+    t + 2 + (k + 1) / 2 ≤ (CGraph.tadpole (2 * t + 4) k).indepNum := by
+  rw [← length_tadpoleIndep t k]
+  refine CGraph.le_indepNum_of_nodup (tadpoleIndep_nodup t k) fun u hu v hv huv ↦ ?_
+  have hu' := mem_tadpoleIndep t k hu
+  have hv' := mem_tadpoleIndep t k hv
+  have hne : u.1 ≠ v.1 := fun h ↦ huv (Fin.ext h)
+  exact tadpole_adj_eq_false t k u v (by omega) (by omega) (by omega) (by omega) (by omega)
+    (by omega) (by omega) (by omega)
+
+/-- **The independence number of a tadpole with an even cycle**: every other vertex of the cycle
+and every other vertex of the leg, the two runs starting on either side of the join. -/
+@[simp] theorem indepNum_tadpole_even (t k : ℕ) :
+    (tadpole (2 * t + 4) k).indepNum = t + 2 + (k + 1) / 2 := by
+  simp only [tadpole_def, indepNum_mk]
+  refine le_antisymm ?_ (le_indepNum_tadpole_cycle t k)
+  have h : (CGraph.tadpole (2 * t + 4) k).indepNum
+      = ((CGraph.tadpole (2 * t + 4) k)ᶜ).cliqueNum := by
+    rw [← CGraph.indepNum_compl, CGraph.compl_compl]
+  rw [h]
+  exact le_trans (CGraph.cliqueNum_le_chromNum _) (cliqueCoverNum_tadpole_le t k)
+
+/-- **A tadpole with an even cycle is covered by the pairs of its cycle and of its leg**, and no
+fewer cliques will do. -/
+@[simp] theorem cliqueCoverNum_tadpole_even (t k : ℕ) :
+    (tadpole (2 * t + 4) k).cliqueCoverNum = t + 2 + (k + 1) / 2 := by
+  simp only [tadpole_def, cliqueCoverNum_mk]
+  refine le_antisymm (cliqueCoverNum_tadpole_le t k) ?_
+  show t + 2 + (k + 1) / 2 ≤ ((CGraph.tadpole (2 * t + 4) k)ᶜ).chromNum
+  have h2 := CGraph.cliqueNum_le_chromNum ((CGraph.tadpole (2 * t + 4) k)ᶜ)
+  have h : ((CGraph.tadpole (2 * t + 4) k)ᶜ).cliqueNum
+      = (CGraph.tadpole (2 * t + 4) k).indepNum := by
+    rw [← CGraph.indepNum_compl, CGraph.compl_compl]
+  have h3 := le_indepNum_tadpole_cycle t k
+  omega
+
+/-- **The vertex cover number of a tadpole with an even cycle**, by Gallai's identity. -/
+@[simp] theorem coverNum_tadpole_even (t k : ℕ) :
+    (tadpole (2 * t + 4) k).coverNum = t + 2 + k / 2 := by
+  have h := coverNum_add_indepNum (tadpole (2 * t + 4) k)
+  rw [indepNum_tadpole_even, V_tadpole] at h
+  omega
+
+/-! ### Matchings of the lollipop and the tadpole -/
+
+/-- The `j`-th vertex of the Hamiltonian path of a lollipop: walk in from the far end of the leg,
+reach the clique at step `k`, then run through the clique. -/
+private def lollipopPathVal (m k j : ℕ) : ℕ := if j < k then m + 1 + k - j else j - k
+
+private theorem lollipopPathVal_lt (m k j : ℕ) (hj : j < m + 2 + k) :
+    lollipopPathVal m k j < m + 2 + k := by
+  simp only [lollipopPathVal]; split <;> omega
+
+private theorem lollipopPath_adj (m k j : ℕ) (hj : j + 1 < m + 2 + k)
+    (h1 : lollipopPathVal m k j < m + 2 + k)
+    (h2 : lollipopPathVal m k (j + 1) < m + 2 + k) :
+    (CGraph.lollipop (m + 2) k).Adj ⟨lollipopPathVal m k j, h1⟩
+      ⟨lollipopPathVal m k (j + 1), h2⟩ = true := by
+  rw [CGraph.lollipop_adj_val]
+  simp only [List.mem_append, CGraph.mem_cliqueEdges, CGraph.mem_legEdges, lollipopPathVal]
+  split_ifs <;> omega
+
+private theorem lollipopPathVal_inj (m k j j' : ℕ) (hj : j < m + 2 + k) (hj' : j' < m + 2 + k)
+    (h : lollipopPathVal m k j = lollipopPathVal m k j') : j = j' := by
+  simp only [lollipopPathVal] at h
+  split_ifs at h <;> omega
+
+private theorem le_matchNum_lollipop (m k : ℕ) :
+    (m + 2 + k) / 2 ≤ (CGraph.lollipop (m + 2) k).matchNum := by
+  rw [show (m + 2 + k) / 2 = Fintype.card (Fin ((m + 2 + k) / 2)) by simp]
+  refine CGraph.card_le_matchNum
+    (fun i : Fin ((m + 2 + k) / 2) ↦
+      ⟨lollipopPathVal m k (2 * i), lollipopPathVal_lt _ _ _ (by have := i.isLt; omega)⟩)
+    (fun i : Fin ((m + 2 + k) / 2) ↦
+      ⟨lollipopPathVal m k (2 * i + 1), lollipopPathVal_lt _ _ _ (by have := i.isLt; omega)⟩)
+    (fun i ↦ lollipopPath_adj m k (2 * i) (by have := i.isLt; omega) _ _) ?_
+  intro i j hij
+  have hi := i.isLt
+  have hj := j.isLt
+  have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (Fin.ext h)
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> intro h <;>
+    exact absurd (lollipopPathVal_inj m k _ _ (by omega) (by omega) (congrArg Fin.val h)) (by omega)
+
+/-- **The matching number of a lollipop.**  Reading the leg in from its far end and then running
+through the clique visits every vertex once, so the lollipop has a Hamiltonian path; matching
+alternate edges of it leaves at most one vertex uncovered. -/
+@[simp] theorem matchNum_lollipop (m k : ℕ) :
+    (lollipop (m + 2) k).matchNum = (m + 2 + k) / 2 := by
+  have hub := two_mul_matchNum_le_V (lollipop (m + 2) k)
+  rw [V_lollipop] at hub
+  have hlb : (m + 2 + k) / 2 ≤ (lollipop (m + 2) k).matchNum := by
+    rw [lollipop_def, matchNum_mk]; exact le_matchNum_lollipop m k
+  omega
+
+/-- The `j`-th vertex of the Hamiltonian path of a tadpole: walk in from the far end of the leg,
+reach the cycle at step `k`, then run round the cycle. -/
+private def tadpolePathVal (m k j : ℕ) : ℕ := if j < k then m + 2 + k - j else j - k
+
+private theorem tadpolePathVal_lt (m k j : ℕ) (hj : j < m + 3 + k) :
+    tadpolePathVal m k j < m + 3 + k := by
+  simp only [tadpolePathVal]; split <;> omega
+
+private theorem tadpolePath_adj (m k j : ℕ) (hj : j + 1 < m + 3 + k)
+    (h1 : tadpolePathVal m k j < m + 3 + k)
+    (h2 : tadpolePathVal m k (j + 1) < m + 3 + k) :
+    (CGraph.tadpole (m + 3) k).Adj ⟨tadpolePathVal m k j, h1⟩
+      ⟨tadpolePathVal m k (j + 1), h2⟩ = true := by
+  rw [CGraph.tadpole_adj_val]
+  simp only [List.mem_append, CGraph.mem_cycleEdges, CGraph.mem_legEdges, tadpolePathVal]
+  split_ifs <;> omega
+
+private theorem tadpolePathVal_inj (m k j j' : ℕ) (hj : j < m + 3 + k) (hj' : j' < m + 3 + k)
+    (h : tadpolePathVal m k j = tadpolePathVal m k j') : j = j' := by
+  simp only [tadpolePathVal] at h
+  split_ifs at h <;> omega
+
+private theorem le_matchNum_tadpole (m k : ℕ) :
+    (m + 3 + k) / 2 ≤ (CGraph.tadpole (m + 3) k).matchNum := by
+  rw [show (m + 3 + k) / 2 = Fintype.card (Fin ((m + 3 + k) / 2)) by simp]
+  refine CGraph.card_le_matchNum
+    (fun i : Fin ((m + 3 + k) / 2) ↦
+      ⟨tadpolePathVal m k (2 * i), tadpolePathVal_lt _ _ _ (by have := i.isLt; omega)⟩)
+    (fun i : Fin ((m + 3 + k) / 2) ↦
+      ⟨tadpolePathVal m k (2 * i + 1), tadpolePathVal_lt _ _ _ (by have := i.isLt; omega)⟩)
+    (fun i ↦ tadpolePath_adj m k (2 * i) (by have := i.isLt; omega) _ _) ?_
+  intro i j hij
+  have hi := i.isLt
+  have hj := j.isLt
+  have hne : (i : ℕ) ≠ (j : ℕ) := fun h ↦ hij (Fin.ext h)
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> intro h <;>
+    exact absurd (tadpolePathVal_inj m k _ _ (by omega) (by omega) (congrArg Fin.val h)) (by omega)
+
+/-- **The matching number of a tadpole.**  Reading the leg in from its far end and then running
+round the cycle visits every vertex once, so the tadpole has a Hamiltonian path; matching
+alternate edges of it leaves at most one vertex uncovered. -/
+@[simp] theorem matchNum_tadpole (m k : ℕ) :
+    (tadpole (m + 3) k).matchNum = (m + 3 + k) / 2 := by
+  have hub := two_mul_matchNum_le_V (tadpole (m + 3) k)
+  rw [V_tadpole] at hub
+  have hlb : (m + 3 + k) / 2 ≤ (tadpole (m + 3) k).matchNum := by
+    rw [tadpole_def, matchNum_mk]; exact le_matchNum_tadpole m k
+  omega
+
 /-- Every pendant of a double star, and nothing else. -/
 theorem indepNum_doubleStar (m n : ℕ) :
     (doubleStar (m + 1) (n + 1)).indepNum = m + n + 2 := by

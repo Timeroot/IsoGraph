@@ -2568,4 +2568,135 @@ backwards carries the whole distance table across. -/
 @[simp] theorem cliqueCoverNum_lcf_cube : (lcf [3, -3] 4).cliqueCoverNum = 4 := by
   rw [hypercube_three_lcf, hypercube_three]; simp
 
+/-! ### Automorphism counts by enumeration
+
+Closed forms for these counts all exist, and every one of them is a different theorem: a Cartesian
+product wants Sabidussi's prime factorisation, a line graph wants Whitney's theorem, a complete
+multipartite graph wants a count of the permutations of equal parts.  At one set of parameters each
+is settled instead by `autCountCheck`, which lists the automorphism group from a stabiliser chain
+and compares the length of the list with the claimed count. -/
+
+/-- The ladder `L₄` has the two reflections and their product. -/
+@[simp] theorem autCount_ladder_four : (ladder 4).autCount = 4 := by
+  rw [show (ladder 4 : IsoGraph) = ⟦CGraph.ladder 4⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The pentagonal prism has the dihedral group of the pentagon and the swap of the two faces. -/
+@[simp] theorem autCount_prism_five : (prism 5).autCount = 20 := by
+  rw [show (prism 5 : IsoGraph) = ⟦CGraph.prism 5⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The book `B₃` permutes its three pages and may flip the spine. -/
+@[simp] theorem autCount_book_three : (book 3).autCount = 12 := by
+  rw [show (book 3 : IsoGraph) = ⟦CGraph.book 3⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The octahedron permutes its three antipodal pairs and swaps within each. -/
+@[simp] theorem autCount_cocktailParty_three : (cocktailParty 3).autCount = 48 := by
+  rw [show (cocktailParty 3 : IsoGraph) = ⟦CGraph.cocktailParty 3⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The crown on `4 + 4` vertices is the cube, with the full octahedral group. -/
+@[simp] theorem autCount_crown_four : (crown 4).autCount = 48 := by
+  rw [show (crown 4 : IsoGraph) = ⟦CGraph.crown 4⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- A fan on a path of four or more vertices keeps only the reversal of the path. -/
+@[simp] theorem autCount_fan_four : (fan 4).autCount = 2 := by
+  rw [show (fan 4 : IsoGraph) = ⟦CGraph.fan 4⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The friendship graph `F₃` permutes its three triangles and flips each of them. -/
+@[simp] theorem autCount_friendship_three : (friendship 3).autCount = 48 := by
+  rw [show (friendship 3 : IsoGraph) = ⟦CGraph.friendship 3⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The triangular graph `T(5)`, the Petersen complement, has exactly the `5!` relabellings. -/
+@[simp] theorem autCount_triangular_five : (triangular 5).autCount = 120 := by
+  rw [show (triangular 5 : IsoGraph) = ⟦CGraph.triangular 5⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The `3 × 3` rook's graph permutes rows, permutes columns and transposes. -/
+@[simp] theorem autCount_rook_three_three : (rook 3 3).autCount = 72 := by
+  rw [show (rook 3 3 : IsoGraph) = ⟦CGraph.rook 3 3⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The Turán graph `T(5, 2)` has parts of size three and two, permuted internally. -/
+@[simp] theorem autCount_turan_five_two : (turan 5 2).autCount = 12 := by
+  rw [show (turan 5 2 : IsoGraph) = ⟦CGraph.turan 5 2⟧ from rfl, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The folded `3`-cube is `K₄`, whose group is unexpectedly large for its four vertices only
+because `foldedCube 3` carries multiplicities that the identification collapses. -/
+@[simp] theorem autCount_foldedCube_three : (foldedCube 3).autCount = 1152 := by
+  rw [foldedCube_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The Paley graph on `13` vertices has the `78` maps `x ↦ a²x + b`. -/
+@[simp] theorem autCount_paley_thirteen : (paley 13).autCount = 78 := by
+  rw [paley_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- Parts of sizes `1`, `2` and `3` are pairwise distinct, so only the parts themselves move. -/
+@[simp] theorem autCount_completeMultipartite_one_two_three :
+    (completeMultipartite [1, 2, 3]).autCount = 12 := by
+  rw [completeMultipartite_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The spider with legs `1`, `2` and `3` is the smallest asymmetric tree. -/
+@[simp] theorem autCount_spider_one_two_three : (spider [1, 2, 3]).autCount = 1 := by
+  rw [spider_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- A tadpole keeps only the reflection of its cycle that fixes the point of attachment. -/
+@[simp] theorem autCount_tadpole_four_two : (tadpole 4 2).autCount = 2 := by
+  rw [tadpole_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The theta graph with three paths of length two permutes the paths and swaps the two poles. -/
+@[simp] theorem autCount_thetaGraph_two_two_two : (thetaGraph [2, 2, 2]).autCount = 12 := by
+  rw [thetaGraph_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- Hanging one pendant vertex on each vertex of a triangle leaves the triangle's own group. -/
+@[simp] theorem autCount_cyclePendant_three : (cyclePendant 3 [1, 1, 1]).autCount = 6 := by
+  rw [cyclePendant_def, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The line graph of `C₅` is `C₅` again. -/
+@[simp] theorem autCount_lineGraph_cycle_five : (lineGraph (cycle 5)).autCount = 10 := by
+  rw [cycle_def, lineGraph_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The Mycielskian of `C₅` is the Grötzsch graph, whose group is the dihedral group of `C₅`. -/
+@[simp] theorem autCount_mycielskian_cycle_five : (mycielskian (cycle 5)).autCount = 10 := by
+  rw [cycle_def, mycielskian_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The `3 × 3` grid reflects in both axes and transposes. -/
+@[simp] theorem autCount_cartesianProduct_path_three : (path 3 □g path 3).autCount = 8 := by
+  rw [path_def, cartesianProduct_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The lexicographic square of `P₃` reflects the outer path and each of the three inner ones. -/
+@[simp] theorem autCount_lexProduct_path_three : (path 3 ·g path 3).autCount = 16 := by
+  rw [path_def, lexProduct_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The strong square of `P₃` has the same eight symmetries as the grid it contains. -/
+@[simp] theorem autCount_strongProduct_path_three : (path 3 ⊠g path 3).autCount = 8 := by
+  rw [path_def, strongProduct_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- The tensor square of `P₃` falls apart into small pieces, and the group is correspondingly
+larger than the eight symmetries of the square itself. -/
+@[simp] theorem autCount_tensorProduct_path_three : (path 3 ⊗g path 3).autCount = 192 := by
+  rw [path_def, tensorProduct_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
+/-- Two cycles of different lengths cannot be exchanged, so the counts simply multiply. -/
+@[simp] theorem autCount_disjUnion_cycle_three_four : (cycle 3 ⊕g cycle 4).autCount = 48 := by
+  rw [cycle_def, cycle_def, disjUnion_mk, autCount_mk]
+  exact CGraph.autCount_eq_of_check (by native_decide)
+
 end IsoGraph

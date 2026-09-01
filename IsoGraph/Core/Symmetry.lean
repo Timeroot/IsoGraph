@@ -875,6 +875,79 @@ theorem autCount_cycle (n : ℕ) : (cycle (n + 3)).autCount = 2 * (n + 3) := by
   rw [E_cycle] at hge
   omega
 
+/-- The image of the endpoint `0` under an automorphism of a path still has one neighbour. -/
+theorem path_aut_zero_nbr_unique {n : ℕ} (hn : 2 ≤ n) (f : path n ≃cg path n)
+    {v w : (path n).V} (hv : (path n).Adj (f ⟨0, by omega⟩) v = true)
+    (hw : (path n).Adj (f ⟨0, by omega⟩) w = true) : v = w := by
+  rw [← f.apply_symm_apply v, f.adj_eq] at hv
+  rw [← f.apply_symm_apply w, f.adj_eq] at hw
+  exact f.symm.injective (path_zero_nbr_unique rfl hv hw)
+
+/-- **An automorphism of a path sends an endpoint to an endpoint.**  An interior vertex has two
+neighbours, and the image of `0` has only one. -/
+theorem path_aut_zero_end {n : ℕ} (hn : 2 ≤ n) (f : path n ≃cg path n) :
+    (f ⟨0, by omega⟩).1 = 0 ∨ (f ⟨0, by omega⟩).1 + 1 = n := by
+  by_contra hcon
+  push Not at hcon
+  obtain ⟨h1, h2⟩ := hcon
+  have hy : (f ⟨0, by omega⟩).1 < n := (f ⟨0, by omega⟩).isLt
+  have ha : (path n).Adj (f ⟨0, by omega⟩) ⟨(f ⟨0, by omega⟩).1 - 1, by omega⟩ = true := by
+    rw [path_adj_val]; refine ⟨?_, Or.inr ?_⟩ <;> (dsimp only; omega)
+  have hb : (path n).Adj (f ⟨0, by omega⟩) ⟨(f ⟨0, by omega⟩).1 + 1, by omega⟩ = true := by
+    rw [path_adj_val]; exact ⟨by dsimp only; omega, Or.inl rfl⟩
+  have hab : (f ⟨0, by omega⟩).1 - 1 = (f ⟨0, by omega⟩).1 + 1 :=
+    congrArg Fin.val (path_aut_zero_nbr_unique hn f ha hb)
+  omega
+
+/-- Two automorphisms of a path that agree on the endpoint `0` agree on its neighbour too. -/
+theorem path_aut_one_of_zero {n : ℕ} (hn : 2 ≤ n) {f g : path n ≃cg path n}
+    (h0 : f ⟨0, by omega⟩ = g ⟨0, by omega⟩) :
+    f ⟨1, by omega⟩ = g ⟨1, by omega⟩ := by
+  have h01 : (path n).Adj (⟨0, by omega⟩ : (path n).V) ⟨1, by omega⟩ = true :=
+    path_adj_of_succ rfl
+  have hf : (path n).Adj (f ⟨0, by omega⟩) (f ⟨1, by omega⟩) = true := by
+    rw [f.adj_eq]; exact h01
+  have hg : (path n).Adj (f ⟨0, by omega⟩) (g ⟨1, by omega⟩) = true := by
+    rw [h0, g.adj_eq]; exact h01
+  exact path_aut_zero_nbr_unique hn f hf hg
+
+/-- **A path has at most two automorphisms.**  An automorphism sends the endpoint `0` to an
+endpoint, and the single bit recording which one is a complete and faithful record of it. -/
+theorem autCount_path_le {n : ℕ} (hn : 2 ≤ n) : (path n).autCount ≤ 2 := by
+  have : Finite (path n ≃cg path n) := (path n).instFiniteAut
+  have hinj : Function.Injective
+      (fun f : path n ≃cg path n ↦ decide ((f ⟨0, by omega⟩).1 = 0)) := by
+    intro f g h
+    simp only [decide_eq_decide] at h
+    have hf := path_aut_zero_end hn f
+    have hg := path_aut_zero_end hn g
+    have h0 : f ⟨0, by omega⟩ = g ⟨0, by omega⟩ := Fin.ext (by omega)
+    exact path_aut_eq hn h0 (path_aut_one_of_zero hn h0)
+  have hcard : Nat.card Bool = 2 := by rw [Nat.card_eq_fintype_card, Fintype.card_bool]
+  have hb := Nat.card_le_card_of_injective _ hinj
+  rw [hcard] at hb
+  exact hb
+
+/-- A path on at least two vertices has the identity and the reversal, so at least two
+automorphisms. -/
+theorem two_le_autCount_path {n : ℕ} (hn : 2 ≤ n) : 2 ≤ (path n).autCount := by
+  have : Finite (path n ≃cg path n) := (path n).instFiniteAut
+  have hne : pathReverse n ≠ RelIso.refl _ := by
+    intro h
+    have hv : ((pathReverse n) ⟨0, by omega⟩).1
+        = ((RelIso.refl _ : path n ≃cg path n) ⟨0, by omega⟩).1 := by rw [h]
+    have h1 : ((pathReverse n) ⟨0, by omega⟩).1 = n - 1 := rfl
+    have h2 : ((RelIso.refl _ : path n ≃cg path n) ⟨0, by omega⟩).1 = 0 := rfl
+    omega
+  have : Nontrivial (path n ≃cg path n) := ⟨pathReverse n, RelIso.refl _, hne⟩
+  have h2 : 1 < Nat.card (path n ≃cg path n) := Finite.one_lt_card
+  exact h2
+
+/-- **The path `Pₙ` has exactly two automorphisms** for `n ≥ 2`: the identity and the reversal. -/
+@[simp, toIsoGraph simp]
+theorem autCount_path (n : ℕ) : (path (n + 2)).autCount = 2 :=
+  le_antisymm (autCount_path_le (by omega)) (two_le_autCount_path (by omega))
+
 @[toIsoGraph]
 theorem autCount_mul_le_autCount_disjUnion (G H : CGraph) :
     G.autCount * H.autCount ≤ (G ⊕g H).autCount :=
@@ -893,6 +966,12 @@ theorem autCount_mul_le_autCount_join (G H : CGraph) :
   have h := autCount_mul_le_autCount_disjUnion Gᶜ Hᶜ
   rw [autCount_compl, autCount_compl, ← autCount_compl (Gᶜ ⊕g Hᶜ)] at h
   rwa [join_eq_compl_disjUnion]
+
+/-- **A join has as many automorphisms as the disjoint union of the complements**, since a join is
+the complement of that disjoint union and complementation does not change the group. -/
+@[simp, toIsoGraph simp]
+theorem autCount_join (G H : CGraph) : (G ∇g H).autCount = (Gᶜ ⊕g Hᶜ).autCount := by
+  rw [join_eq_compl_disjUnion, autCount_compl]
 
 /-- Two copies of the same graph can also be exchanged, which doubles the bound. -/
 @[toIsoGraph]
@@ -987,6 +1066,26 @@ theorem autCount_mul_le_autCount_lexProduct (G H : CGraph)
   · ext y
     have := congrArg (fun σ : G ·g H ≃cg G ·g H ↦ (σ (x₀, y)).2) h
     simpa using this
+
+/-- **The Mycielskian has at least as many automorphisms as the graph it is built from**: an
+automorphism of `G` acts on the original vertices and on their shadows in the same way and fixes
+the apex, and distinct automorphisms stay distinct because they already differ on an original
+vertex. -/
+@[toIsoGraph]
+theorem autCount_le_autCount_mycielskian (G : CGraph) :
+    G.autCount ≤ (mycielskian G).autCount := by
+  have : Finite (G ≃cg G) := G.instFiniteAut
+  have : Finite (mycielskian G ≃cg mycielskian G) := (mycielskian G).instFiniteAut
+  have hinj : Function.Injective (fun f : G ≃cg G ↦ Iso.mycielskian f) := by
+    intro f g h
+    refine RelIso.ext fun a ↦ ?_
+    have h1 : (Iso.mycielskian f) (some (Sum.inl a)) = (Iso.mycielskian g) (some (Sum.inl a)) :=
+      congrArg (fun e : mycielskian G ≃cg mycielskian G ↦ e (some (Sum.inl a))) h
+    have h2 : (some (Sum.inl (f a)) : Option (G.V ⊕ G.V)) = some (Sum.inl (g a)) := h1
+    exact Sum.inl.inj (Option.some.inj h2)
+  calc G.autCount = Nat.card (G ≃cg G) := rfl
+    _ ≤ Nat.card (mycielskian G ≃cg mycielskian G) := Nat.card_le_card_of_injective _ hinj
+    _ = (mycielskian G).autCount := rfl
 
 /-! ### Regular graphs -/
 

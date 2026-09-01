@@ -95,7 +95,8 @@ hundred named graphs and families, `Algebra/` treats isomorphism classes as a se
 far as Sabidussi–Vizing unique cartesian factorisation, and `Containment/` orders them by what sits
 inside what. `ForMathlib/` sits underneath everything and mentions nothing from this development.
 The root files are the ones that cut across: `Basic.lean` (`CGraph`, isomorphisms, the quotient),
-`Spectrum.lean`, `Sat.lean`, `Fractional.lean`, `Exhaustion.lean`, and `Decompose/` for the atlas.
+`Spectrum.lean`, `Edgeless.lean`, `Sat.lean`, `Fractional.lean`, `Exhaustion.lean`, and
+`Decompose/` for the atlas.
 
 Both `Core/` and `SmallGraphs/` are split by topic in the same order — definitions, then identities,
 then order and size, connectivity, symmetry, colouring — which means a fact about a construction and
@@ -105,10 +106,10 @@ definition or a theorem about `CGraph` and the attribute picks one of four modes
 construction, operation, invariant, or plain fact — and emits the quotient-level statement with its
 proof. `#isograph_dict` prints the dictionary it has accumulated. To see where the holes are,
 `testing/Coverage.lean` regenerates `testing/invariant_coverage.txt`, an invariant × construction
-table marking every cell for which a rewriting theorem exists; it currently reads 2050 of 2352.
+table marking every cell for which a rewriting theorem exists; it currently reads 2337 of 2352.
 
 The long version — the algorithm, the benchmarks, a survey of what is proved about what, and the
-proof status — is in [`NOTES.md`](NOTES.md). For scale: 149 files, about 132 000 lines, 10 300
+proof status — is in [`NOTES.md`](NOTES.md). For scale: 150 files, about 134 000 lines, 10 400
 theorems.
 
 ## What is in it

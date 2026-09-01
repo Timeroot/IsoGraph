@@ -95,6 +95,805 @@ theorem edgeConn_join_eq_minDeg (G H : CGraph) [Nonempty G.V] [Nonempty H.V] :
   have h2 : 0 < H.card := FinEnum.card_pos_iff.2 ‹Nonempty H.V›
   omega
 
+/-- **A strong product of two graphs of diameter at most two has `λ = δ`.**  The strong product
+keeps the coordinates independent, so two steps in each factor combine into two steps in the
+product and Plesník's theorem applies. -/
+@[toIsoGraph]
+theorem edgeConn_strongProduct_eq_minDeg (G H : CGraph) (hG : G.IsConnected) (hH : H.IsConnected)
+    (hdG : G.diameter ≤ 2) (hdH : H.diameter ≤ 2) (h2 : 2 ≤ G.card * H.card) :
+    (G ⊠g H).edgeConn = (G ⊠g H).minDeg := by
+  have hc : (G ⊠g H).card = G.card * H.card := card_strongProduct G H
+  exact edgeConn_eq_minDeg_of_two_step _ (by omega)
+    (two_step_strongProduct G H (fun u v hne ↦ G.exists_adj_adj_of_diameter_le_two hG hdG hne)
+      (fun u v hne ↦ H.exists_adj_adj_of_diameter_le_two hH hdH hne))
+
+/-- **A blow-up of a graph of diameter at most two has `λ = δ`.**  The second factor is
+unconstrained: a blow-up of a two-step graph is again two-step, whatever is put in the fibres. -/
+@[toIsoGraph]
+theorem edgeConn_lexProduct_eq_minDeg (G H : CGraph) (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.card) (hH : 1 ≤ H.card) :
+    (G ·g H).edgeConn = (G ·g H).minDeg := by
+  have hstep : ∀ u v : G.V, u ≠ v →
+      G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v :=
+    fun u v hne ↦ G.exists_adj_adj_of_diameter_le_two hG hdG hne
+  have hc : (G ·g H).card = G.card * H.card := card_lexProduct G H
+  have hm : 2 * 1 ≤ G.card * H.card := Nat.mul_le_mul h2 hH
+  exact edgeConn_eq_minDeg_of_two_step _ (by omega)
+    (two_step_lexProduct G H hstep (G.exists_adj_of_two_step h2 hstep))
+
+/-- **The Mycielskian of a graph of diameter at most two again has diameter at most two.**  This
+sharpens the general bound `diameter_mycielskian_le_four`. -/
+@[toIsoGraph]
+theorem diameter_mycielskian_le_two (G : CGraph) (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.card) : (mycielskian G).diameter ≤ 2 := by
+  have hstep : ∀ u v : G.V, u ≠ v →
+      G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v :=
+    fun u v hne ↦ G.exists_adj_adj_of_diameter_le_two hG hdG hne
+  exact diameter_le_two _ (two_step_mycielskian G hstep (G.exists_adj_of_two_step h2 hstep))
+
+/-- **The Mycielskian of a graph of diameter at most two has `λ = δ`**, by Plesník's theorem and
+`diameter_mycielskian_le_two`. -/
+@[toIsoGraph]
+theorem edgeConn_mycielskian_eq_minDeg (G : CGraph) (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.card) : (mycielskian G).edgeConn = (mycielskian G).minDeg := by
+  have hstep : ∀ u v : G.V, u ≠ v →
+      G.toSimple.Adj u v ∨ ∃ w, G.toSimple.Adj u w ∧ G.toSimple.Adj w v :=
+    fun u v hne ↦ G.exists_adj_adj_of_diameter_le_two hG hdG hne
+  have hc : (mycielskian G).card = 2 * G.card + 1 := card_mycielskian G
+  exact edgeConn_eq_minDeg_of_two_step _ (by omega)
+    (two_step_mycielskian G hstep (G.exists_adj_of_two_step h2 hstep))
+
+/-- **Plesník's theorem for diameter at most two**, in the form that also covers the complete
+graphs: a connected graph of diameter at most two on two vertices or more has `λ = δ`. -/
+@[toIsoGraph]
+theorem edgeConn_eq_minDeg_of_diameter_le_two (G : CGraph) (hG : G.IsConnected)
+    (hd : G.diameter ≤ 2) (h2 : 2 ≤ G.card) : G.edgeConn = G.minDeg :=
+  edgeConn_eq_minDeg_of_two_step _ h2 fun _ _ hne ↦ G.exists_adj_adj_of_diameter_le_two hG hd hne
+
+/-! ### The edge connectivity of a cartesian product
+
+A cartesian product is a grid of copies of `G` — one *row* for each vertex of `H` — laid over a
+grid of copies of `H` — one *column* for each vertex of `G`.  Every edge of `G □g H` lies in
+exactly one of those copies, so an edge cut is nothing but a choice of a cut in each. -/
+
+/-- The trace of a set of vertices of `G □g H` on the copy of `G` sitting over `x`. -/
+def cartesianRow {G H : CGraph} (S : Finset (G.V × H.V)) (x : H.V) : Finset G.V :=
+  Finset.univ.filter fun a ↦ (a, x) ∈ S
+
+/-- The trace of a set of vertices of `G □g H` on the copy of `H` sitting over `a`. -/
+def cartesianCol {G H : CGraph} (S : Finset (G.V × H.V)) (a : G.V) : Finset H.V :=
+  Finset.univ.filter fun x ↦ (a, x) ∈ S
+
+@[simp] theorem mem_cartesianRow {G H : CGraph} {S : Finset (G.V × H.V)} {x : H.V} {a : G.V} :
+    a ∈ cartesianRow S x ↔ (a, x) ∈ S := by simp [cartesianRow]
+
+@[simp] theorem mem_cartesianCol {G H : CGraph} {S : Finset (G.V × H.V)} {a : G.V} {x : H.V} :
+    x ∈ cartesianCol S a ↔ (a, x) ∈ S := by simp [cartesianCol]
+
+/-- Every edge leaving `S` in a cartesian product moves in exactly one coordinate, so the edges
+leaving `S` are counted row by row and column by column. -/
+theorem cutSize_cartesianProduct (G H : CGraph) (S : Finset (G.V × H.V)) :
+    (G □g H).cutSize S
+      = (∑ x : H.V, G.cutSize (cartesianRow S x)) + ∑ a : G.V, H.cutSize (cartesianCol S a) := by
+  classical
+  rw [cutSize, ← Finset.card_filter_add_card_filter_not
+    (s := (G □g H).crossing S) (fun p ↦ p.1.2 = p.2.2)]
+  congr 1
+  · rw [Finset.card_eq_sum_card_fiberwise (f := fun p ↦ p.1.2) (t := (Finset.univ : Finset H.V))
+      (fun p _ ↦ Finset.mem_univ _)]
+    refine Finset.sum_congr rfl fun x _ ↦ ?_
+    rw [cutSize]
+    refine Finset.card_nbij' (fun p ↦ (p.1.1, p.2.1)) (fun q ↦ ((q.1, x), (q.2, x)))
+      (fun p hp ↦ ?_) (fun q hq ↦ ?_) (fun p hp ↦ ?_) (fun q _ ↦ rfl)
+    · rw [Finset.mem_coe, Finset.mem_filter, Finset.mem_filter, mem_crossing] at hp
+      obtain ⟨⟨⟨h1, h2, hadj⟩, heq⟩, hx⟩ := hp
+      rw [cartesianProduct_adj] at hadj
+      have hg : G.Adj p.1.1 p.2.1 = true := by
+        rcases Bool.or_eq_true_iff.1 hadj with h | h
+        · rw [heq] at h; simp [H.loopless] at h
+        · exact (Bool.and_eq_true_iff.1 h).1
+      have h1' : (p.1.1, x) = p.1 := by rw [← hx]; rfl
+      have h2' : (p.2.1, x) = p.2 := by rw [← hx, heq]; rfl
+      refine Finset.mem_coe.2 (mem_crossing.2 ⟨?_, ?_, hg⟩)
+      · rw [mem_cartesianRow, h1']; exact h1
+      · rw [mem_cartesianRow, h2']; exact h2
+    · rw [Finset.mem_coe, mem_crossing, mem_cartesianRow, mem_cartesianRow] at hq
+      obtain ⟨hq1, hq2, hqa⟩ := hq
+      refine Finset.mem_coe.2 (Finset.mem_filter.2 ⟨Finset.mem_filter.2
+        ⟨mem_crossing.2 ⟨hq1, hq2, ?_⟩, rfl⟩, rfl⟩)
+      rw [cartesianProduct_adj]
+      simp [hqa]
+    · rw [Finset.mem_coe, Finset.mem_filter, Finset.mem_filter] at hp
+      obtain ⟨⟨-, heq⟩, hx⟩ := hp
+      have h1' : (p.1.1, x) = p.1 := by rw [← hx]; rfl
+      have h2' : (p.2.1, x) = p.2 := by rw [← hx, heq]; rfl
+      calc ((p.1.1, x), (p.2.1, x)) = (p.1, p.2) := by rw [h1', h2']
+        _ = p := rfl
+  · rw [Finset.card_eq_sum_card_fiberwise (f := fun p ↦ p.1.1) (t := (Finset.univ : Finset G.V))
+      (fun p _ ↦ Finset.mem_univ _)]
+    refine Finset.sum_congr rfl fun a _ ↦ ?_
+    rw [cutSize]
+    refine Finset.card_nbij' (fun p ↦ (p.1.2, p.2.2)) (fun q ↦ ((a, q.1), (a, q.2)))
+      (fun p hp ↦ ?_) (fun q hq ↦ ?_) (fun p hp ↦ ?_) (fun q _ ↦ rfl)
+    · rw [Finset.mem_coe, Finset.mem_filter, Finset.mem_filter, mem_crossing] at hp
+      obtain ⟨⟨⟨h1, h2, hadj⟩, hne⟩, ha⟩ := hp
+      rw [cartesianProduct_adj] at hadj
+      have hfst : p.1.1 = p.2.1 ∧ H.Adj p.1.2 p.2.2 = true := by
+        rcases Bool.or_eq_true_iff.1 hadj with h | h
+        · obtain ⟨h', h''⟩ := Bool.and_eq_true_iff.1 h
+          exact ⟨of_decide_eq_true h', h''⟩
+        · exact absurd (of_decide_eq_true (Bool.and_eq_true_iff.1 h).2) hne
+      have h1' : (a, p.1.2) = p.1 := by rw [← ha]; rfl
+      have h2' : (a, p.2.2) = p.2 := by rw [← ha, hfst.1]; rfl
+      refine Finset.mem_coe.2 (mem_crossing.2 ⟨?_, ?_, hfst.2⟩)
+      · rw [mem_cartesianCol, h1']; exact h1
+      · rw [mem_cartesianCol, h2']; exact h2
+    · rw [Finset.mem_coe, mem_crossing, mem_cartesianCol, mem_cartesianCol] at hq
+      obtain ⟨hq1, hq2, hqa⟩ := hq
+      have hne : ¬ q.1 = q.2 := by
+        intro h
+        rw [h] at hqa
+        simp [H.loopless] at hqa
+      refine Finset.mem_coe.2 (Finset.mem_filter.2 ⟨Finset.mem_filter.2
+        ⟨mem_crossing.2 ⟨hq1, hq2, ?_⟩, hne⟩, rfl⟩)
+      rw [cartesianProduct_adj]
+      simp [hqa]
+    · rw [Finset.mem_coe, Finset.mem_filter, Finset.mem_filter, mem_crossing] at hp
+      obtain ⟨⟨⟨-, -, hadj⟩, hne⟩, ha⟩ := hp
+      rw [cartesianProduct_adj] at hadj
+      have hfst : p.1.1 = p.2.1 := by
+        rcases Bool.or_eq_true_iff.1 hadj with h | h
+        · exact of_decide_eq_true (Bool.and_eq_true_iff.1 h).1
+        · exact absurd (of_decide_eq_true (Bool.and_eq_true_iff.1 h).2) hne
+      have h1' : (a, p.1.2) = p.1 := by rw [← ha]; rfl
+      have h2' : (a, p.2.2) = p.2 := by rw [← ha, hfst]; rfl
+      calc ((a, p.1.2), (a, p.2.2)) = (p.1, p.2) := by rw [h1', h2']
+        _ = p := rfl
+
+/-- Every edge cut of a cartesian product of two connected graphs is at least as big as the sum
+of the two edge connectivities. -/
+theorem edgeConn_add_edgeConn_le_cutSize_cartesianProduct (G H : CGraph)
+    (hG : G.IsConnected) (hH : H.IsConnected) (hG2 : 2 ≤ G.card) (hH2 : 2 ≤ H.card)
+    (S : Finset (G.V × H.V)) (hS : (G □g H).IsCut S) :
+    G.edgeConn + H.edgeConn ≤ (G □g H).cutSize S := by
+  classical
+  have hGc : FinEnum.card G.V = G.card := rfl
+  have hHc : FinEnum.card H.V = H.card := rfl
+  have hGV : Nonempty G.V := FinEnum.card_pos_iff.1 (by omega)
+  have hHV : Nonempty H.V := FinEnum.card_pos_iff.1 (by omega)
+  have hlowG : 1 ≤ G.edgeConn := (G.one_le_edgeConn_iff hG2).2 hG
+  have hlowH : 1 ≤ H.edgeConn := (H.one_le_edgeConn_iff hH2).2 hH
+  have hcapG : G.edgeConn ≤ G.card - 1 := by
+    have h1 := G.edgeConn_le_minDeg hG2
+    have h2 := G.minDeg_le_maxDeg
+    have h3 : G.maxDeg < FinEnum.card G.V := maxDeg_lt_card
+    omega
+  have hcapH : H.edgeConn ≤ H.card - 1 := by
+    have h1 := H.edgeConn_le_minDeg hH2
+    have h2 := H.minDeg_le_maxDeg
+    have h3 : H.maxDeg < FinEnum.card H.V := maxDeg_lt_card
+    omega
+  rw [cutSize_cartesianProduct]
+  by_cases hrow : ∃ x : H.V, G.IsCut (cartesianRow S x)
+  · by_cases hcol : ∃ a : G.V, H.IsCut (cartesianCol S a)
+    · obtain ⟨x, hx⟩ := hrow
+      obtain ⟨a, ha⟩ := hcol
+      have h1 : G.edgeConn ≤ ∑ y : H.V, G.cutSize (cartesianRow S y) :=
+        le_trans (G.edgeConn_le_of_isCut hx)
+          (Finset.single_le_sum (f := fun y ↦ G.cutSize (cartesianRow S y))
+            (fun _ _ ↦ Nat.zero_le _) (Finset.mem_univ x))
+      have h2 : H.edgeConn ≤ ∑ b : G.V, H.cutSize (cartesianCol S b) :=
+        le_trans (H.edgeConn_le_of_isCut ha)
+          (Finset.single_le_sum (f := fun b ↦ H.cutSize (cartesianCol S b))
+            (fun _ _ ↦ Nat.zero_le _) (Finset.mem_univ a))
+      omega
+    · -- no column separates `H`, so every column is empty or everything and the rows all agree
+      have hdich : ∀ a : G.V, cartesianCol S a = ∅ ∨ cartesianCol S a = Finset.univ := by
+        intro a
+        have h := not_exists.1 hcol a
+        rw [IsCut, not_and_or, Finset.not_nonempty_iff_eq_empty,
+          Finset.not_nonempty_iff_eq_empty, Finset.compl_eq_empty_iff] at h
+        exact h
+      set T : Finset G.V := Finset.univ.filter fun a ↦ cartesianCol S a = Finset.univ with hT
+      have hrowT : ∀ x : H.V, cartesianRow S x = T := by
+        intro x
+        ext a
+        simp only [mem_cartesianRow, hT, Finset.mem_filter, Finset.mem_univ, true_and]
+        constructor
+        · intro hax
+          rcases hdich a with h | h
+          · exact absurd (mem_cartesianCol.2 hax) (by rw [h]; simp)
+          · exact h
+        · intro h
+          exact mem_cartesianCol.1 (h ▸ Finset.mem_univ x)
+      have hTcut : G.IsCut T := by
+        obtain ⟨⟨p, hp⟩, ⟨q, hq⟩⟩ := hS
+        rw [Finset.mem_compl] at hq
+        refine ⟨⟨p.1, ?_⟩, ⟨q.1, ?_⟩⟩
+        · rw [← hrowT p.2]; exact mem_cartesianRow.2 hp
+        · rw [Finset.mem_compl, ← hrowT q.2]
+          exact fun h ↦ hq (mem_cartesianRow.1 h)
+      have hsum : ∑ x : H.V, G.cutSize (cartesianRow S x) = H.card * G.cutSize T := by
+        simp only [hrowT, Finset.sum_const, Finset.card_univ, smul_eq_mul]
+        rw [show Fintype.card H.V = H.card from H.fintypeCard]
+      have hcut : G.edgeConn ≤ G.cutSize T := G.edgeConn_le_of_isCut hTcut
+      have hstep : G.edgeConn + H.edgeConn ≤ H.card * G.edgeConn := by
+        have h : H.card - 1 ≤ (H.card - 1) * G.edgeConn := by
+          simpa using Nat.mul_le_mul_left (H.card - 1) hlowG
+        have hc : H.card = (H.card - 1) + 1 := by omega
+        calc G.edgeConn + H.edgeConn ≤ (H.card - 1) * G.edgeConn + G.edgeConn := by omega
+          _ = ((H.card - 1) + 1) * G.edgeConn := by ring
+          _ = H.card * G.edgeConn := by rw [← hc]
+      have hmono : H.card * G.edgeConn ≤ H.card * G.cutSize T := Nat.mul_le_mul_left _ hcut
+      omega
+  · -- no row separates `G`, so every row is empty or everything and the columns all agree
+    have hdich : ∀ x : H.V, cartesianRow S x = ∅ ∨ cartesianRow S x = Finset.univ := by
+      intro x
+      have h := not_exists.1 hrow x
+      rw [IsCut, not_and_or, Finset.not_nonempty_iff_eq_empty,
+        Finset.not_nonempty_iff_eq_empty, Finset.compl_eq_empty_iff] at h
+      exact h
+    set T : Finset H.V := Finset.univ.filter fun x ↦ cartesianRow S x = Finset.univ with hT
+    have hcolT : ∀ a : G.V, cartesianCol S a = T := by
+      intro a
+      ext x
+      simp only [mem_cartesianCol, hT, Finset.mem_filter, Finset.mem_univ, true_and]
+      constructor
+      · intro hax
+        rcases hdich x with h | h
+        · exact absurd (mem_cartesianRow.2 hax) (by rw [h]; simp)
+        · exact h
+      · intro h
+        exact mem_cartesianRow.1 (h ▸ Finset.mem_univ a)
+    have hTcut : H.IsCut T := by
+      obtain ⟨⟨p, hp⟩, ⟨q, hq⟩⟩ := hS
+      rw [Finset.mem_compl] at hq
+      refine ⟨⟨p.2, ?_⟩, ⟨q.2, ?_⟩⟩
+      · rw [← hcolT p.1]; exact mem_cartesianCol.2 hp
+      · rw [Finset.mem_compl, ← hcolT q.1]
+        exact fun h ↦ hq (mem_cartesianCol.1 h)
+    have hsum : ∑ a : G.V, H.cutSize (cartesianCol S a) = G.card * H.cutSize T := by
+      simp only [hcolT, Finset.sum_const, Finset.card_univ, smul_eq_mul]
+      rw [show Fintype.card G.V = G.card from G.fintypeCard]
+    have hcut : H.edgeConn ≤ H.cutSize T := H.edgeConn_le_of_isCut hTcut
+    have hstep : G.edgeConn + H.edgeConn ≤ G.card * H.edgeConn := by
+      have h : G.card - 1 ≤ (G.card - 1) * H.edgeConn := by
+        simpa using Nat.mul_le_mul_left (G.card - 1) hlowH
+      have hc : G.card = (G.card - 1) + 1 := by omega
+      calc G.edgeConn + H.edgeConn ≤ (G.card - 1) * H.edgeConn + H.edgeConn := by omega
+        _ = ((G.card - 1) + 1) * H.edgeConn := by ring
+        _ = G.card * H.edgeConn := by rw [← hc]
+    have hmono : G.card * H.edgeConn ≤ G.card * H.cutSize T := Nat.mul_le_mul_left _ hcut
+    omega
+
+/-- **The edge connectivity of a cartesian product is superadditive**: `λ(G □ H) ≥ λG + λH`.
+An edge cut of `G □ H` either separates some copy of `G` and some copy of `H` — and then it
+contains a cut of each — or else it is a whole slab of copies, and then it contains `|G|` or
+`|H|` copies of a cut of a single factor. -/
+@[toIsoGraph]
+theorem edgeConn_add_edgeConn_le_edgeConn_cartesianProduct (G H : CGraph)
+    (hG : G.IsConnected) (hH : H.IsConnected) (hG2 : 2 ≤ G.card) (hH2 : 2 ≤ H.card) :
+    G.edgeConn + H.edgeConn ≤ (G □g H).edgeConn := by
+  have hc : (G □g H).card = G.card * H.card := card_cartesianProduct G H
+  have h4 : 2 * 2 ≤ G.card * H.card := Nat.mul_le_mul hG2 hH2
+  exact (G □g H).le_edgeConn (by omega)
+    (edgeConn_add_edgeConn_le_cutSize_cartesianProduct G H hG hH hG2 hH2)
+
+/-! ### The vertex connectivity of a cartesian product -/
+
+/-- A subset of `G □g H` is counted row by row. -/
+theorem card_eq_sum_card_cartesianRow {G H : CGraph} (S : Finset (G.V × H.V)) :
+    S.card = ∑ x : H.V, (cartesianRow S x).card := by
+  classical
+  have h : S.card = ∑ p : G.V × H.V, if p ∈ S then 1 else 0 := by simp
+  rw [h, Fintype.sum_prod_type]
+  simp only [cartesianRow, Finset.card_filter]
+  exact Finset.sum_comm
+
+/-- A subset of `G □g H` is counted column by column. -/
+theorem card_eq_sum_card_cartesianCol {G H : CGraph} (S : Finset (G.V × H.V)) :
+    S.card = ∑ a : G.V, (cartesianCol S a).card := by
+  classical
+  have h : S.card = ∑ p : G.V × H.V, if p ∈ S then 1 else 0 := by simp
+  rw [h, Fintype.sum_prod_type]
+  simp only [cartesianCol, Finset.card_filter]
+
+/-- If a colouring witnessing that `S` separates `G □g H` takes both values on the copy of `G`
+sitting over `x`, then the trace of `S` on that copy separates `G`. -/
+theorem isSeparator_cartesianRow {G H : CGraph} {S : Finset (G.V × H.V)}
+    {f : (G □g H).V → Bool}
+    (hf : ∀ u v : (G □g H).V, u ∉ S → v ∉ S → (G □g H).Adj u v = true → f u = f v)
+    (x : H.V) {a b : G.V} (ha : (a, x) ∉ S) (hb : (b, x) ∉ S) (hab : f (a, x) ≠ f (b, x)) :
+    G.IsSeparator (cartesianRow S x) := by
+  classical
+  have hadj : ∀ u v : G.V, G.Adj u v = true → (G □g H).Adj (u, x) (v, x) = true := by
+    intro u v h
+    rw [cartesianProduct_adj]
+    simp [h]
+  have hcase : (f (a, x) = true ∧ f (b, x) = false) ∨ (f (a, x) = false ∧ f (b, x) = true) := by
+    revert hab
+    cases hfa : f (a, x) <;> cases hfb : f (b, x) <;> simp
+  refine ⟨fun c ↦ f (c, x), ?_, ?_, fun u v hu hv huv ↦
+    hf (u, x) (v, x) (by simpa using hu) (by simpa using hv) (hadj u v huv)⟩
+  · rcases hcase with ⟨h, -⟩ | ⟨-, h⟩
+    · exact ⟨a, by simpa using ha, h⟩
+    · exact ⟨b, by simpa using hb, h⟩
+  · rcases hcase with ⟨-, h⟩ | ⟨h, -⟩
+    · exact ⟨b, by simpa using hb, h⟩
+    · exact ⟨a, by simpa using ha, h⟩
+
+/-- A colouring that is constant along the edges of `H` inside the fibre over `a`, and that takes
+both values there, exhibits the trace of `S` on that fibre as a separator of `H`.  The fibres of
+the cartesian and of the lexicographic product both carry the adjacency of `H`, so both can appeal
+to this. -/
+theorem isSeparator_cartesianCol_of_forall {G H : CGraph} {S : Finset (G.V × H.V)}
+    {f : G.V × H.V → Bool} {a : G.V}
+    (hf : ∀ u v : H.V, (a, u) ∉ S → (a, v) ∉ S → H.Adj u v = true → f (a, u) = f (a, v))
+    {x y : H.V} (hx : (a, x) ∉ S) (hy : (a, y) ∉ S) (hxy : f (a, x) ≠ f (a, y)) :
+    H.IsSeparator (cartesianCol S a) := by
+  classical
+  have hcase : (f (a, x) = true ∧ f (a, y) = false) ∨ (f (a, x) = false ∧ f (a, y) = true) := by
+    revert hxy
+    cases hfx : f (a, x) <;> cases hfy : f (a, y) <;> simp
+  refine ⟨fun z ↦ f (a, z), ?_, ?_, fun u v hu hv huv ↦
+    hf u v (by simpa using hu) (by simpa using hv) huv⟩
+  · rcases hcase with ⟨h, -⟩ | ⟨-, h⟩
+    · exact ⟨x, by simpa using hx, h⟩
+    · exact ⟨y, by simpa using hy, h⟩
+  · rcases hcase with ⟨-, h⟩ | ⟨h, -⟩
+    · exact ⟨y, by simpa using hy, h⟩
+    · exact ⟨x, by simpa using hx, h⟩
+
+/-- If a colouring witnessing that `S` separates `G □g H` takes both values on the copy of `H`
+sitting over `a`, then the trace of `S` on that copy separates `H`. -/
+theorem isSeparator_cartesianCol {G H : CGraph} {S : Finset (G.V × H.V)}
+    {f : (G □g H).V → Bool}
+    (hf : ∀ u v : (G □g H).V, u ∉ S → v ∉ S → (G □g H).Adj u v = true → f u = f v)
+    (a : G.V) {x y : H.V} (hx : (a, x) ∉ S) (hy : (a, y) ∉ S) (hxy : f (a, x) ≠ f (a, y)) :
+    H.IsSeparator (cartesianCol S a) :=
+  isSeparator_cartesianCol_of_forall
+    (fun u v hu hv huv ↦ hf (a, u) (a, v) hu hv (by rw [cartesianProduct_adj]; simp [huv]))
+    hx hy hxy
+
+/-- Every separator of a cartesian product of two connected graphs is at least as big as the sum
+of the two vertex connectivities. -/
+theorem vertexConn_add_vertexConn_le_card_of_isSeparator (G H : CGraph)
+    (hG : G.IsConnected) (hH : H.IsConnected) (hG2 : 2 ≤ G.card) (hH2 : 2 ≤ H.card)
+    (S : Finset (G.V × H.V)) (hS : (G □g H).IsSeparator S) :
+    G.vertexConn + H.vertexConn ≤ S.card := by
+  classical
+  obtain ⟨f, ⟨p₀, hp₀S, hp₀⟩, ⟨q₀, hq₀S, hq₀⟩, hf⟩ := hS
+  obtain ⟨a₀, y₀⟩ := p₀
+  obtain ⟨a₁, y₁⟩ := q₀
+  have hGcard : Fintype.card G.V = G.card := G.fintypeCard
+  have hHcard : Fintype.card H.V = H.card := H.fintypeCard
+  have hkG1 : 1 ≤ G.vertexConn := (G.one_le_vertexConn_iff hG2).2 hG
+  have hkH1 : 1 ≤ H.vertexConn := (H.one_le_vertexConn_iff hH2).2 hH
+  have hkGn : G.vertexConn ≤ G.card - 1 := G.vertexConn_le_card_sub_one
+  have hkHn : H.vertexConn ≤ H.card - 1 := H.vertexConn_le_card_sub_one
+  have hrow : ∀ (x : H.V) (a b : G.V), (a, x) ∉ S → (b, x) ∉ S → f (a, x) ≠ f (b, x) →
+      G.vertexConn ≤ (cartesianRow S x).card :=
+    fun x a b ha hb hab ↦ G.vertexConn_le_of_isSeparator (isSeparator_cartesianRow hf x ha hb hab)
+  have hcol : ∀ (a : G.V) (x y : H.V), (a, x) ∉ S → (a, y) ∉ S → f (a, x) ≠ f (a, y) →
+      H.vertexConn ≤ (cartesianCol S a).card :=
+    fun a x y hx hy hxy ↦ H.vertexConn_le_of_isSeparator (isSeparator_cartesianCol hf a hx hy hxy)
+  have hsumRow : S.card = ∑ x : H.V, (cartesianRow S x).card := card_eq_sum_card_cartesianRow S
+  have hsumCol : S.card = ∑ a : G.V, (cartesianCol S a).card := card_eq_sum_card_cartesianCol S
+  by_cases hcolBi : ∃ (a : G.V) (x y : H.V), (a, x) ∉ S ∧ (a, y) ∉ S ∧ f (a, x) ≠ f (a, y)
+  · -- Some copy of `H` sees both colours, so its trace already contains a separator of `H`.
+    obtain ⟨c, xT, xF, hxT, hxF, hxne⟩ := hcolBi
+    have hCc : H.vertexConn ≤ (cartesianCol S c).card := hcol c xT xF hxT hxF hxne
+    by_cases hmix : ∃ (x : H.V) (a b : G.V),
+        (c, x) ∉ S ∧ (a, x) ∉ S ∧ (b, x) ∉ S ∧ f (a, x) ≠ f (b, x)
+    · -- A row that meets the copy of `H` over `c` is bichromatic: the two traces are disjoint.
+      obtain ⟨x, a, b, hcx, ha, hb, hab⟩ := hmix
+      have hRx : G.vertexConn ≤ (cartesianRow S x).card := hrow x a b ha hb hab
+      have hdisj : Disjoint ((cartesianRow S x).image (fun d ↦ (d, x)))
+          ((cartesianCol S c).image (fun y ↦ (c, y))) := by
+        rw [Finset.disjoint_left]
+        rintro p hp hq
+        obtain ⟨d, hd, rfl⟩ := Finset.mem_image.1 hp
+        obtain ⟨y, hy, hpy⟩ := Finset.mem_image.1 hq
+        have h1 : c = d := congrArg Prod.fst hpy
+        subst h1
+        exact hcx (mem_cartesianRow.1 hd)
+      have hsub : (cartesianRow S x).image (fun d ↦ (d, x)) ∪
+          (cartesianCol S c).image (fun y ↦ (c, y)) ⊆ S := by
+        intro p hp
+        rcases Finset.mem_union.1 hp with h | h
+        · obtain ⟨d, hd, rfl⟩ := Finset.mem_image.1 h
+          exact mem_cartesianRow.1 hd
+        · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 h
+          exact mem_cartesianCol.1 hy
+      have hcard := Finset.card_le_card hsub
+      rw [Finset.card_union_of_disjoint hdisj,
+        Finset.card_image_of_injective _ (fun d d' hd ↦ congrArg Prod.fst hd),
+        Finset.card_image_of_injective _ (fun y y' hy ↦ congrArg Prod.snd hy)] at hcard
+      omega
+    · -- Otherwise every row through that copy is monochromatic, so every column meets `S`.
+      push Not at hmix
+      have hall : ∀ a : G.V, 1 ≤ (cartesianCol S a).card := by
+        intro a
+        by_cases h1 : (a, xT) ∈ S
+        · exact Finset.card_pos.2 ⟨xT, mem_cartesianCol.2 h1⟩
+        by_cases h2 : (a, xF) ∈ S
+        · exact Finset.card_pos.2 ⟨xF, mem_cartesianCol.2 h2⟩
+        have e1 : f (a, xT) = f (c, xT) := hmix xT a c hxT h1 hxT
+        have e2 : f (a, xF) = f (c, xF) := hmix xF a c hxF h2 hxF
+        have hne : f (a, xT) ≠ f (a, xF) := by rw [e1, e2]; exact hxne
+        exact le_trans hkH1 (hcol a xT xF h1 h2 hne)
+      have hsplit : (cartesianCol S c).card + ∑ a ∈ Finset.univ.erase c, (cartesianCol S a).card
+          = ∑ a : G.V, (cartesianCol S a).card :=
+        Finset.add_sum_erase Finset.univ (fun a ↦ (cartesianCol S a).card) (Finset.mem_univ c)
+      have hge : (Finset.univ.erase c).card
+          ≤ ∑ a ∈ Finset.univ.erase c, (cartesianCol S a).card := by
+        calc (Finset.univ.erase c).card = ∑ _a ∈ Finset.univ.erase c, 1 := by
+              rw [Finset.sum_const, smul_eq_mul, mul_one]
+          _ ≤ _ := Finset.sum_le_sum fun a _ ↦ hall a
+      have herase : (Finset.univ.erase c).card = G.card - 1 := by
+        rw [Finset.card_erase_of_mem (Finset.mem_univ c), Finset.card_univ, hGcard]
+      omega
+  · push Not at hcolBi
+    by_cases hrowBi : ∃ (x : H.V) (a b : G.V), (a, x) ∉ S ∧ (b, x) ∉ S ∧ f (a, x) ≠ f (b, x)
+    · -- No column is bichromatic but some row is: every row now meets `S`.
+      obtain ⟨w, aT, aF, haT, haF, hane⟩ := hrowBi
+      have hRw : G.vertexConn ≤ (cartesianRow S w).card := hrow w aT aF haT haF hane
+      have hall : ∀ y : H.V, 1 ≤ (cartesianRow S y).card := by
+        intro y
+        by_cases h1 : (aT, y) ∈ S
+        · exact Finset.card_pos.2 ⟨aT, mem_cartesianRow.2 h1⟩
+        by_cases h2 : (aF, y) ∈ S
+        · exact Finset.card_pos.2 ⟨aF, mem_cartesianRow.2 h2⟩
+        have e1 : f (aT, y) = f (aT, w) := hcolBi aT y w h1 haT
+        have e2 : f (aF, y) = f (aF, w) := hcolBi aF y w h2 haF
+        have hne : f (aT, y) ≠ f (aF, y) := by rw [e1, e2]; exact hane
+        exact le_trans hkG1 (hrow y aT aF h1 h2 hne)
+      have hsplit : (cartesianRow S w).card + ∑ y ∈ Finset.univ.erase w, (cartesianRow S y).card
+          = ∑ y : H.V, (cartesianRow S y).card :=
+        Finset.add_sum_erase Finset.univ (fun y ↦ (cartesianRow S y).card) (Finset.mem_univ w)
+      have hge : (Finset.univ.erase w).card
+          ≤ ∑ y ∈ Finset.univ.erase w, (cartesianRow S y).card := by
+        calc (Finset.univ.erase w).card = ∑ _y ∈ Finset.univ.erase w, 1 := by
+              rw [Finset.sum_const, smul_eq_mul, mul_one]
+          _ ≤ _ := Finset.sum_le_sum fun y _ ↦ hall y
+      have herase : (Finset.univ.erase w).card = H.card - 1 := by
+        rw [Finset.card_erase_of_mem (Finset.mem_univ w), Finset.card_univ, hHcard]
+      omega
+    · -- No row and no column is bichromatic: the colour of a vertex off `S` depends on neither
+      -- coordinate alone, and counting the rows against the columns gives `|S| ≥ n + m - 2`.
+      push Not at hrowBi
+      obtain ⟨AT, hAT⟩ : ∃ T : Finset G.V, ∀ a, a ∈ T ↔ ∃ y : H.V, (a, y) ∉ S ∧ f (a, y) = true :=
+        ⟨Finset.univ.filter (fun a ↦ ∃ y : H.V, (a, y) ∉ S ∧ f (a, y) = true), by simp⟩
+      obtain ⟨AF, hAF⟩ : ∃ T : Finset G.V, ∀ a, a ∈ T ↔ ∃ y : H.V, (a, y) ∉ S ∧ f (a, y) = false :=
+        ⟨Finset.univ.filter (fun a ↦ ∃ y : H.V, (a, y) ∉ S ∧ f (a, y) = false), by simp⟩
+      obtain ⟨BT, hBT⟩ : ∃ T : Finset H.V, ∀ x, x ∈ T ↔ ∃ b : G.V, (b, x) ∉ S ∧ f (b, x) = true :=
+        ⟨Finset.univ.filter (fun x ↦ ∃ b : G.V, (b, x) ∉ S ∧ f (b, x) = true), by simp⟩
+      obtain ⟨Z, hZ⟩ : ∃ T : Finset G.V, ∀ a, a ∈ T ↔ (a ∉ AT ∧ a ∉ AF) :=
+        ⟨Finset.univ \ (AT ∪ AF), by intro a; simp⟩
+      have hATa₀ : a₀ ∈ AT := (hAT a₀).2 ⟨y₀, hp₀S, hp₀⟩
+      have hAFa₁ : a₁ ∈ AF := (hAF a₁).2 ⟨y₁, hq₀S, hq₀⟩
+      have hBTy₀ : y₀ ∈ BT := (hBT y₀).2 ⟨a₀, hp₀S, hp₀⟩
+      have hBTy₁ : y₁ ∉ BT := by
+        intro h
+        obtain ⟨b, hb, hbt⟩ := (hBT y₁).1 h
+        have hbb := hrowBi y₁ b a₁ hb hq₀S
+        rw [hbt, hq₀] at hbb
+        simp at hbb
+      have hdisjA : Disjoint AT AF := by
+        rw [Finset.disjoint_left]
+        intro a hat haf
+        obtain ⟨y, hy, hyt⟩ := (hAT a).1 hat
+        obtain ⟨y', hy', hyf⟩ := (hAF a).1 haf
+        have hcc := hcolBi a y y' hy hy'
+        rw [hyt, hyf] at hcc
+        simp at hcc
+      have hcardZ : Z.card + (AT.card + AF.card) = G.card := by
+        have hZeq : Z = Finset.univ \ (AT ∪ AF) := by ext a; rw [hZ]; simp
+        rw [hZeq, ← Finset.card_union_of_disjoint hdisjA,
+          Finset.card_sdiff_add_card_eq_card (Finset.subset_univ _), Finset.card_univ, hGcard]
+      have hcardB : (Finset.univ \ BT).card + BT.card = H.card := by
+        rw [Finset.card_sdiff_add_card_eq_card (Finset.subset_univ _), Finset.card_univ, hHcard]
+      have hp1 : 1 ≤ AT.card := Finset.card_pos.2 ⟨a₀, hATa₀⟩
+      have hq1 : 1 ≤ AF.card := Finset.card_pos.2 ⟨a₁, hAFa₁⟩
+      have hr1 : 1 ≤ BT.card := Finset.card_pos.2 ⟨y₀, hBTy₀⟩
+      have hs1 : 1 ≤ (Finset.univ \ BT).card :=
+        Finset.card_pos.2 ⟨y₁, Finset.mem_sdiff.2 ⟨Finset.mem_univ _, hBTy₁⟩⟩
+      have hrowB : ∀ x ∈ BT, AF.card + Z.card ≤ (cartesianRow S x).card := by
+        intro x hx
+        obtain ⟨b, hb, hbt⟩ := (hBT x).1 hx
+        have hsub : AF ∪ Z ⊆ cartesianRow S x := by
+          intro a ha
+          rw [mem_cartesianRow]
+          by_contra hmem
+          rcases Finset.mem_union.1 ha with h | h
+          · obtain ⟨y, hy, hyf⟩ := (hAF a).1 h
+            have e1 : f (a, x) = f (b, x) := hrowBi x a b hmem hb
+            have e2 : f (a, x) = f (a, y) := hcolBi a x y hmem hy
+            rw [hbt] at e1
+            rw [hyf, e1] at e2
+            simp at e2
+          · have hz := (hZ a).1 h
+            cases hfx : f (a, x)
+            · exact hz.2 ((hAF a).2 ⟨x, hmem, hfx⟩)
+            · exact hz.1 ((hAT a).2 ⟨x, hmem, hfx⟩)
+        have hd : Disjoint AF Z := by
+          rw [Finset.disjoint_left]
+          intro a haf haz
+          exact ((hZ a).1 haz).2 haf
+        calc AF.card + Z.card = (AF ∪ Z).card := (Finset.card_union_of_disjoint hd).symm
+          _ ≤ _ := Finset.card_le_card hsub
+      have hrowNB : ∀ x ∈ Finset.univ \ BT, AT.card + Z.card ≤ (cartesianRow S x).card := by
+        intro x hx
+        have hxn : x ∉ BT := (Finset.mem_sdiff.1 hx).2
+        have hsub : AT ∪ Z ⊆ cartesianRow S x := by
+          intro a ha
+          rw [mem_cartesianRow]
+          by_contra hmem
+          rcases Finset.mem_union.1 ha with h | h
+          · obtain ⟨y, hy, hyt⟩ := (hAT a).1 h
+            have e2 : f (a, x) = f (a, y) := hcolBi a x y hmem hy
+            rw [hyt] at e2
+            exact hxn ((hBT x).2 ⟨a, hmem, e2⟩)
+          · have hz := (hZ a).1 h
+            cases hfx : f (a, x)
+            · exact hz.2 ((hAF a).2 ⟨x, hmem, hfx⟩)
+            · exact hz.1 ((hAT a).2 ⟨x, hmem, hfx⟩)
+        have hd : Disjoint AT Z := by
+          rw [Finset.disjoint_left]
+          intro a hat haz
+          exact ((hZ a).1 haz).1 hat
+        calc AT.card + Z.card = (AT ∪ Z).card := (Finset.card_union_of_disjoint hd).symm
+          _ ≤ _ := Finset.card_le_card hsub
+      have hsplit : ∑ x ∈ Finset.univ \ BT, (cartesianRow S x).card
+          + ∑ x ∈ BT, (cartesianRow S x).card = ∑ x : H.V, (cartesianRow S x).card :=
+        Finset.sum_sdiff (Finset.subset_univ BT)
+      have hb1 : BT.card * (AF.card + Z.card) ≤ ∑ x ∈ BT, (cartesianRow S x).card := by
+        calc BT.card * (AF.card + Z.card) = ∑ _x ∈ BT, (AF.card + Z.card) := by
+              rw [Finset.sum_const, smul_eq_mul]
+          _ ≤ _ := Finset.sum_le_sum hrowB
+      have hb2 : (Finset.univ \ BT).card * (AT.card + Z.card)
+          ≤ ∑ x ∈ Finset.univ \ BT, (cartesianRow S x).card := by
+        calc (Finset.univ \ BT).card * (AT.card + Z.card)
+            = ∑ _x ∈ Finset.univ \ BT, (AT.card + Z.card) := by rw [Finset.sum_const, smul_eq_mul]
+          _ ≤ _ := Finset.sum_le_sum hrowNB
+      have hmulle : ∀ u v : ℕ, 1 ≤ u → 1 ≤ v → u + v ≤ u * v + 1 := by
+        intro u v hu hv
+        obtain ⟨u, rfl⟩ := Nat.exists_eq_add_of_le hu
+        obtain ⟨v, rfl⟩ := Nat.exists_eq_add_of_le hv
+        have hexp : (1 + u) * (1 + v) = 1 + u + v + u * v := by ring
+        omega
+      have hexp1 : BT.card * (AF.card + Z.card) = BT.card * AF.card + BT.card * Z.card := by ring
+      have hexp2 : (Finset.univ \ BT).card * (AT.card + Z.card)
+          = (Finset.univ \ BT).card * AT.card + (Finset.univ \ BT).card * Z.card := by ring
+      have hm1 : BT.card + AF.card ≤ BT.card * AF.card + 1 := hmulle _ _ hr1 hq1
+      have hm2 : (Finset.univ \ BT).card + AT.card
+          ≤ (Finset.univ \ BT).card * AT.card + 1 := hmulle _ _ hs1 hp1
+      have hz1 : Z.card ≤ BT.card * Z.card := Nat.le_mul_of_pos_left _ hr1
+      have hz2 : Z.card ≤ (Finset.univ \ BT).card * Z.card := Nat.le_mul_of_pos_left _ hs1
+      omega
+
+/-- **The vertex connectivity of a cartesian product is superadditive**: `κ(G □ H) ≥ κG + κH`.
+A separator of `G □ H` either meets a bichromatic copy of `G` and a bichromatic copy of `H` in
+disjoint sets — and then it contains a separator of each — or the colouring is forced to depend on
+both coordinates at once, and then every one of the `|H|` rows already costs a whole side of the
+partition of `G`. -/
+@[toIsoGraph]
+theorem vertexConn_add_vertexConn_le_vertexConn_cartesianProduct (G H : CGraph)
+    (hG : G.IsConnected) (hH : H.IsConnected) (hG2 : 2 ≤ G.card) (hH2 : 2 ≤ H.card) :
+    G.vertexConn + H.vertexConn ≤ (G □g H).vertexConn := by
+  have hc : (G □g H).card = G.card * H.card := card_cartesianProduct G H
+  have hkG := G.vertexConn_le_card_sub_one
+  have hkH := H.vertexConn_le_card_sub_one
+  have hbig : G.card + H.card ≤ G.card * H.card := Nat.add_le_mul hG2 hH2
+  exact (G □g H).le_vertexConn (by omega)
+    fun S hS ↦ vertexConn_add_vertexConn_le_card_of_isSeparator G H hG hH hG2 hH2 S hS
+
+/-- The cartesian product is a spanning subgraph of the strong product, so anything that separates
+the strong product separates the cartesian product as well. -/
+theorem isSeparator_cartesianProduct_of_strongProduct {G H : CGraph} {S : Finset (G.V × H.V)}
+    (hS : (G ⊠g H).IsSeparator S) : (G □g H).IsSeparator S := by
+  obtain ⟨f, htrue, hfalse, hadj⟩ := hS
+  refine ⟨f, htrue, hfalse, fun u v hu hv huv ↦ hadj u v hu hv ?_⟩
+  rw [cartesianProduct_adj, Bool.or_eq_true, Bool.and_eq_true, Bool.and_eq_true] at huv
+  rw [strongProduct_adj]
+  rcases huv with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · have hne : u ≠ v := fun he ↦ by rw [he] at h2; simp [H.loopless] at h2
+    simp [hne, h1, h2]
+  · have hne : u ≠ v := fun he ↦ by rw [he] at h1; simp [G.loopless] at h1
+    simp [hne, h1, h2]
+
+/-- **The vertex connectivity of a strong product is superadditive**: `κ(G ⊠ H) ≥ κG + κH`.  The
+strong product has every edge of the cartesian product, so a separator of it separates the
+cartesian product too and the bound above carries over. -/
+@[toIsoGraph]
+theorem vertexConn_add_vertexConn_le_vertexConn_strongProduct (G H : CGraph)
+    (hG : G.IsConnected) (hH : H.IsConnected) (hG2 : 2 ≤ G.card) (hH2 : 2 ≤ H.card) :
+    G.vertexConn + H.vertexConn ≤ (G ⊠g H).vertexConn := by
+  have hc : (G ⊠g H).card = G.card * H.card := card_strongProduct G H
+  have hkG := G.vertexConn_le_card_sub_one
+  have hkH := H.vertexConn_le_card_sub_one
+  have hbig : G.card + H.card ≤ G.card * H.card := Nat.add_le_mul hG2 hH2
+  exact (G ⊠g H).le_vertexConn (by omega) fun S hS ↦
+    vertexConn_add_vertexConn_le_card_of_isSeparator G H hG hH hG2 hH2 S
+      (isSeparator_cartesianProduct_of_strongProduct hS)
+
+/-! ### The connectivity of a lexicographic product
+
+The lexicographic product `G ·g H` replaces every vertex of `G` by a copy of `H` and joins two
+copies completely whenever the two vertices were adjacent.  A separator either swallows whole
+copies — and then the copies it swallows separate `G` — or it leaves a single copy standing and
+separates `H` inside it. -/
+
+/-- Inside one fibre of `G ·g H` the adjacency is that of `H`. -/
+theorem lexProduct_adj_self {G H : CGraph} (a : G.V) (x y : H.V) :
+    (G ·g H).Adj (a, x) (a, y) = H.Adj x y := by
+  rw [lexProduct_adj]
+  simp [G.loopless]
+
+/-- Two adjacent fibres of `G ·g H` are completely joined. -/
+theorem lexProduct_adj_of_adj {G H : CGraph} {a b : G.V} (h : G.Adj a b = true) (x y : H.V) :
+    (G ·g H).Adj (a, x) (b, y) = true := by
+  rw [lexProduct_adj]
+  simp [h]
+
+/-- **Every separator of a lexicographic product is large.**  A separator `S` of `G ·g H` either
+swallows enough whole fibres to separate `G` — and then it swallows at least `κ(G)` of them — or
+it leaves exactly one fibre standing, and then it swallows all the others and separates `H`
+inside the one that is left. -/
+theorem min_le_card_of_isSeparator_lexProduct (G H : CGraph)
+    (S : Finset (G.V × H.V)) (hS : (G ·g H).IsSeparator S) :
+    min (G.vertexConn * H.card) ((G.card - 1) * H.card + H.vertexConn) ≤ S.card := by
+  classical
+  obtain ⟨f, ⟨p₀, hp₀S, hp₀⟩, ⟨q₀, hq₀S, hq₀⟩, hf⟩ := hS
+  obtain ⟨a₀, y₀⟩ := p₀
+  obtain ⟨a₁, y₁⟩ := q₀
+  have hGcard : Fintype.card G.V = G.card := G.fintypeCard
+  have hHcard : Fintype.card H.V = H.card := H.fintypeCard
+  -- `T` collects the fibres that `S` swallows whole.
+  obtain ⟨T, hT⟩ : ∃ T : Finset G.V, ∀ a, a ∈ T ↔ cartesianCol S a = Finset.univ :=
+    ⟨Finset.univ.filter fun a ↦ cartesianCol S a = Finset.univ, by simp⟩
+  have hfull : ∀ a ∈ T, ∀ x : H.V, (a, x) ∈ S := fun a ha x ↦
+    mem_cartesianCol.1 (by rw [(hT a).1 ha]; exact Finset.mem_univ x)
+  have hfree : ∀ a : G.V, a ∉ T → ∃ x : H.V, (a, x) ∉ S := by
+    intro a ha
+    by_contra hcon
+    push Not at hcon
+    exact ha ((hT a).2 (Finset.eq_univ_iff_forall.2 fun x ↦ mem_cartesianCol.2 (hcon x)))
+  have ha₀ : a₀ ∉ T := fun h ↦ hp₀S (hfull a₀ h y₀)
+  have ha₁ : a₁ ∉ T := fun h ↦ hq₀S (hfull a₁ h y₁)
+  have hTle : T.card * H.card ≤ S.card := by
+    have hsub : T ×ˢ (Finset.univ : Finset H.V) ⊆ S := fun p hp ↦
+      hfull p.1 (Finset.mem_product.1 hp).1 p.2
+    have h := Finset.card_le_card hsub
+    rwa [Finset.card_product, Finset.card_univ, hHcard] at h
+  by_cases hsep : G.IsSeparator T
+  · exact le_trans (min_le_left _ _)
+      (le_trans (Nat.mul_le_mul (G.vertexConn_le_of_isSeparator hsep) (le_refl H.card)) hTle)
+  -- `T` does not separate `G`, so each colour spreads from any fibre that shows it to all the
+  -- fibres that are left standing.
+  have hspread : ∀ (c : Bool) (a : G.V) (x : H.V), (a, x) ∉ S → f (a, x) = c →
+      ∀ b : G.V, b ∉ T → ∃ y : H.V, (b, y) ∉ S ∧ f (b, y) = c := by
+    intro c a x hax hfx b hb
+    by_contra hcon
+    have haT : a ∉ T := fun h ↦ hax (hfull a h x)
+    refine hsep ⟨fun d ↦ decide (∃ y : H.V, (d, y) ∉ S ∧ f (d, y) = c),
+      ⟨a, haT, decide_eq_true ⟨x, hax, hfx⟩⟩, ⟨b, hb, decide_eq_false hcon⟩, ?_⟩
+    have key : ∀ s t : G.V, t ∉ T → G.Adj s t = true →
+        (∃ y : H.V, (s, y) ∉ S ∧ f (s, y) = c) → ∃ y : H.V, (t, y) ∉ S ∧ f (t, y) = c := by
+      rintro s t ht hst ⟨y, hy, hfy⟩
+      obtain ⟨z, hz⟩ := hfree t ht
+      exact ⟨z, hz, by
+        rw [← hfy]
+        exact (hf (s, y) (t, z) hy hz (lexProduct_adj_of_adj hst y z)).symm⟩
+    intro u v hu hv huv
+    rw [decide_eq_decide]
+    exact ⟨key u v hv huv, key v u hu (by rw [← G.symm u v]; exact huv)⟩
+  -- Hence every standing fibre shows both colours.
+  have hbiT : ∀ (c : Bool) (b : G.V), b ∉ T → ∃ y : H.V, (b, y) ∉ S ∧ f (b, y) = c := by
+    intro c b hb
+    cases c
+    · exact hspread false a₁ y₁ hq₀S hq₀ b hb
+    · exact hspread true a₀ y₀ hp₀S hp₀ b hb
+  -- Two standing fibres cannot be adjacent: they would be completely joined, and one of them
+  -- shows a vertex coloured `true` while the other shows one coloured `false`.
+  have hnoadj : ∀ u v : G.V, u ∉ T → v ∉ T → G.Adj u v = true → False := by
+    intro u v hu hv huv
+    obtain ⟨y, hy, hfy⟩ := hbiT true u hu
+    obtain ⟨z, hz, hfz⟩ := hbiT false v hv
+    have h := hf (u, y) (v, z) hy hz (lexProduct_adj_of_adj huv y z)
+    rw [hfy, hfz] at h
+    simp at h
+  -- So if two fibres were standing, *any* colouring would witness that `T` separates `G`.
+  have huniq : ∀ u v : G.V, u ∉ T → v ∉ T → u = v := by
+    intro u v hu hv
+    by_contra hne
+    exact hsep ⟨fun d ↦ decide (d = u), ⟨u, hu, decide_eq_true rfl⟩,
+      ⟨v, hv, decide_eq_false fun h ↦ hne h.symm⟩,
+      fun s t hs ht hst ↦ (hnoadj s t hs ht hst).elim⟩
+  -- Exactly one fibre stands, and `S` separates `H` inside it.
+  have hTcard : G.card - 1 ≤ T.card := by
+    have hsub : Finset.univ.erase a₀ ⊆ T := by
+      intro b hb
+      by_contra hbT
+      exact (Finset.mem_erase.1 hb).1 (huniq b a₀ hbT ha₀)
+    have h := Finset.card_le_card hsub
+    rwa [Finset.card_erase_of_mem (Finset.mem_univ a₀), Finset.card_univ, hGcard] at h
+  have hcolsep : H.IsSeparator (cartesianCol S a₀) := by
+    obtain ⟨y, hy, hfy⟩ := hbiT true a₀ ha₀
+    obtain ⟨z, hz, hfz⟩ := hbiT false a₀ ha₀
+    refine isSeparator_cartesianCol_of_forall (S := S) (f := f) (a := a₀) ?_ hy hz
+      (by rw [hfy, hfz]; simp)
+    intro u v hu hv huv
+    exact hf (a₀, u) (a₀, v) hu hv (by rw [lexProduct_adj_self]; exact huv)
+  have hHle : H.vertexConn ≤ (cartesianCol S a₀).card := H.vertexConn_le_of_isSeparator hcolsep
+  have hsub2 : (T ×ˢ (Finset.univ : Finset H.V)) ∪
+      ((cartesianCol S a₀).image fun y ↦ (a₀, y)) ⊆ S := by
+    intro p hp
+    rcases Finset.mem_union.1 hp with h | h
+    · exact hfull p.1 (Finset.mem_product.1 h).1 p.2
+    · obtain ⟨y, hy, rfl⟩ := Finset.mem_image.1 h
+      exact mem_cartesianCol.1 hy
+  have hdisj : Disjoint (T ×ˢ (Finset.univ : Finset H.V))
+      ((cartesianCol S a₀).image fun y ↦ (a₀, y)) := by
+    rw [Finset.disjoint_left]
+    intro p hp hq
+    obtain ⟨y, -, rfl⟩ := Finset.mem_image.1 hq
+    exact ha₀ (Finset.mem_product.1 hp).1
+  have h := Finset.card_le_card hsub2
+  rw [Finset.card_union_of_disjoint hdisj, Finset.card_product, Finset.card_univ, hHcard,
+    Finset.card_image_of_injective _ fun y y' hy ↦ congrArg Prod.snd hy] at h
+  have hmul : (G.card - 1) * H.card ≤ T.card * H.card := Nat.mul_le_mul hTcard (le_refl H.card)
+  have hfin : (G.card - 1) * H.card + H.vertexConn ≤ S.card := by omega
+  exact le_trans (min_le_right _ _) hfin
+
+/-- **The vertex connectivity of a lexicographic product**, from below. -/
+@[toIsoGraph]
+theorem min_le_vertexConn_lexProduct (G H : CGraph) (hH1 : 1 ≤ H.card) :
+    min (G.vertexConn * H.card) ((G.card - 1) * H.card + H.vertexConn) ≤ (G ·g H).vertexConn := by
+  have hc : (G ·g H).card = G.card * H.card := card_lexProduct G H
+  have hkG := G.vertexConn_le_card_sub_one
+  have h1 : G.vertexConn * H.card ≤ G.card * H.card - H.card :=
+    calc G.vertexConn * H.card ≤ (G.card - 1) * H.card := Nat.mul_le_mul hkG (le_refl H.card)
+      _ = G.card * H.card - H.card := by rw [Nat.sub_mul, one_mul]
+  have h2 := min_le_left (G.vertexConn * H.card) ((G.card - 1) * H.card + H.vertexConn)
+  exact (G ·g H).le_vertexConn (by omega)
+    fun S hS ↦ min_le_card_of_isSeparator_lexProduct G H S hS
+
+/-- **The vertex connectivity of a lexicographic product with a non-complete first factor** is
+`κ(G ·g H) = κ(G) · |H|`: blowing every vertex of `G` up into a copy of `H` multiplies the
+connectivity by the size of the copy.  (For a complete `G` the answer is instead
+`(|G| - 1) · |H| + κ(H)`, since then no set of whole fibres separates.) -/
+@[toIsoGraph]
+theorem vertexConn_lexProduct (G H : CGraph) (hH1 : 1 ≤ H.card) (hG : G.vertexConn < G.card - 1) :
+    (G ·g H).vertexConn = G.vertexConn * H.card := by
+  classical
+  have hHcard : Fintype.card H.V = H.card := H.fintypeCard
+  obtain ⟨y⟩ : Nonempty H.V := Fintype.card_pos_iff.1 (by omega)
+  obtain ⟨T, hT, hTc⟩ :=
+    G.vertexConn_eq_card_sub_one_or_exists_isSeparator.resolve_left (by omega)
+  obtain ⟨g, ⟨a, haT, hga⟩, ⟨b, hbT, hgb⟩, hgadj⟩ := hT
+  have hupper : (G ·g H).vertexConn ≤ G.vertexConn * H.card := by
+    have hconst : ∀ u v : G.V × H.V, u ∉ T ×ˢ (Finset.univ : Finset H.V) →
+        v ∉ T ×ˢ (Finset.univ : Finset H.V) → (G ·g H).Adj u v = true → g u.1 = g v.1 := by
+      intro u v hu hv huv
+      have hu1 : u.1 ∉ T := fun h ↦ hu (Finset.mem_product.2 ⟨h, Finset.mem_univ _⟩)
+      have hv1 : v.1 ∉ T := fun h ↦ hv (Finset.mem_product.2 ⟨h, Finset.mem_univ _⟩)
+      rw [lexProduct_adj, Bool.or_eq_true, Bool.and_eq_true] at huv
+      rcases huv with h | ⟨h1, -⟩
+      · exact hgadj u.1 v.1 hu1 hv1 h
+      · rw [of_decide_eq_true h1]
+    have hsep : (G ·g H).IsSeparator (T ×ˢ (Finset.univ : Finset H.V)) :=
+      ⟨fun p ↦ g p.1, ⟨(a, y), fun h ↦ haT (Finset.mem_product.1 h).1, hga⟩,
+        ⟨(b, y), fun h ↦ hbT (Finset.mem_product.1 h).1, hgb⟩, hconst⟩
+    have h := (G ·g H).vertexConn_le_of_isSeparator hsep
+    rwa [Finset.card_product, Finset.card_univ, hHcard, hTc] at h
+  have hlow := min_le_vertexConn_lexProduct G H hH1
+  have hmin : min (G.vertexConn * H.card) ((G.card - 1) * H.card + H.vertexConn)
+      = G.vertexConn * H.card :=
+    min_eq_left (le_trans (Nat.mul_le_mul (by omega) (le_refl H.card)) (Nat.le_add_right _ _))
+  rw [hmin] at hlow
+  omega
+
 /-- A join is of diameter exactly two as soon as one side has a non-adjacent pair. -/
 theorem diameter_join_of_not_adj (G H : CGraph)
     [Nonempty H.V] {a c : G.V} (hne : a ≠ c) (hadj : G.Adj a c = false) :
@@ -1329,6 +2128,89 @@ endpoint, so both are one.  The cycle needs an argument of its own for the lower
     rwa [edgeConn_cycle] at h
   · rw [cycle_def, vertexConn_mk]
     exact CGraph.two_le_vertexConn_cycle (by omega)
+
+/-! ### The edge connectivity of the products of a graph of diameter two
+
+Plesník's theorem gives `λ = δ` for each of these, and the minimum degree is known in closed
+form, so the edge connectivity is too. -/
+
+/-- **The minimum degree of a Mycielskian** collapses to `δ(G) + 1` as soon as `G` is connected
+with two vertices: the shadow of a vertex of least degree beats both the doubled copies and the
+apex. -/
+theorem minDeg_mycielskian_eq (G : IsoGraph) (hG : G.IsConnected) (h2 : 2 ≤ G.V) :
+    (mycielskian G).minDeg = G.minDeg + 1 := by
+  have hd1 : 1 ≤ G.minDeg := le_trans ((one_le_edgeConn_iff G h2).2 hG) (edgeConn_le_minDeg G h2)
+  have hlt : G.minDeg < G.V := lt_of_le_of_lt (minDeg_le_maxDeg G) (maxDeg_lt_V (by omega))
+  rw [minDeg_mycielskian G (by omega)]
+  omega
+
+/-- The strong product of two graphs of diameter at most two is maximally edge connected:
+`λ(G ⊠ H) = (δ G + 1)(δ H + 1) - 1`. -/
+theorem edgeConn_strongProduct {G H : IsoGraph} (hG : G.IsConnected) (hH : H.IsConnected)
+    (hdG : G.diameter ≤ 2) (hdH : H.diameter ≤ 2) (h2 : 2 ≤ G.V * H.V) :
+    (G ⊠g H).edgeConn = (G.minDeg + 1) * (H.minDeg + 1) - 1 := by
+  have hG0 : 0 < G.V := Nat.pos_of_ne_zero fun h ↦ by simp [h] at h2
+  have hH0 : 0 < H.V := Nat.pos_of_ne_zero fun h ↦ by simp [h] at h2
+  rw [edgeConn_strongProduct_eq_minDeg hG hH hdG hdH h2, minDeg_strongProduct hG0 hH0]
+
+/-- A blow-up of a graph of diameter at most two is maximally edge connected:
+`λ(G · H) = δ(G)·|H| + δ(H)`. -/
+theorem edgeConn_lexProduct {G H : IsoGraph} (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.V) (hH : 1 ≤ H.V) : (G ·g H).edgeConn = G.minDeg * H.V + H.minDeg := by
+  rw [edgeConn_lexProduct_eq_minDeg hG hdG h2 hH, minDeg_lexProduct (by omega) hH]
+
+/-- The Mycielskian of a connected graph of diameter at most two is maximally edge connected:
+`λ(μ G) = δ(G) + 1`. -/
+theorem edgeConn_mycielskian {G : IsoGraph} (hG : G.IsConnected) (hdG : G.diameter ≤ 2)
+    (h2 : 2 ≤ G.V) : (mycielskian G).edgeConn = G.minDeg + 1 := by
+  rw [edgeConn_mycielskian_eq_minDeg hG hdG h2, minDeg_mycielskian_eq G hG h2]
+
+/-- **A cartesian product of maximally edge connected graphs is maximally edge connected**:
+if `λ = δ` in both factors then `λ(G □ H) = δ(G) + δ(H)`. -/
+theorem edgeConn_cartesianProduct {G H : IsoGraph} (hG : G.IsConnected) (hH : H.IsConnected)
+    (hG2 : 2 ≤ G.V) (hH2 : 2 ≤ H.V) (hGm : G.edgeConn = G.minDeg) (hHm : H.edgeConn = H.minDeg) :
+    (G □g H).edgeConn = G.minDeg + H.minDeg := by
+  have hlow := edgeConn_add_edgeConn_le_edgeConn_cartesianProduct hG hH hG2 hH2
+  have h4 : 2 * 2 ≤ G.V * H.V := Nat.mul_le_mul hG2 hH2
+  have hhigh := edgeConn_le_minDeg (G □g H) (by rw [V_cartesianProduct]; omega)
+  rw [minDeg_cartesianProduct (by omega) (by omega)] at hhigh
+  omega
+
+/-- The cartesian product of two graphs of diameter at most two is maximally edge connected. -/
+theorem edgeConn_cartesianProduct_of_diameter_le_two {G H : IsoGraph} (hG : G.IsConnected)
+    (hH : H.IsConnected) (hdG : G.diameter ≤ 2) (hdH : H.diameter ≤ 2) (hG2 : 2 ≤ G.V)
+    (hH2 : 2 ≤ H.V) : (G □g H).edgeConn = G.minDeg + H.minDeg :=
+  edgeConn_cartesianProduct hG hH hG2 hH2 (edgeConn_eq_minDeg_of_diameter_le_two hG hdG hG2)
+    (edgeConn_eq_minDeg_of_diameter_le_two hH hdH hH2)
+
+/-- **A cartesian product of maximally connected graphs is maximally connected**: if `κ = δ` in
+both factors then `κ(G □ H) = δ(G) + δ(H)`. -/
+theorem vertexConn_cartesianProduct {G H : IsoGraph} (hG : G.IsConnected) (hH : H.IsConnected)
+    (hG2 : 2 ≤ G.V) (hH2 : 2 ≤ H.V) (hGm : G.vertexConn = G.minDeg)
+    (hHm : H.vertexConn = H.minDeg) : (G □g H).vertexConn = G.minDeg + H.minDeg := by
+  have hlow := vertexConn_add_vertexConn_le_vertexConn_cartesianProduct hG hH hG2 hH2
+  have h4 : 2 * 2 ≤ G.V * H.V := Nat.mul_le_mul hG2 hH2
+  have hhigh := vertexConn_le_minDeg (G □g H) (by rw [V_cartesianProduct]; omega)
+  rw [minDeg_cartesianProduct (by omega) (by omega)] at hhigh
+  omega
+
+/-- **The connectivity of a rook's graph**: `κ(Kₘ □ Kₙ) = m + n - 2`. -/
+@[simp] theorem vertexConn_rook (m n : ℕ) : (rook (m + 2) (n + 2)).vertexConn = m + n + 2 := by
+  rw [show rook (m + 2) (n + 2) = complete (m + 2) □g complete (n + 2) from rfl,
+    vertexConn_cartesianProduct (isConnected_complete _) (isConnected_complete _)
+      (by rw [V_complete]; omega) (by rw [V_complete]; omega)
+      (by rw [vertexConn_complete, minDeg_complete]) (by rw [vertexConn_complete, minDeg_complete]),
+    minDeg_complete, minDeg_complete]
+  omega
+
+/-- **The connectivity of a prism**: a cycle is `2`-connected and `K₂` is `1`-connected, so the
+prism over it is `3`-connected. -/
+@[simp] theorem vertexConn_prism (n : ℕ) : (prism (n + 3)).vertexConn = 3 := by
+  rw [show prism (n + 3) = cycle (n + 3) □g complete 2 from rfl,
+    vertexConn_cartesianProduct (isConnected_cycle _) (isConnected_complete 1)
+      (by rw [V_cycle]; omega) (by rw [V_complete])
+      (by rw [vertexConn_cycle, minDeg_cycle]) (by rw [vertexConn_complete, minDeg_complete]),
+    minDeg_cycle, minDeg_complete]
 
 /-! ### The connectivity of the Petersen graph, on the quotient -/
 
