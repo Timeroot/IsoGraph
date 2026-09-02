@@ -90,11 +90,11 @@ and with `Substructure.lean`, which crosses the gallery with the containment rel
 | `testing/CacheBench.lean` | timings for the memoised containment searches (`lake exe cachebench`) | no |
 | `testing/Coverage.lean` | the invariant × construction coverage table; writes `testing/invariant_coverage.txt` | no |
 
-Toolchain is `leanprover/lean4:v4.33.1` with Mathlib pinned at `v4.33.1`. The development was
-written against `v4.28.0`; the bump to `v4.33.1` came afterwards, and brought with it the
-`backward.isDefEq.respectTransparency = false` option in `lakefile.toml` — `v4.33` made unification
-respect the ambient transparency, and a `CGraph` reaches the vertex type of a derived graph only by
-unfolding the operation.
+Toolchain is `leanprover/lean4:v4.34.0-rc2` with Mathlib pinned to match; there is no stable
+`v4.34.0` Mathlib tag yet. The development was written against `v4.28.0`; the bump to `v4.33` came
+afterwards, and brought with it the `set_option backward.isDefEq.respectTransparency false` at the
+head of most modules — `v4.33` made unification respect the ambient transparency, and a `CGraph`
+reaches the vertex type of a derived graph only by unfolding the operation.
 
 ### Building
 

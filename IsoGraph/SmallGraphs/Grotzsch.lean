@@ -411,11 +411,14 @@ theorem E_le_E_turan {G : IsoGraph} {r : ℕ} (hr : 0 < r) (h : G.cliqueNum ≤ 
     rw [FinEnum.card_eq_fintypeCard]; exact i.card_edgeFinset_eq
   -- Step 5: relate (turan (FinEnum.card g.V) r).E to turanGraph
   set n := FinEnum.card g.V
-  -- Both turanGraph n r and turan n r have the same edge count.
+  -- Both turanGraph n r and turan n r have the same edge count.  `turanNumber` is an abbreviation
+  -- for the edge count, so `rw` will not see through it on its own.
+  have hturan : (SimpleGraph.turanGraph n r).edgeFinset.card
+      = (n ^ 2 - (n % r) ^ 2) * (r - 1) / (2 * r) + (n % r).choose 2 :=
+    SimpleGraph.turanNumber_eq
   have key : (SimpleGraph.turanGraph n r).edgeFinset.card = (turan n r).E :=
     Nat.add_right_cancel (m := n % r * ((n / r + 1).choose 2) + (r - n % r) * ((n / r).choose 2))
-      (by rw [SimpleGraph.card_edgeFinset_turanGraph,
-        turan_card_identity hr (Nat.mod_lt n hr).le (Nat.div_add_mod n r), E_turan])
+      (by rw [hturan, turan_card_identity hr (Nat.mod_lt n hr).le (Nat.div_add_mod n r), E_turan])
   rw [CGraph.E]
   exact le_trans (hle1.trans hle2.le) key.le
 

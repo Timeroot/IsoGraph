@@ -177,7 +177,7 @@ Lake does not put there for its own subprocesses. So:
 lake env lake build     # or: export LD_LIBRARY_PATH="$(lean --print-prefix)/lib/lean"
 ```
 
-Toolchain `leanprover/lean4:v4.33.1`, Mathlib pinned to match.
+Toolchain `leanprover/lean4:v4.34.0-rc2`, Mathlib pinned to match.
 
 The validation and timing drivers live in `testing/`, and are separate targets: `lake exe isobench`
 checks the canonical labelling against 34 families of graphs and against OEIS A000088, and
