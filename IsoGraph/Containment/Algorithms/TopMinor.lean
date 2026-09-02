@@ -103,7 +103,7 @@ theorem mem_routes {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = tru
     rcases q.eq_nil_or_concat' with rfl | ⟨q', z, rfl⟩
     · rw [chainEnd] at hend
       subst hend
-      exact List.mem_append_left _ (by rw [if_pos (by simpa using hnb u w hw.1)]; simp)
+      exact List.mem_append_left _ (by rw [ite_eq_left (by simpa using hnb u w hw.1)]; simp)
     · have hdrop : (w :: (q' ++ [z])).dropLast = w :: q' := by
         rw [← List.cons_append, List.dropLast_concat]
       have hwq : w ∉ q' ++ [z] := (List.nodup_cons.mp (List.nodup_cons.mp hnd).2).1
@@ -293,13 +293,13 @@ theorem degree_le (t : H.TopMinorOf G) (x : H.V) :
   · intro y hy
     rw [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy
     have h1 : H.Adj x y = true := hy
-    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset, dif_pos h1]
+    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset, dite_eq_left h1]
     exact t.adj_getVert_one h1
   · intro y hy y' hy' he
     rw [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy hy'
     have h1 : H.Adj x y = true := hy
     have h2 : H.Adj x y' = true := hy'
-    simp only [dif_pos h1, dif_pos h2] at he
+    simp only [dite_eq_left h1, dite_eq_left h2] at he
     by_contra hne
     have hlen : 0 < (t.path h1).length := by
       rcases Nat.eq_zero_or_pos (t.path h1).length with h0 | h0
@@ -360,16 +360,16 @@ def toTopModel (t : H.TopMinorOf G) (ord : H.V → ℕ) (hord : Function.Injecti
   f := t.toFun
   f_inj := t.injective
   seg x y := if h : H.Adj x y = true then (t.path h).support.tail else []
-  isWalk x y h _ := by rw [dif_pos h]; exact isWalkList_support_tail _
-  ends x y h _ := by rw [dif_pos h]; exact chainEnd_support_tail _
+  isWalk x y h _ := by rw [dite_eq_left h]; exact isWalkList_support_tail _
+  ends x y h _ := by rw [dite_eq_left h]; exact chainEnd_support_tail _
   nodup x y h _ := by
-    rw [dif_pos h]
+    rw [dite_eq_left h]
     have hnd := t.nodup_support h
     rwa [← (t.path h).cons_tail_support] at hnd
-  interior x y h _ z := by rw [dif_pos h]; exact t.not_mem_dropLast h z
+  interior x y h _ z := by rw [dite_eq_left h]; exact t.not_mem_dropLast h z
   disj x y x' y' h hc h' hc' hne z hz hz' := by
-    rw [dif_pos h] at hz
-    rw [dif_pos h'] at hz'
+    rw [dite_eq_left h] at hz
+    rw [dite_eq_left h'] at hz'
     have hsym : s(x, y) ≠ s(x', y') := by
       rw [Ne, Sym2.eq_iff]
       rintro (⟨rfl, rfl⟩ | ⟨rfl, rfl⟩)
@@ -438,8 +438,8 @@ theorem canon_sym (_h : H.Adj x y = true) : s((m.canon x y).1, (m.canon x y).2) 
 theorem canon_comm (h : H.Adj x y = true) : m.canon y x = m.canon x y := by
   rw [canon, canon]
   rcases m.lt_or_lt h with hc | hc
-  · rw [if_neg (by omega), if_pos hc]
-  · rw [if_pos hc, if_neg (by omega)]
+  · rw [ite_eq_right (by omega), ite_eq_left hc]
+  · rw [ite_eq_left hc, ite_eq_right (by omega)]
 
 /-- The vertices of `G` a path of the model runs through strictly between its branch vertices. -/
 def int (m : TopModel H G) (x y : H.V) : List G.V :=
@@ -499,8 +499,8 @@ def toTopMinorOf (m : TopModel H G) : H.TopMinorOf G where
   reverse' := fun {x y} h h' ↦ by
     simp only [pathOf]
     rcases m.lt_or_lt h with hc | hc
-    · rw [dif_pos hc, dif_neg (by omega)]
-    · rw [dif_pos hc, dif_neg (by omega), SimpleGraph.Walk.reverse_reverse]
+    · rw [dite_eq_left hc, dite_eq_right (by omega)]
+    · rw [dite_eq_left hc, dite_eq_right (by omega), SimpleGraph.Walk.reverse_reverse]
   branch' := fun {x y} h z hz ↦ by
     rcases (m.mem_support_pathOf h).mp hz with he | he | he
     · exact Or.inl (m.f_inj he)
@@ -763,16 +763,16 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       rcases List.mem_append.mp hu with h1 | h2
       · obtain ⟨p, hp, hpu⟩ := List.mem_filterMap.mp h1
         by_cases hx : p.1 = x
-        · rw [if_pos hx] at hpu; exact absurd hpu (by simp)
-        · rw [if_neg hx, Option.some_inj] at hpu
+        · rw [ite_eq_left hx] at hpu; exact absurd hpu (by simp)
+        · rw [ite_eq_right hx, Option.some_inj] at hpu
           exact goalTop_inj hg hbu (mem_branches_of_subset hsub hp) (fun he ↦ hx he.symm)
             hpu.symm
       · obtain ⟨t, ht, hwt⟩ := List.mem_flatten.mp h2
         obtain ⟨r, hr, hrt⟩ := List.mem_filterMap.mp ht
         by_cases ho : oriented H hs r.1 r.2.1 = true
-        · rw [if_pos ho, Option.some_inj] at hrt
+        · rw [ite_eq_left ho, Option.some_inj] at hrt
           exact runOk_interior (goalTop_runOk hg (mem_runs_of_subset hsub hr)) hbu (hrt ▸ hwt)
-        · rw [if_neg ho] at hrt; exact absurd hrt.symm (by simp)
+        · rw [ite_eq_right ho] at hrt; exact absurd hrt.symm (by simp)
     have hlo : ∀ m ∈ symLo H rank pairs x (branches pre), m ≤ rank u := by
       intro m hm
       obtain ⟨z, hz, hmz⟩ := List.mem_filterMap.mp hm
@@ -806,9 +806,9 @@ theorem mem_candTop {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       · obtain ⟨t, ht, hwt⟩ := List.mem_flatten.mp h2
         obtain ⟨r, hr, hrt⟩ := List.mem_filterMap.mp ht
         by_cases ho : oriented H hs r.1 r.2.1 = true ∧ ¬(x = r.1 ∧ y = r.2.1)
-        · rw [if_pos ho, Option.some_inj] at hrt
+        · rw [ite_eq_left ho, Option.some_inj] at hrt
           exact runOk_disj hok (mem_runs_of_subset hsub hr) ho.1 ho.2 hw (hrt ▸ hwt)
-        · rw [if_neg ho] at hrt; exact absurd hrt.symm (by simp)
+        · rw [ite_eq_right ho] at hrt; exact absurd hrt.symm (by simp)
     · -- the ends are not both placed yet: fall back on every path between every pair
       obtain ⟨u, hfu⟩ := Option.isSome_iff_exists.mp (goalTop_findB hg (hmem x))
       obtain ⟨v, hfv⟩ := Option.isSome_iff_exists.mp (goalTop_findB hg (hmem y))

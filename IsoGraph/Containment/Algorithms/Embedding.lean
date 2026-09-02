@@ -237,20 +237,20 @@ theorem mem_symBefore {pairs : List (H.V × H.V)} {a x : H.V} (hx : x ∈ symBef
     (x, a) ∈ pairs := by
   obtain ⟨p, hp, hpx⟩ := List.mem_filterMap.mp hx
   by_cases h2 : p.2 = a
-  · rw [if_pos h2] at hpx
+  · rw [ite_eq_left h2] at hpx
     rw [(Option.some.inj hpx).symm, ← h2]
     simpa using hp
-  · rw [if_neg h2] at hpx
+  · rw [ite_eq_right h2] at hpx
     exact absurd hpx (by simp)
 
 theorem mem_symAfter {pairs : List (H.V × H.V)} {a x : H.V} (hx : x ∈ symAfter H pairs a) :
     (a, x) ∈ pairs := by
   obtain ⟨p, hp, hpx⟩ := List.mem_filterMap.mp hx
   by_cases h1 : p.1 = a
-  · rw [if_pos h1] at hpx
+  · rw [ite_eq_left h1] at hpx
     rw [(Option.some.inj hpx).symm, ← h1]
     simpa using hp
-  · rw [if_neg h1] at hpx
+  · rw [ite_eq_right h1] at hpx
     exact absurd hpx (by simp)
 
 /-- How many vertices still have to be placed after `a` in its class: the length of the chain of
@@ -673,7 +673,7 @@ theorem lookupV_eq_of_mem {r : List (H.V × G.V)} (hnd : (r.map Prod.fst).Nodup)
     rcases List.mem_cons.mp hp with rfl | hp
     · simp
     · have hne : q.1 ≠ p.1 := fun h ↦ hnd.1 (h ▸ List.mem_map_of_mem hp)
-      rw [if_neg (Ne.symm hne)]
+      rw [ite_eq_right (Ne.symm hne)]
       exact ih hnd.2 hp
 
 /-- The map on vertices read off a complete assignment. -/
@@ -924,7 +924,7 @@ theorem mem_candRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
     · -- And, for an induced search, adjacent to no other image.
       rw [beq_iff_eq]
       by_cases hi : ind = true
-      · rw [if_pos hi]
+      · rw [ite_eq_left hi]
         refine Nat.eq_of_testBit_eq fun k ↦ ?_
         rw [Nat.testBit_and, Nat.testBit_xor, Nat.zero_testBit]
         cases hu : (usedMask H G pre).testBit k <;> cases hm : (adjMask H G a pre).testBit k
@@ -955,7 +955,7 @@ theorem mem_candRow {gs : List G.V} (hgs : ∀ v, v ∈ gs) {rank : G.V → ℕ}
             show b.nb = (row G gs b.vert).nb from congrArg Row.nb hcb, testBit_row_nb G hgs]
           exact hnon hi q hq hq1
         · rfl
-      · rw [if_neg hi, Nat.zero_and]
+      · rw [ite_eq_right hi, Nat.zero_and]
 
 variable {H G ind}
 

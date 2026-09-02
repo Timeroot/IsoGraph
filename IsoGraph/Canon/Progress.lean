@@ -197,7 +197,7 @@ theorem individualize_new_start {n : Nat} {p : Part} {v : Nat} (hp : Part.WF n p
     (individualize p v).1.cst[p.cst[p.pos[v]!]! + 1]! = p.cst[p.pos[v]!]! + 1 := by
   have hd : IndivData n p v p.pos[v]! p.cst[p.pos[v]!]! p.cen[p.pos[v]!]! p.lab[p.cst[p.pos[v]!]!]!
     := ⟨hv, rfl, rfl, rfl, rfl⟩
-  rw [individualize_cst_getElem! hp hd, if_pos ⟨Nat.le_refl _, hbig⟩]
+  rw [individualize_cst_getElem! hp hd, ite_eq_left ⟨Nat.le_refl _, hbig⟩]
 
 theorem child_refines {n : Nat} {f : Nat → Nat → Bool} {p : Part} {v : Nat} (hp : Part.WF n p)
     (hv : v < n) : Refines n (child (Graph.ofOracle n f) p v).1 p := by
@@ -289,7 +289,7 @@ theorem orbRefresh_eq {G : Graph} {path processed : Array Nat} {orb : Orbits} {s
       = if orb.nGens == st.autos.size then orb
         else { nGens := st.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st.autos path,
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
-  rw [hor, if_pos (by simp [h])]
+  rw [hor, ite_eq_left (by simp [h])]
 
 /-- **The search always ends holding a leaf.**  The fuel `n + 1` is enough because every level of
 the tree splits a cell, so a node at depth `d` has at least `d + 1` cells and the tree has depth at

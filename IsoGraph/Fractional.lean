@@ -96,7 +96,7 @@ theorem adjIdx_of_adj {G : CGraph} {u v : G.V} (huv : u ≠ v) (h : G.Adj u v = 
     intro x y hxy hlt
     refine List.mem_flatMap.2 ⟨x, FinEnum.mem_toList x, List.mem_filterMap.2 ⟨y, ?_, ?_⟩⟩
     · exact FinEnum.mem_toList y
-    · rw [if_pos ⟨hxy, hlt⟩]
+    · rw [ite_eq_left ⟨hxy, hlt⟩]
   have hne : vIdx u ≠ vIdx v := fun he ↦ huv (vIdx_injective he)
   rw [AdjIdx, Bool.or_eq_true]
   rcases Nat.lt_or_ge (vIdx u) (vIdx v) with hlt | hge

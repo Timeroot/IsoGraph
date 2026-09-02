@@ -288,10 +288,10 @@ theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := b
             = (if a = b + 1 then b + 2 else if b = a + 1 then a + 2 else 0)
         by_cases h1 : b = a + 1
         · have h2 : a ≠ b + 1 := by rw [h1, add_assoc, h11]; exact hne2 a
-          rw [if_pos h1, if_neg h2, if_pos h1]
+          rw [ite_eq_left h1, ite_eq_right h2, ite_eq_left h1]
         · by_cases h2 : a = b + 1
-          · rw [if_neg h1, if_pos h2, if_pos h2]
-          · rw [if_neg h1, if_neg h2, if_neg h2, if_neg h1]
+          · rw [ite_eq_right h1, ite_eq_left h2, ite_eq_left h2]
+          · rw [ite_eq_right h1, ite_eq_right h2, ite_eq_right h2, ite_eq_right h1]
     -- Two rim vertices are adjacent only if they are cyclically consecutive…
     have hrim : ∀ a b : Fin (n + 4), (CGraph.wheel (n + 4)).Adj (Sum.inr a) (Sum.inr b) = true →
         b = a + 1 ∨ a = b + 1 := by
@@ -310,7 +310,7 @@ theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := b
       rcases hrim a b hab with h | h
       · refine Or.inl ⟨h, ?_⟩
         show (if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0) = a + 2
-        rw [if_pos h]
+        rw [ite_eq_left h]
       · refine Or.inr ⟨h.symm, ?_⟩
         show (if b = a + 1 then a + 2 else if a = b + 1 then b + 2 else 0) = a + 1
         by_cases h1 : b = a + 1
@@ -318,7 +318,7 @@ theorem edgeChromNum_wheel (n : ℕ) : (wheel (n + 4)).edgeChromNum = n + 4 := b
           calc a = b + 1 := h
             _ = a + 1 + 1 := by rw [h1]
             _ = a + 2 := by rw [add_assoc, h11]
-        · rw [if_neg h1, if_pos h, h, add_assoc, h11]
+        · rw [ite_eq_right h1, ite_eq_left h, h, add_assoc, h11]
     -- The hub is a single vertex, so it is adjacent to nothing on its own side.
     have hhub : ∀ x y : Fin 1, (CGraph.wheel (n + 4)).Adj (Sum.inl x) (Sum.inl y) = false := by
       intro x y

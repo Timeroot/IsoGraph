@@ -80,9 +80,9 @@ theorem unwind_abort {path : Array Nat} {st : St} (h : (unwind path st).abortTo.
   · rw [show unwind path st = st from by simp only [unwind, hst], hst] at h; simp at h
   · by_cases hj : path.size ≤ j
     · rw [show unwind path st = { st with abortTo := none } from by
-        simp only [unwind, hst, if_pos hj]] at h
+        simp only [unwind, hst, ite_eq_left hj]] at h
       simp at h
-    · exact ⟨by simp only [unwind, hst, if_neg hj], j, rfl, by omega⟩
+    · exact ⟨by simp only [unwind, hst, ite_eq_right hj], j, rfl, by omega⟩
 
 theorem unwind_none {path : Array Nat} {st : St} (h : (unwind path st).abortTo.isSome = false) :
     (unwind path st).abortTo = none := by
@@ -98,7 +98,7 @@ theorem unwind_stop {path : Array Nat} {st : St}
   · rfl
   · have hj : path.size ≤ j := by
       by_contra hlt
-      rw [show unwind path st = st from by simp only [unwind, hst, if_neg hlt], hst] at h
+      rw [show unwind path st = st from by simp only [unwind, hst, ite_eq_right hlt], hst] at h
       simp at h
     have := hb j hst
     simp only [stopDepth]

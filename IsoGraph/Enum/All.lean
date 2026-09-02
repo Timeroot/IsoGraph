@@ -93,25 +93,25 @@ def pairIdx (i j : ℕ) : ℕ := if i < j then j.choose 2 + i else i.choose 2 + 
 theorem pairIdx_comm (i j : ℕ) : pairIdx i j = pairIdx j i := by
   unfold pairIdx
   rcases lt_trichotomy i j with h | h | h
-  · rw [if_pos h, if_neg (by omega)]
+  · rw [ite_eq_left h, ite_eq_right (by omega)]
   · subst h; rfl
-  · rw [if_neg (by omega), if_pos h]
+  · rw [ite_eq_right (by omega), ite_eq_left h]
 
 theorem pairIdx_lt {i j n : ℕ} (hi : i < n) (hj : j < n) (hij : i ≠ j) :
     pairIdx i j < n.choose 2 := by
   rcases Nat.lt_or_ge i j with h | h
-  · rw [pairIdx, if_pos h]
+  · rw [pairIdx, ite_eq_left h]
     have h1 : (j + 1).choose 2 ≤ n.choose 2 := Nat.choose_le_choose 2 (by omega)
     rw [choose_two_succ] at h1; omega
   · have h' : j < i := by omega
-    rw [pairIdx, if_neg (by omega)]
+    rw [pairIdx, ite_eq_right (by omega)]
     have h1 : (i + 1).choose 2 ≤ n.choose 2 := Nat.choose_le_choose 2 (by omega)
     rw [choose_two_succ] at h1; omega
 
 theorem pairIdx_inj {i j i' j' : ℕ} (h : i < j) (h' : i' < j')
     (e : pairIdx i j = pairIdx i' j') : i = i' ∧ j = j' := by
-  rw [pairIdx, if_pos h] at e
-  rw [pairIdx, if_pos h'] at e
+  rw [pairIdx, ite_eq_left h] at e
+  rw [pairIdx, ite_eq_left h'] at e
   have hj : j = j' := by
     by_contra hne
     rcases Nat.lt_or_ge j j' with hlt | hge
@@ -250,10 +250,10 @@ theorem colMul_eq (adj : ℕ → ℕ → Bool) (j : ℕ) :
   | i + 1, acc => by
     rw [colMul, colMul_eq adj j i, colBits]
     by_cases hb : adj i j
-    · rw [if_pos hb, if_pos hb, Nat.shiftLeft_eq, one_mul,
+    · rw [ite_eq_left hb, ite_eq_left hb, Nat.shiftLeft_eq, one_mul,
         Nat.or_two_pow_eq_add_of_lt (colBits_lt adj j i)]
       ring
-    · rw [if_neg hb, if_neg hb, Nat.or_zero]
+    · rw [ite_eq_right hb, ite_eq_right hb, Nat.or_zero]
       ring
 
 @[inherit_doc colMul]
@@ -288,7 +288,7 @@ theorem foldl_range_colBits (adj : ℕ → ℕ → Bool) (n : ℕ) :
     simp only [List.foldl_cons, List.foldl_nil, colBits, shiftLeft_or]
     have hp : pairIdx k n = n.choose 2 + k := by simp [pairIdx, hkn]
     by_cases h : adj k n
-    · simp only [h, if_true, hp, Nat.or_assoc, Nat.shiftLeft_eq]
+    · simp only [h, ite_true, hp, Nat.or_assoc, Nat.shiftLeft_eq]
       rw [one_mul, ← pow_add, Nat.add_comm k]
     · simp [h]
 
@@ -390,12 +390,12 @@ theorem uint64_test_bit (x : UInt64) {k : ℕ} (hk : k < 64) :
   rw [bne_iff_ne, ne_eq, UInt64.eq_iff_toBitVec_eq, UInt64.toBitVec_and,
     toBitVec_one_shiftLeft hk, UInt64.toBitVec_zero, BitVec.and_twoPow]
   by_cases hb : x.toBitVec.getLsbD k
-  · rw [if_pos hb, hb]
+  · rw [ite_eq_left hb, hb]
     simp only [iff_true]
     intro h
     have := congrArg (fun z : BitVec 64 ↦ z.getLsbD k) h
     simp [hk] at this
-  · rw [if_neg hb]
+  · rw [ite_eq_right hb]
     simpa using hb
 
 /-- Column `j` of a certificate of row width `w`, prepended to `acc` most significant bit first:
@@ -846,7 +846,7 @@ theorem adj_extendCode_last {n c s : ℕ} (hc : c < 2 ^ n.choose 2) {i : Fin (n 
   rw [graphOfCode_adj]
   have hne : i ≠ Fin.last n := fun h ↦ by rw [h] at hi; simp at hi
   have hp : pairIdx i.1 (Fin.last n).1 = n.choose 2 + i.1 := by
-    rw [Fin.val_last, pairIdx, if_pos hi]
+    rw [Fin.val_last, pairIdx, ite_eq_left hi]
   rw [decide_eq_true hne, Bool.true_and, hp, testBit_extendCode_high hc]
 
 /-! ## Extending a permutation by a fixed last vertex -/
@@ -967,7 +967,7 @@ theorem lastMask_lt (n : ℕ) (adj : Fin (n + 1) → Fin (n + 1) → Bool) : las
 theorem testBit_lastMask {n : ℕ} {adj : Fin (n + 1) → Fin (n + 1) → Bool} {k : ℕ} (hk : k < n) :
     (lastMask n adj).testBit k
       = adj ((canonPerm n (restrict adj)) ⟨k, hk⟩).castSucc (Fin.last n) := by
-  rw [lastMask, testBit_rowMask _ hk, dif_pos hk]
+  rw [lastMask, testBit_rowMask _ hk, dite_eq_left hk]
 
 /-- **The key step**, as an explicit isomorphism: relabelling by `permLast (canonPerm …)` carries
 `adj` to the graph built by canonicalising the first `n` vertices and putting the last vertex's
@@ -1094,7 +1094,7 @@ theorem permMask_lt (n : ℕ) (σ : Equiv.Perm (Fin n)) (s : ℕ) : permMask n �
 
 theorem testBit_permMask {n : ℕ} (σ : Equiv.Perm (Fin n)) (s : ℕ) {k : ℕ} (hk : k < n) :
     (permMask n σ s).testBit k = s.testBit (σ ⟨k, hk⟩).1 := by
-  rw [permMask, testBit_rowMask _ hk, dif_pos hk]
+  rw [permMask, testBit_rowMask _ hk, dite_eq_left hk]
 
 theorem permMask_one {n s : ℕ} (hs : s < 2 ^ n) : permMask n 1 s = s :=
   eq_of_testBit_lt (permMask_lt _ _ _) hs fun _ hk ↦ by rw [testBit_permMask _ _ hk]; rfl
@@ -1376,7 +1376,7 @@ theorem minDegOk_lastMask {n : ℕ} (A : Fin (n + 1) → Fin (n + 1) → Bool)
     fun u ↦ testBit_lastMask u.2
   -- the new vertex's degree is the degree of the vertex deleted
   have hcard : maskCard n s = deg A (Fin.last n) := by
-    rw [deg_castSucc_split, if_neg (by simp [hl]), Nat.add_zero, maskCard]
+    rw [deg_castSucc_split, ite_eq_right (by simp [hl]), Nat.add_zero, maskCard]
     refine (Fintype.sum_equiv σ _ _ fun i ↦ ?_).trans rfl
     rw [hbit i, hs]
   -- and the old vertices keep theirs
@@ -1562,14 +1562,14 @@ private theorem degE_castSucc (hc : c < 2 ^ n.choose 2) (i : Fin n) :
 
 private theorem degE_last (hc : c < 2 ^ n.choose 2) :
     deg (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n) = maskCard n s := by
-  rw [deg_castSucc_split, if_neg (by simp), Nat.add_zero, maskCard]
+  rw [deg_castSucc_split, ite_eq_right (by simp), Nat.add_zero, maskCard]
   exact Finset.sum_congr rfl fun j _ ↦ by
     rw [(graphOfCode (n + 1) (extendCode n c s)).symm, adjE_last hc]
 
 private theorem nbrDegE_last (hc : c < 2 ^ n.choose 2) :
     nbrDeg (graphOfCode (n + 1) (extendCode n c s)).Adj (Fin.last n)
       = ∑ i : Fin n, if s.testBit i.1 then extDeg n c s i else 0 := by
-  rw [nbrDeg, Fin.sum_univ_castSucc, if_neg (by simp), Nat.add_zero]
+  rw [nbrDeg, Fin.sum_univ_castSucc, ite_eq_right (by simp), Nat.add_zero]
   exact Finset.sum_congr rfl fun j _ ↦ by
     rw [(graphOfCode (n + 1) (extendCode n c s)).symm, adjE_last hc, degE_castSucc hc]
 

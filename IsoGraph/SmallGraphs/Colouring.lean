@@ -299,7 +299,7 @@ private theorem colorable_of_colorable_mycielskian (G : CGraph) {n : ℕ}
         intro a b hab hcc
         rw [CGraph.toSimple_adj] at hab
         by_cases ha : f (some (.inl a)) = z <;> by_cases hb : f (some (.inl b)) = z <;>
-          simp only [ha, hb, dif_pos, dif_neg, not_false_iff, Subtype.mk.injEq] at hcc
+          simp only [ha, hb, dite_eq_left, dite_eq_right, not_false_iff, Subtype.mk.injEq] at hcc
         · exact hll a b hab (ha.trans hb.symm)
         · exact hrl a b hab hcc
         · exact hlr a b hab hcc

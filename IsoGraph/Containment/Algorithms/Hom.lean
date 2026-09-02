@@ -464,9 +464,9 @@ private theorem testBit_allow_foldl {gs : List G.V} (hgs : ∀ v, v ∈ gs) (vs 
     rw [List.map_cons, List.foldl_cons, ih]
     simp only [autAllows, List.all_cons]
     cases hf : autFixes G γ vs
-    · simp only [hact, hf, Bool.false_eq_true, if_neg, Bool.not_false, Bool.true_or,
+    · simp only [hact, hf, Bool.false_eq_true, ite_eq_right, Bool.not_false, Bool.true_or,
         Bool.true_and, not_false_iff]
-    · simp only [hact, hf, if_pos, Nat.testBit_and, hok, Bool.not_true, Bool.false_or,
+    · simp only [hact, hf, ite_eq_left, Nat.testBit_and, hok, Bool.not_true, Bool.false_or,
         Bool.and_assoc]
 
 @[csimp] theorem homCandSym_eq_homCandSymFast : @homCandSym = @homCandSymFast := by

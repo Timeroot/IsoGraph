@@ -42,7 +42,7 @@ theorem foldl_or_lt {α : Type} (f : α → ℕ) (p : α → Bool) (m : ℕ) (l 
       simp only [List.foldl_cons]
       refine ih (fun b hb ↦ hf b (List.mem_cons_of_mem _ hb)) _ ?_
       by_cases hp : p a
-      · simp only [hp, if_true]
+      · simp only [hp, ite_true]
         exact Nat.or_lt_two_pow hc
           (Nat.pow_lt_pow_right Nat.one_lt_two (hf a List.mem_cons_self))
       · simpa [hp] using hc

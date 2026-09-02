@@ -369,12 +369,12 @@ def colourTwist (G : CGraph) (c : G.V → Bool) : (Fin 2 × G.V) ≃ (Fin 2 × G
     have h := p.1.isLt
     refine Prod.ext (Fin.ext ?_) rfl
     simp only
-    rcases c p.2 <;> simp only [if_true, if_false, Bool.false_eq_true] <;> omega
+    rcases c p.2 <;> simp only [ite_true, ite_false, Bool.false_eq_true] <;> omega
   right_inv p := by
     have h := p.1.isLt
     refine Prod.ext (Fin.ext ?_) rfl
     simp only
-    rcases c p.2 <;> simp only [if_true, if_false, Bool.false_eq_true] <;> omega
+    rcases c p.2 <;> simp only [ite_true, ite_false, Bool.false_eq_true] <;> omega
 
 /-- **A double cover splits whenever the graph is 2-coloured.**  If `c` is a proper 2-colouring of
 `G` — that is, if `G` is bipartite — then twisting the `K₂` coordinate by the colour carries the
@@ -408,7 +408,7 @@ def tensorTwoOfColouring (G : CGraph) (c : G.V → Bool)
         congr 1
         simp only [eq_iff_iff, ne_eq]
         rcases hcx : c x <;> rcases hcy : c y <;>
-          simp only [if_true, if_false, Bool.false_eq_true] <;>
+          simp only [ite_true, ite_false, Bool.false_eq_true] <;>
           first
             | omega
             | exact absurd (hcx.trans hcy.symm) hne)
@@ -889,18 +889,18 @@ def foldAt (a N : ℕ) (h : a < N) : Equiv.Perm (Fin N) where
     show (if (if p.1 ≤ a then a - p.1 else p.1) ≤ a then a - (if p.1 ≤ a then a - p.1 else p.1)
       else (if p.1 ≤ a then a - p.1 else p.1)) = p.1
     by_cases h1 : p.1 ≤ a
-    · rw [if_pos h1, if_pos (by omega : a - p.1 ≤ a)]
+    · rw [ite_eq_left h1, ite_eq_left (by omega : a - p.1 ≤ a)]
       omega
-    · rw [if_neg h1, if_neg h1]
+    · rw [ite_eq_right h1, ite_eq_right h1]
   right_inv p := by
     have hp := p.isLt
     refine Fin.ext ?_
     show (if (if p.1 ≤ a then a - p.1 else p.1) ≤ a then a - (if p.1 ≤ a then a - p.1 else p.1)
       else (if p.1 ≤ a then a - p.1 else p.1)) = p.1
     by_cases h1 : p.1 ≤ a
-    · rw [if_pos h1, if_pos (by omega : a - p.1 ≤ a)]
+    · rw [ite_eq_left h1, ite_eq_left (by omega : a - p.1 ≤ a)]
       omega
-    · rw [if_neg h1, if_neg h1]
+    · rw [ite_eq_right h1, ite_eq_right h1]
 
 @[simp] theorem foldAt_apply (a N : ℕ) (h : a < N) (p : Fin N) :
     (foldAt a N h p).1 = if p.1 ≤ a then a - p.1 else p.1 := rfl
@@ -920,7 +920,7 @@ theorem foldAt_pair_iff (a b p q : ℕ) (hp : p < 1 + a + b) (hq : q < 1 + a + b
   constructor
   · rintro ⟨hne, h⟩
     by_cases h1 : p ≤ a <;> by_cases h2 : q ≤ a
-    · rw [if_pos h1, if_pos h2] at hne h
+    · rw [ite_eq_left h1, ite_eq_left h2] at hne h
       rcases h with h | h
       · -- `q + 1 = p`, an edge of the first leg traversed towards the centre
         by_cases hq0 : q = 0
@@ -929,12 +929,12 @@ theorem foldAt_pair_iff (a b p q : ℕ) (hp : p < 1 + a + b) (hq : q < 1 + a + b
       · by_cases hp0 : p = 0
         · exact ⟨by omega, Or.inl (Or.inl (Or.inl ⟨by omega, by omega, by omega⟩))⟩
         · exact ⟨by omega, Or.inl (Or.inl (Or.inr ⟨by omega, by omega, by omega⟩))⟩
-    · rw [if_pos h1, if_neg h2] at hne h
+    · rw [ite_eq_left h1, ite_eq_right h2] at hne h
       -- only `a - p + 1 = q` is possible, forcing `p = 0` and `q = 1 + a`
       exact ⟨by omega, Or.inl (Or.inr (Or.inl ⟨by omega, by omega, by omega⟩))⟩
-    · rw [if_neg h1, if_pos h2] at hne h
+    · rw [ite_eq_right h1, ite_eq_left h2] at hne h
       exact ⟨by omega, Or.inr (Or.inr (Or.inl ⟨by omega, by omega, by omega⟩))⟩
-    · rw [if_neg h1, if_neg h2] at hne h
+    · rw [ite_eq_right h1, ite_eq_right h2] at hne h
       rcases h with h | h
       · exact ⟨by omega, Or.inl (Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
       · exact ⟨by omega, Or.inr (Or.inr (Or.inr ⟨by omega, by omega, by omega⟩))⟩
@@ -1375,7 +1375,7 @@ def pendantOwner (m : ℕ) : ℕ → ℕ → List ℕ → ℕ → ℕ
 theorem pendantOwner_of_lt : ∀ (m v off : ℕ) (ks : List ℕ) (x : ℕ), x < m →
     pendantOwner m v off ks x = x
   | _, _, _, [], _, _ => rfl
-  | m, v, off, _ :: _, x, h => by rw [pendantOwner, if_pos h]
+  | m, v, off, _ :: _, x, h => by rw [pendantOwner, ite_eq_left h]
 
 /-- Every pendant edge runs from one of the cycle vertices `v, …, v + ks.length - 1` to a fresh
 vertex in `[off, off + ks.sum)`. -/
@@ -1471,14 +1471,15 @@ theorem pendantOwner_parity (m : ℕ) : ∀ (v off : ℕ) (ks : List ℕ) (p q :
       rcases h with h | h
       · simp only [List.mem_map, List.mem_range, Prod.mk.injEq] at h
         obtain ⟨i, hi, rfl, rfl⟩ := h
-        rw [pendantOwner, if_pos (by simp only [List.length_cons] at hv; omega), pendantOwner,
-          if_neg (by omega), if_pos (by omega)]
+        rw [pendantOwner, ite_eq_left (by simp only [List.length_cons] at hv; omega), pendantOwner,
+          ite_eq_right (by omega), ite_eq_left (by omega)]
         omega
       · have hb := mem_pendantEdges_bound (v + 1) (off + k) ks p q h
         simp only [List.length_cons] at hv
         have hrec := pendantOwner_parity m (v + 1) (off + k) ks p q (by omega) (by omega) h
         rw [pendantOwner_of_lt m (v + 1) (off + k) ks p (by omega)] at hrec
-        rwa [pendantOwner, if_pos (by omega), pendantOwner, if_neg (by omega), if_neg (by omega)]
+        rwa [pendantOwner, ite_eq_left (by omega), pendantOwner, ite_eq_right (by omega),
+          ite_eq_right (by omega)]
 
 /-! ### Parity in the folded cube -/
 
@@ -2064,8 +2065,8 @@ theorem ladderCol_symm (N : ℕ) (p q : Fin N × Fin 2) : ladderCol N p q = ladd
   unfold ladderCol
   rw [Nat.min_comm]
   by_cases h : p.1 = q.1
-  · rw [if_pos h, if_pos h.symm]
-  · rw [if_neg h, if_neg (Ne.symm h)]
+  · rw [ite_eq_left h, ite_eq_left h.symm]
+  · rw [ite_eq_right h, ite_eq_right (Ne.symm h)]
 
 /-! ### An `n`-edge-colouring of the crown
 
@@ -2119,14 +2120,14 @@ def crownCol (n : ℕ) (p q : Fin (n + 2) × Fin 2) : Fin (n + 1) :=
 theorem crownCol_symm (n : ℕ) (p q : Fin (n + 2) × Fin 2) : crownCol n p q = crownCol n q p := by
   unfold crownCol
   by_cases h : p.2 = q.2
-  · rw [if_pos h, if_pos h.symm]
-  · rw [if_neg h, if_neg (Ne.symm h)]
+  · rw [ite_eq_left h, ite_eq_left h.symm]
+  · rw [ite_eq_right h, ite_eq_right (Ne.symm h)]
     have hp := p.2.isLt
     have hq := q.2.isLt
     have h' : (p.2 : ℕ) ≠ (q.2 : ℕ) := fun hh ↦ h (Fin.ext hh)
     by_cases h0 : (p.2 : ℕ) = 0
-    · rw [if_pos h0, if_neg (by omega)]
-    · rw [if_neg h0, if_pos (by omega)]
+    · rw [ite_eq_left h0, ite_eq_right (by omega)]
+    · rw [ite_eq_right h0, ite_eq_left (by omega)]
 
 /-! ### A three-edge-colouring of the prism
 
@@ -2148,14 +2149,14 @@ theorem prismCol_symm (N : ℕ) (p q : Fin N × Fin 2) : prismCol N p q = prismC
   unfold prismCol
   rw [Nat.min_comm p.1.1 q.1.1]
   by_cases h : p.1.1 = q.1.1
-  · rw [if_pos h, if_pos h.symm, h]
-  · rw [if_neg h, if_neg (Ne.symm h)]
+  · rw [ite_eq_left h, ite_eq_left h.symm, h]
+  · rw [ite_eq_right h, ite_eq_right (Ne.symm h)]
     by_cases h2 : (p.1.1 = 0 ∧ q.1.1 + 1 = N) ∨ (q.1.1 = 0 ∧ p.1.1 + 1 = N)
     · have h2' : (q.1.1 = 0 ∧ p.1.1 + 1 = N) ∨ (p.1.1 = 0 ∧ q.1.1 + 1 = N) := h2.symm
-      rw [if_pos h2, if_pos h2']
+      rw [ite_eq_left h2, ite_eq_left h2']
     · have h2' : ¬((q.1.1 = 0 ∧ p.1.1 + 1 = N) ∨ (p.1.1 = 0 ∧ q.1.1 + 1 = N)) :=
         fun hh ↦ h2 hh.symm
-      rw [if_neg h2, if_neg h2']
+      rw [ite_eq_right h2, ite_eq_right h2']
 
 /-! ### The double star and the Grötzsch graph
 
@@ -2261,12 +2262,12 @@ theorem cpVal_eq_zero_iff (n i j : ℕ) (hi : i < n + 2) : cpVal n i j = 0 ↔ i
 theorem cpRaw_comm (n i j i' j' : ℕ) : cpRaw n i j i' j' = cpRaw n i' j' i j := by
   unfold cpRaw
   by_cases h : i = 0 ∧ j = 0 <;> by_cases h' : i' = 0 ∧ j' = 0
-  · rw [if_pos h, if_pos h']
-    rw [show cpVal n i' j' = 0 from by unfold cpVal cpCode; rw [if_pos h'.1]; simp,
-      show cpVal n i j = 0 from by unfold cpVal cpCode; rw [if_pos h.1]; simp]
-  · rw [if_pos h, if_neg h', if_pos h]
-  · rw [if_neg h, if_pos h', if_pos h']
-  · rw [if_neg h, if_neg h', if_neg h', if_neg h]
+  · rw [ite_eq_left h, ite_eq_left h']
+    rw [show cpVal n i' j' = 0 from by unfold cpVal cpCode; rw [ite_eq_left h'.1]; simp,
+      show cpVal n i j = 0 from by unfold cpVal cpCode; rw [ite_eq_left h.1]; simp]
+  · rw [ite_eq_left h, ite_eq_right h', ite_eq_left h]
+  · rw [ite_eq_right h, ite_eq_left h', ite_eq_left h']
+  · rw [ite_eq_right h, ite_eq_right h', ite_eq_right h', ite_eq_right h]
     exact add_comm _ _
 
 /-- The colour of an edge is never `0`: colour `0` is exactly the deleted perfect matching. -/

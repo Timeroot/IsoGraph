@@ -1169,7 +1169,7 @@ theorem isFracCliqueCover_singletons :
   refine ⟨fun K ↦ by dsimp only; split_ifs <;> norm_num, fun K hK ↦ ?_, fun v ↦ ?_⟩
   · have h1 : K.card = 1 := by
       by_contra h
-      simp only [h, if_false] at hK
+      simp only [h, ite_false] at hK
       exact hK rfl
     obtain ⟨u, rfl⟩ := Finset.card_eq_one.1 h1
     exact isCliqueOn_singleton u
@@ -1300,10 +1300,10 @@ theorem fracCliqueCoverNum_le_card_div_cliqueNum (G : CGraph) (hvt : G.IsVertexT
       (fun σ _ ↦ by simp)]
     refine Finset.sum_congr rfl fun K _ ↦ ?_
     by_cases hp : p K
-    · rw [if_pos hp, Finset.filter_filter]
+    · rw [ite_eq_left hp, Finset.filter_filter]
       congr 1
       exact (Finset.filter_congr fun σ _ ↦ ⟨fun h ↦ h.2, fun h ↦ ⟨h ▸ hp, h⟩⟩).symm
-    · rw [if_neg hp, Finset.filter_filter, eq_comm, Finset.card_eq_zero,
+    · rw [ite_eq_right hp, Finset.filter_filter, eq_comm, Finset.card_eq_zero,
         Finset.filter_eq_empty_iff]
       rintro σ _ ⟨h1, h2⟩
       exact hp (h2 ▸ h1)

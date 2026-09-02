@@ -1870,9 +1870,9 @@ theorem edgeChromNum_complete (n : ℕ) :
     (complete (n + 2)).edgeChromNum = if n % 2 = 0 then n + 1 else n + 2 := by
   obtain ⟨m, hm | hm⟩ := Nat.even_or_odd' n
   · subst hm
-    rw [if_pos (by omega), edgeChromNum_complete_even]
+    rw [ite_eq_left (by omega), edgeChromNum_complete_even]
   · subst hm
-    rw [if_neg (by omega), show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd]
+    rw [ite_eq_right (by omega), show 2 * m + 1 + 2 = 2 * m + 3 by ring, edgeChromNum_complete_odd]
 
 /-! ### The disjoint union of a path and a complete graph -/
 

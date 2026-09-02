@@ -340,7 +340,7 @@ theorem ownsB_eq_true_iff (f : H.TopMinorOf G) (rank : H.V → ℕ) (u : G.V) (x
       simp only [Bool.and_eq_true, decide_eq_true_iff] at hy
       exact ⟨y, hadj, hy.1.1, hy.1.2, hy.2⟩
     · simp at hy
-  · rw [edgeOwns, dif_pos h]
+  · rw [edgeOwns, dite_eq_left h]
     simp only [Bool.and_eq_true, decide_eq_true_iff]
     exact ⟨⟨h1, h2⟩, h3⟩
 

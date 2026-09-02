@@ -375,7 +375,7 @@ def countFromFast (G : Graph) (lab : Array Nat) (e : Nat) (fuel k : Nat)
 theorem countAllFrom_done (G : Graph) (lab : Array Nat) (e k : Nat) (nbrs : Array Nat) (j : Nat)
     (cnt touched : Array Nat) (h : ¬ j < nbrs.size) :
     countAllFrom G lab e 0 k nbrs j cnt touched = (cnt, touched) := by
-  rw [countAllFrom.eq_def G lab e 0 k nbrs j cnt touched, dif_neg h]
+  rw [countAllFrom.eq_def G lab e 0 k nbrs j cnt touched, dite_eq_right h]
 
 /-- At a vertex boundary the loop moves on to `lab[k]`. -/
 theorem countAllFrom_next (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs : Array Nat) (j : Nat)
@@ -383,7 +383,7 @@ theorem countAllFrom_next (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs : A
     countAllFrom G lab e (kf + 1) k nbrs j cnt touched =
       if k ≥ e then (cnt, touched)
       else countAllFrom G lab e kf (k + 1) G.nbr[lab[k]!]! 0 cnt touched := by
-  rw [countAllFrom.eq_def G lab e (kf + 1) k nbrs j cnt touched, dif_neg h]
+  rw [countAllFrom.eq_def G lab e (kf + 1) k nbrs j cnt touched, dite_eq_right h]
 
 /-- Nor does anything else at a vertex boundary: the scan position is dead there. -/
 theorem countAllFrom_boundary (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs nbrs' : Array Nat)
@@ -391,7 +391,7 @@ theorem countAllFrom_boundary (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs
     countAllFrom G lab e kf k nbrs j cnt touched
       = countAllFrom G lab e kf k nbrs' j' cnt touched := by
   rw [countAllFrom.eq_def G lab e kf k nbrs j cnt touched,
-    countAllFrom.eq_def G lab e kf k nbrs' j' cnt touched, dif_neg h, dif_neg h']
+    countAllFrom.eq_def G lab e kf k nbrs' j' cnt touched, dite_eq_right h, dite_eq_right h']
 
 /-- The inner scan runs to the end of `nbrs` and lands on the boundary, having done exactly what
 `bumpFrom` does. -/
@@ -409,8 +409,8 @@ theorem countAllFrom_bump (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs : A
   | succ f ih =>
     intro j cnt touched hj
     have hlt : j < nbrs.size := by omega
-    rw [countAllFrom.eq_def G lab e kf k nbrs j cnt touched, dif_pos hlt, bumpFrom,
-      if_neg (by omega)]
+    rw [countAllFrom.eq_def G lab e kf k nbrs j cnt touched, dite_eq_left hlt, bumpFrom,
+      ite_eq_right (by omega)]
     exact ih (j + 1) _ _ (by omega)
 
 @[csimp] theorem countFrom_eq_countFromFast : @countFrom = @countFromFast := by
@@ -421,8 +421,8 @@ theorem countAllFrom_bump (G : Graph) (lab : Array Nat) (e kf k : Nat) (nbrs : A
     rw [countFromFast, countAllFrom_next _ _ _ _ _ _ _ _ _ (by simp)]
     simp only [countFrom]
     by_cases hk : k ≥ e
-    · rw [if_pos hk, if_pos hk]
-    · rw [if_neg hk, if_neg hk,
+    · rw [ite_eq_left hk, ite_eq_left hk]
+    · rw [ite_eq_right hk, ite_eq_right hk,
         countAllFrom_bump G lab e f (k + 1) _ G.nbr[lab[k]!]!.size 0 cnt touched (by omega)]
       cases bumpFrom G.nbr[lab[k]!]! G.nbr[lab[k]!]!.size 0 cnt touched with
       | mk c t =>
@@ -465,7 +465,7 @@ theorem sortNatList_three (x y z : Nat) :
       (if x ≤ y then (if y ≤ z then [x, y, z] else if x ≤ z then [x, z, y] else [z, x, y])
         else (if x ≤ z then [y, x, z] else if y ≤ z then [y, z, x] else [z, y, x])) := by
   by_cases h1 : x ≤ y <;> by_cases h2 : y ≤ z <;> by_cases h3 : x ≤ z <;>
-    simp only [sortNatList, insertNat, h1, h2, h3, if_true, if_false] <;>
+    simp only [sortNatList, insertNat, h1, h2, h3, ite_true, ite_false] <;>
     first | rfl | (exfalso; omega)
 
 /-! Above eight entries the sort is a comparison sort no longer by necessity but by habit: what
@@ -507,7 +507,8 @@ private theorem getElem!_set!_nat {a : Array Nat} {i x : Nat} (hi : i < a.size) 
   by_cases hk : k < a.size
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
     simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk, eq_comm (a := i)]
-  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk, if_neg (by omega)]
+  · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk,
+      ite_eq_right (by omega)]
 
 theorem toList_pushCopies (v k : Nat) (out : Array Nat) :
     (pushCopies v k out).toList = out.toList ++ List.replicate k v := by
@@ -552,26 +553,26 @@ theorem count_emitFrom (cnt : Array Nat) (fuel : Nat) :
   induction fuel with
   | zero =>
     intro i hi out w
-    rw [emitFrom, if_neg (by omega)]
+    rw [emitFrom, ite_eq_right (by omega)]
     omega
   | succ fuel ih =>
     intro i hi out w
     rw [emitFrom]
     split
     · rename_i h
-      rw [if_neg (by omega)]
+      rw [ite_eq_right (by omega)]
       omega
     · rename_i h
       rw [ih (i + 1) (by omega), count_pushCopies]
       by_cases hiw : i = w
       · subst hiw
-        rw [if_pos rfl, if_neg (by omega), if_pos ⟨Nat.le_refl i, by omega⟩]
+        rw [ite_eq_left rfl, ite_eq_right (by omega), ite_eq_left ⟨Nat.le_refl i, by omega⟩]
         omega
-      · rw [if_neg hiw]
+      · rw [ite_eq_right hiw]
         by_cases hlt : i ≤ w ∧ w < cnt.size
-        · rw [if_pos hlt, if_pos ⟨by omega, hlt.2⟩]
+        · rw [ite_eq_left hlt, ite_eq_left ⟨by omega, hlt.2⟩]
           omega
-        · rw [if_neg hlt, if_neg (by omega)]
+        · rw [ite_eq_right hlt, ite_eq_right (by omega)]
 
 theorem size_tally (m : Nat) (a : Array Nat) : (tally m a).size = m + 1 := by
   have h : ∀ (l : List Nat) (c : Array Nat),
@@ -599,9 +600,9 @@ theorem getElem!_tally (m : Nat) (a : Array Nat) (hm : ∀ x ∈ a.toList, x ≤
         List.count_cons]
       by_cases hxw : x = w
       · subst hxw
-        rw [if_pos rfl, if_pos (by simp)]
+        rw [ite_eq_left rfl, ite_eq_left (by simp)]
         omega
-      · rw [if_neg (fun h ↦ hxw h.symm), if_neg (by simpa using hxw)]
+      · rw [ite_eq_right (fun h ↦ hxw h.symm), ite_eq_right (by simpa using hxw)]
         omega
   rw [tally, ← Array.foldl_toList, key a.toList hm _ (by simp),
     getElem!_pos _ _ (by simp; omega)]
@@ -612,8 +613,8 @@ theorem count_countSort (m : Nat) (a : Array Nat) (hm : ∀ x ∈ a.toList, x �
   rw [countSort, count_emitFrom _ _ 0 (by rw [size_tally]; omega)]
   simp only [List.count_nil, Nat.zero_add, Nat.zero_le, true_and, size_tally]
   by_cases hw : w < m + 1
-  · rw [if_pos hw, getElem!_tally m a hm w (by omega)]
-  · rw [if_neg hw, List.count_eq_zero.2 (fun h ↦ absurd (hm w h) (by omega))]
+  · rw [ite_eq_left hw, getElem!_tally m a hm w (by omega)]
+  · rw [ite_eq_right hw, List.count_eq_zero.2 (fun h ↦ absurd (hm w h) (by omega))]
 
 theorem le_foldl_max : ∀ (l : List Nat) (acc : Nat), acc ≤ l.foldl (fun x y ↦ max x y) acc
   | [], acc => Nat.le_refl acc
@@ -705,7 +706,7 @@ theorem mem_insertNat {x z : Nat} : ∀ {l : List Nat}, z ∈ insertNat x l ↔ 
   | y :: ys => by
     by_cases h : x ≤ y
     · simp [insertNat, h]
-    · simp only [insertNat, h, if_false, List.mem_cons, mem_insertNat (l := ys)]
+    · simp only [insertNat, h, ite_false, List.mem_cons, mem_insertNat (l := ys)]
       exact or_lcomm
 
 theorem pairwise_insertNat (x : Nat) : ∀ {l : List Nat}, l.Pairwise (· ≤ ·) →
@@ -714,13 +715,13 @@ theorem pairwise_insertNat (x : Nat) : ∀ {l : List Nat}, l.Pairwise (· ≤ ·
   | y :: ys, h => by
     obtain ⟨hy, hys⟩ := List.pairwise_cons.1 h
     by_cases hxy : x ≤ y
-    · rw [insertNat, if_pos hxy]
+    · rw [insertNat, ite_eq_left hxy]
       refine List.pairwise_cons.2 ⟨?_, h⟩
       intro z hz
       rcases List.mem_cons.1 hz with rfl | hz
       · exact hxy
       · exact Nat.le_trans hxy (hy z hz)
-    · rw [insertNat, if_neg hxy]
+    · rw [insertNat, ite_eq_right hxy]
       refine List.pairwise_cons.2 ⟨?_, pairwise_insertNat x hys⟩
       intro z hz
       rcases mem_insertNat.1 hz with rfl | hz
@@ -740,10 +741,10 @@ theorem insertNat_split (x : Nat) : ∀ (pre suf : List Nat), (∀ z ∈ pre, ¬
     | nil => rfl
     | cons y ys =>
       show insertNat x (y :: ys) = x :: y :: ys
-      rw [insertNat, if_pos (hs y (by simp))]
+      rw [insertNat, ite_eq_left (hs y (by simp))]
   | p :: ps, suf, hp, hs => by
     show insertNat x (p :: (ps ++ suf)) = p :: (ps ++ x :: suf)
-    rw [insertNat, if_neg (hp p (by simp)),
+    rw [insertNat, ite_eq_right (hp p (by simp)),
       insertNat_split x ps suf (fun z hz ↦ hp z (List.mem_cons_of_mem p hz)) hs]
 
 private theorem set_append_len (p : List Nat) (y v : Nat) (s : List Nat) :
@@ -787,7 +788,7 @@ theorem toList_bubbleDown (x : Nat) (rpre : List Nat) :
     cases fuel with
     | zero => exact absurd hf (by omega)
     | succ fuel =>
-      rw [bubbleDown, if_pos (show ([] : List Nat).length = 0 from rfl), toList_set!_nat, ha]
+      rw [bubbleDown, ite_eq_left (show ([] : List Nat).length = 0 from rfl), toList_set!_nat, ha]
       simpa using (insertNat_split x [] suf (by simp) hs).symm
   | cons v rs ih =>
     intro fuel j suf y a hj hf hp hs ha
@@ -804,14 +805,14 @@ theorem toList_bubbleDown (x : Nat) (rpre : List Nat) :
     cases fuel with
     | zero => exact absurd hf (by omega)
     | succ fuel =>
-      rw [bubbleDown, if_neg (by simp), hva]
+      rw [bubbleDown, ite_eq_right (by simp), hva]
       by_cases hvx : v < x
-      · rw [if_pos hvx, toList_set!_nat, ha, set_len_reverse]
+      · rw [ite_eq_left hvx, toList_set!_nat, ha, set_len_reverse]
         refine (insertNat_split x ((v :: rs).reverse) suf ?_ hs).symm
         intro z hz
         have := hmax z (List.mem_reverse.1 hz)
         omega
-      · rw [if_neg hvx]
+      · rw [ite_eq_right hvx]
         have hnext : (a.set! (v :: rs).length v).toList = rs.reverse ++ v :: (v :: suf) := by
           rw [toList_set!_nat, ha, set_len_reverse, hrev, List.append_assoc]
           rfl
@@ -850,7 +851,7 @@ theorem toList_insSortFrom (a : Array Nat) : ∀ (fuel i : Nat) (out : Array Nat
     match i with
     | 0 => simpa using hout
     | i + 1 =>
-      rw [if_neg (by omega), Nat.add_sub_cancel]
+      rw [ite_eq_right (by omega), Nat.add_sub_cancel]
       refine ih i _ (by omega) (by omega) ?_
       have hlt : i < a.toList.length := by
         have : i < a.size := by omega
@@ -894,7 +895,7 @@ def sortNatsFast (a : Array Nat) : Array Nat :=
   | [x] => rfl
   | [x, y] =>
     simp only [sortNats, sortNatsFast, Array.size, List.length_cons, List.length_nil,
-      Nat.reduceAdd, Nat.reduceLeDiff, if_false, beq_self_eq_true, if_true, sortNatList,
+      Nat.reduceAdd, Nat.reduceLeDiff, ite_false, beq_self_eq_true, ite_true, sortNatList,
       insertNat]
     split <;> simp_all <;> omega
   | [x, y, z] =>
@@ -902,13 +903,14 @@ def sortNatsFast (a : Array Nat) : Array Nat :=
     have e1 : (⟨[x, y, z]⟩ : Array Nat)[1]! = y := rfl
     have e2 : (⟨[x, y, z]⟩ : Array Nat)[2]! = z := rfl
     simp only [sortNats, sortNatsFast, Array.size, List.length_cons, List.length_nil,
-      Nat.reduceAdd, Nat.reduceLeDiff, if_false, Nat.reduceBEq, if_true, Bool.false_eq_true,
+      Nat.reduceAdd, Nat.reduceLeDiff, ite_false, Nat.reduceBEq, ite_true, Bool.false_eq_true,
       e0, e1, e2]
     rw [sortNatList_three]
     split <;> split <;> first | rfl | (split <;> rfl)
   | x :: y :: z :: w :: t =>
     simp only [sortNatsFast, Array.size, List.length_cons]
-    rw [if_neg (by omega), if_neg (by simp), if_neg (by simp), sortNatsLarge_eq, insSortArr_eq]
+    rw [ite_eq_right (by omega), ite_eq_right (by simp), ite_eq_right (by simp), sortNatsLarge_eq,
+      insSortArr_eq]
     rfl
 
 /-- Collect the distinct cell starts of the vertices in `touched[j:]`, using `hit` to deduplicate.
@@ -1182,13 +1184,14 @@ private theorem getElem!_set!_nat_ne {a : Array Nat} {i x k : Nat} (h : k ≠ i)
     (a.set! i x)[k]! = a[k]! := by
   by_cases hk : k < a.size
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
-    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk, if_neg (Ne.symm h)]
+    simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk,
+      ite_eq_right (Ne.symm h)]
   · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk]
 
 /-- Reading back what was just written. -/
 private theorem getElem!_set!_nat_self {a : Array Nat} {i x : Nat} (hi : i < a.size) :
     (a.set! i x)[i]! = x := by
-  rw [getElem!_set!_nat hi, if_pos rfl]
+  rw [getElem!_set!_nat hi, ite_eq_left rfl]
 
 /-- `getElem!_set!_nat` in the form `simp` leaves the goal in. -/
 private theorem getElem!_setIfInBounds_nat {a : Array Nat} {i x : Nat} (hi : i < a.size) (k : Nat) :
@@ -1208,7 +1211,7 @@ private theorem replicate_two {α : Type _} (x : α) : Array.replicate 2 x = #[x
 theorem sortNats_two (x y : Nat) : sortNats #[x, y] = if x ≤ y then #[x, y] else #[y, x] := by
   show (if (#[x, y] : Array Nat).size ≤ 8 then (sortNatList (#[x, y] : Array Nat).toList).toArray
       else _) = _
-  rw [if_pos (by simp)]
+  rw [ite_eq_left (by simp)]
   show (sortNatList [x, y]).toArray = _
   simp only [sortNatList, insertNat]
   split <;> simp
@@ -1221,9 +1224,9 @@ variable {slab spos scst scen cnt sbc : Array Nat} {sinW : Array Bool} {str : UI
 theorem bucketFrom_two_eq (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
     (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₀) (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0) :
     bucketFrom slab cnt (c + 2) 2 c sbc #[] = ((sbc.set! t₀ 1).set! t₀ 2, #[t₀]) := by
-  rw [bucketFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  rw [bucketFrom, ite_eq_right (by omega : ¬ c ≥ c + 2)]
   simp only [hv0, ht0, z0]
-  rw [bucketFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  rw [bucketFrom, ite_eq_right (by omega : ¬ c + 1 ≥ c + 2)]
   simp only [hv1, ht1, bucketFrom]
   simp [getElem!_setIfInBounds_nat h0]
 
@@ -1232,9 +1235,9 @@ theorem bucketFrom_two_ne (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
     (ht0 : cnt[v₀]! = t₀) (ht1 : cnt[v₁]! = t₁) (h0 : t₀ < sbc.size) (z0 : sbc[t₀]! = 0)
     (z1 : sbc[t₁]! = 0) (hne : t₁ ≠ t₀) :
     bucketFrom slab cnt (c + 2) 2 c sbc #[] = ((sbc.set! t₀ 1).set! t₁ 1, #[t₀, t₁]) := by
-  rw [bucketFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  rw [bucketFrom, ite_eq_right (by omega : ¬ c ≥ c + 2)]
   simp only [hv0, ht0, z0]
-  rw [bucketFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  rw [bucketFrom, ite_eq_right (by omega : ¬ c + 1 ≥ c + 2)]
   simp only [hv1, ht1, bucketFrom]
   simp [getElem!_setIfInBounds_nat h0, hne, z1]
 
@@ -1243,10 +1246,11 @@ theorem offsetFrom_two (ta tb : Nat) (bc : Array Nat) (hab : tb ≠ ta) (hta : t
     (ha : bc[ta]! = 1) (hb : bc[tb]! = 1) :
     offsetFrom #[ta, tb] 2 0 (Array.replicate 2 0) bc 0
       = (#[1, 1], (bc.set! ta 0).set! tb 1) := by
-  rw [replicate_two, offsetFrom, if_neg (by simp)]
+  rw [replicate_two, offsetFrom, ite_eq_right (by simp)]
   simp only [show (#[ta, tb] : Array Nat)[0]! = ta from rfl, ha]
-  rw [offsetFrom, if_neg (by simp)]
-  simp only [show (#[ta, tb] : Array Nat)[1]! = tb from rfl, getElem!_set!_nat hta, if_neg hab, hb,
+  rw [offsetFrom, ite_eq_right (by simp)]
+  simp only [show (#[ta, tb] : Array Nat)[1]! = tb from rfl, getElem!_set!_nat hta,
+    ite_eq_right hab, hb,
     offsetFrom]
   rfl
 
@@ -1257,9 +1261,9 @@ theorem scatterFrom_two {bc : Array Nat} {o₀ o₁ : Nat}
     scatterFrom slab cnt (c + 2) 2 c (Array.replicate 2 0) bc
       = (((Array.replicate 2 0).set! o₀ v₀).set! o₁ v₁,
           (bc.set! t₀ (o₀ + 1)).set! t₁ (o₁ + 1)) := by
-  rw [scatterFrom, if_neg (by omega : ¬ c ≥ c + 2)]
+  rw [scatterFrom, ite_eq_right (by omega : ¬ c ≥ c + 2)]
   simp only [hv0, ht0, h₀]
-  rw [scatterFrom, if_neg (by omega : ¬ c + 1 ≥ c + 2)]
+  rw [scatterFrom, ite_eq_right (by omega : ¬ c + 1 ≥ c + 2)]
   simp only [hv1, ht1, h₁]
   rw [scatterFrom]
 
@@ -1272,17 +1276,17 @@ theorem writeFrom_two (x y : Nat) (lab pos : Array Nat) (k : Nat) :
 /-- Phase (4a) on a singleton fragment. -/
 theorem fillBoundsFrom_one (st : Nat) (cst cen : Array Nat) :
     fillBoundsFrom st (st + 1) 1 st cst cen = (cst.set! st st, cen.set! st (st + 1)) := by
-  rw [fillBoundsFrom, if_neg (by omega), fillBoundsFrom]
+  rw [fillBoundsFrom, ite_eq_right (by omega), fillBoundsFrom]
 
 /-- Phase (4) on two singleton fragments. -/
 theorem boundsFrom_two (ta tb : Nat) (tr : UInt64) :
     boundsFrom #[ta, tb] #[1, 1] 2 0 scst scen #[] c tr
       = ((scst.set! c c).set! (c + 1) (c + 1), (scen.set! c (c + 1)).set! (c + 1) (c + 2),
           #[c, c + 1], mixN (mixN (mixN (mixN tr 1) ta) 1) tb) := by
-  rw [boundsFrom, if_neg (by simp)]
+  rw [boundsFrom, ite_eq_right (by simp)]
   simp only [show (#[1, 1] : Array Nat)[0]! = 1 from rfl,
     show (#[ta, tb] : Array Nat)[0]! = ta from rfl, fillBoundsFrom_one]
-  rw [boundsFrom, if_neg (by simp)]
+  rw [boundsFrom, ite_eq_right (by simp)]
   simp only [show (#[1, 1] : Array Nat)[1]! = 1 from rfl,
     show (#[ta, tb] : Array Nat)[1]! = tb from rfl, fillBoundsFrom_one]
   rw [boundsFrom]
@@ -1348,7 +1352,7 @@ theorem splitCellGen_two_aux
   rw [splitCellGen, show c + 2 - c = 2 from by omega,
     bucketFrom_two_ne hv0 hv1 ht0 ht1 h0 z0 z1 hne]
   simp only [show ((2 : Nat) == 1) = false from rfl, Bool.false_eq_true,
-    if_false, hsort, size_two, offsetFrom_two ta tb _ hab hta ha hb,
+    ite_false, hsort, size_two, offsetFrom_two ta tb _ hab hta ha hb,
     scatterFrom_two hv0 hv1 ht0 ht1 ho₀ ho₁, hblock, writeFrom_two, boundsFrom_two, maxIdxFrom_two,
     markAllFrom_two, markExceptFrom_two, clearBcFrom_two, hclear]
 
@@ -1367,7 +1371,7 @@ theorem splitCellGen_two_lt (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
   have s0 : t₀ < ((sbc.set! t₀ 1).set! t₁ 1).size := by simpa using h0
   have s3 : t₁ < (((sbc.set! t₀ 1).set! t₁ 1).set! t₀ 0).size := by simpa using h1
   refine splitCellGen_two_aux (ta := t₀) (tb := t₁) (a := v₀) (b := v₁) (o₀ := 0) (o₁ := 1)
-    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, if_pos (Nat.le_of_lt hlt)]) hne s0
+    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, ite_eq_left (Nat.le_of_lt hlt)]) hne s0
     (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self h0])
     (by rw [getElem!_set!_nat_self s2])
     (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self s0])
@@ -1389,7 +1393,7 @@ theorem splitCellGen_two_gt (hv0 : slab[c]! = v₀) (hv1 : slab[c + 1]! = v₁)
   have s4 : t₁ < ((sbc.set! t₀ 1).set! t₁ 1).size := by simpa using h1
   have s5 : t₀ < (((sbc.set! t₀ 1).set! t₁ 1).set! t₁ 0).size := by simpa using h0
   refine splitCellGen_two_aux (ta := t₁) (tb := t₀) (a := v₁) (b := v₀) (o₀ := 1) (o₁ := 0)
-    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, if_neg (by omega)]) hne' s4
+    hv0 hv1 ht0 ht1 h0 z0 z1 hne (by rw [sortNats_two, ite_eq_right (by omega)]) hne' s4
     (by rw [getElem!_set!_nat_self s2])
     (by rw [getElem!_set!_nat_ne hne', getElem!_set!_nat_self h0])
     (by rw [getElem!_set!_nat_self s5])
@@ -1416,12 +1420,12 @@ theorem splitCell_eq_ite (cnt : Array Nat) (c : Nat) (slab spos scst scen sbc : 
   rw [splitCell_eq_ite]
   simp only [splitCellFast]
   by_cases h1 : (scen[c]! - c == 1) = true
-  · simp only [if_pos h1]
-  simp only [if_neg h1]
+  · simp only [ite_eq_left h1]
+  simp only [ite_eq_right h1]
   by_cases h2 : (scen[c]! - c == 2) = true
-  · simp only [if_pos h2]
+  · simp only [ite_eq_left h2]
     by_cases hg : (bcOpen sbc cnt[slab[c]!]! && bcOpen sbc cnt[slab[c + 1]!]!) = true
-    · simp only [if_pos hg]
+    · simp only [ite_eq_left hg]
       rw [Bool.and_eq_true] at hg
       obtain ⟨g0, g1⟩ := hg
       obtain ⟨b0, z0⟩ := bcOpen_iff.1 g0
@@ -1431,17 +1435,17 @@ theorem splitCell_eq_ite (cnt : Array Nat) (c : Nat) (slab spos scst scen sbc : 
         omega
       rw [hec]
       by_cases he : (cnt[slab[c]!]! == cnt[slab[c + 1]!]!) = true
-      · rw [if_pos he]
+      · rw [ite_eq_left he]
         exact splitCellGen_two_eq rfl rfl rfl (Eq.symm (by simpa using he)) b0 z0
-      · rw [if_neg he]
+      · rw [ite_eq_right he]
         have hne : cnt[slab[c + 1]!]! ≠ cnt[slab[c]!]! := fun h ↦ he (by simp [h])
         by_cases hsw : cnt[slab[c + 1]!]! < cnt[slab[c]!]!
-        · simp only [if_pos hsw]
+        · simp only [ite_eq_left hsw]
           exact splitCellGen_two_gt rfl rfl rfl rfl b0 b1 z0 z1 hsw
-        · simp only [if_neg hsw]
+        · simp only [ite_eq_right hsw]
           exact splitCellGen_two_lt rfl rfl rfl rfl b0 b1 z0 z1 (by omega)
-    · simp only [if_neg hg]
-  · simp only [if_neg h2]
+    · simp only [ite_eq_right hg]
+  · simp only [ite_eq_right h2]
 
 /-- Split every cell in `cells[j:]`, left to right. -/
 def splitCellsFrom (cnt cells : Array Nat) : Nat → Nat → SplitState → SplitState
@@ -1630,7 +1634,7 @@ theorem refineStepFlat_eq (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (t
     | some s =>
       dsimp only
       by_cases hg : (s < G.n && p.cst[s]! == s) = true
-      · rw [if_pos hg, if_pos hg, refineStepFlat_eq]
+      · rw [ite_eq_left hg, ite_eq_left hg, refineStepFlat_eq]
         cases refineStepLo G p (inW.set! s false) s tr sc with
         | mk a lo' =>
           cases a with
@@ -1639,7 +1643,7 @@ theorem refineStepFlat_eq (G : Graph) (p : Part) (inW : Array Bool) (s : Nat) (t
             | mk inW' c =>
               cases c with
               | mk tr' sc' => exact ih p' inW' lo' tr' sc'
-      · rw [if_neg hg, if_neg hg]
+      · rw [ite_eq_right hg, ite_eq_right hg]
         exact ih p (inW.set! s false) (s + 1) tr sc
 
 /-- Refine `p` to the coarsest equitable partition refining it, using the cells whose start
@@ -1807,9 +1811,9 @@ theorem certRowAt_word (row : Array Bool) (lab : Array Nat) (n : Nat) :
     rw [show fuel + 1 - (f + 1) = fuel - f from by omega,
       show j + (f + 1) = j + 1 + f from by omega, certRowAt, certWord]
     rcases Nat.eq_zero_or_pos f with rfl | hfpos
-    · rw [if_pos (show ((j + 1) % 64 == 0) = true by simp only [beq_iff_eq]; omega), certWord]
+    · rw [ite_eq_left (show ((j + 1) % 64 == 0) = true by simp only [beq_iff_eq]; omega), certWord]
       simp only [Nat.sub_zero, Nat.add_zero]
-    · rw [if_neg (show ¬ (((j + 1) % 64 == 0) = true) by simp only [beq_iff_eq]; omega)]
+    · rw [ite_eq_right (show ¬ (((j + 1) % 64 == 0) = true) by simp only [beq_iff_eq]; omega)]
       exact ih fuel (j + 1) _ k out (by omega) (by omega)
 
 /-- The last, partial word: fewer than 64 bits remain and no boundary is crossed. -/
@@ -1824,7 +1828,8 @@ theorem certRowAt_tail (row : Array Bool) (lab : Array Nat) (n : Nat) :
   | zero => intro j acc k out _; rw [certRowAt, certWord]
   | succ f ih =>
     intro j acc k out hj
-    rw [certRowAt, if_neg (show ¬ (((j + 1) % 64 == 0) = true) by simp only [beq_iff_eq]; omega),
+    rw [certRowAt,
+      ite_eq_right (show ¬ (((j + 1) % 64 == 0) = true) by simp only [beq_iff_eq]; omega),
       ih (j + 1) _ k out (by omega), certWord]
 
 /-- The two row loops agree, started from any word boundary. -/
@@ -1841,15 +1846,15 @@ theorem certRowAt_eq_certRowByWords (row : Array Bool) (lab : Array Nat) (n : Na
     intro j k out hj hjn hf
     rw [certRowByWords]
     by_cases hlt : j + 64 ≤ n
-    · rw [if_pos hlt, certRowAt_word row lab n 64 (n - j) j 0 k out (by omega) (by omega),
+    · rw [ite_eq_left hlt, certRowAt_word row lab n 64 (n - j) j 0 k out (by omega) (by omega),
         show n - j - 64 = n - (j + 64) from by omega]
       exact ih (j + 64) (k + 1) _ (by omega) (by omega) (by omega)
-    · rw [if_neg hlt, certRowAt_tail row lab n (n - j) j 0 k out (by omega)]
+    · rw [ite_eq_right hlt, certRowAt_tail row lab n (n - j) j 0 k out (by omega)]
       by_cases hge : j ≥ n
-      · rw [if_pos hge, show n % 64 = 0 from by omega]
+      · rw [ite_eq_left hge, show n % 64 = 0 from by omega]
         simp
-      · rw [if_neg hge, show n % 64 = n - j from by omega,
-          if_pos (show ((n - j) != 0) = true by simp only [bne_iff_ne, ne_eq]; omega)]
+      · rw [ite_eq_right hge, show n % 64 = n - j from by omega,
+          ite_eq_left (show ((n - j) != 0) = true by simp only [bne_iff_ne, ne_eq]; omega)]
 
 theorem certRowsFromAt_eq_certRowsByWords (adj : Array (Array Bool)) (lab : Array Nat) (n w : Nat)
     (hw : n ≤ 64 * (w + 1)) : ∀ (fuel i : Nat) (out : Array UInt64),
@@ -1924,9 +1929,9 @@ private theorem min_min_self (x y : Nat) : min x (min x y) = min x y := by omega
 private theorem compare_size_min (a b : Array UInt64) :
     compare a.size (min a.size b.size) = if a.size ≤ b.size then .eq else .gt := by
   by_cases h : a.size ≤ b.size
-  · rw [if_pos h, Nat.min_eq_left h]
+  · rw [ite_eq_left h, Nat.min_eq_left h]
     exact Nat.compare_eq_eq.2 rfl
-  · rw [if_neg h, Nat.min_eq_right (by omega)]
+  · rw [ite_eq_right h, Nat.min_eq_right (by omega)]
     exact Nat.compare_eq_gt.2 (by omega)
 
 theorem lexCmpFrom_extract (a b : Array UInt64) :
@@ -1935,9 +1940,9 @@ theorem lexCmpFrom_extract (a b : Array UInt64) :
   | fuel + 1, i => by
     rw [lexCmpFrom, lexCmpPreFrom, size_extract_zero, min_min_self]
     by_cases h : i < min a.size b.size
-    · rw [if_pos h, if_pos h, getElem!_extract_zero h]
+    · rw [ite_eq_left h, ite_eq_left h, getElem!_extract_zero h]
       cases compare a[i]! b[i]! <;> simp [lexCmpFrom_extract a b fuel (i + 1)]
-    · rw [if_neg h, if_neg h, compare_size_min]
+    · rw [ite_eq_right h, ite_eq_right h, compare_size_min]
 
 /-- Comparing against a truncation is comparing against a prefix: `lexCmpPre` computes the same
 answer without building the truncation. -/

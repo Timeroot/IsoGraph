@@ -233,7 +233,7 @@ theorem exists_sort_perm (C : List H.V) (hnd : C.Nodup) (m : H.V → ℕ) :
   have hget : ∀ x (hx : x ∈ C), σ x = C'[C.idxOf x]'(hidx x hx) := by
     intro x hx
     rw [hσ]
-    simp only [hx, if_pos]
+    simp only [hx, ite_eq_left]
     exact List.getD_eq_getElem _ _ (hidx x hx)
   have hσC : ∀ x ∈ C, σ x ∈ C := by
     intro x hx

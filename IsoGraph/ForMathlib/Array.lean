@@ -41,7 +41,7 @@ theorem getElem!_set! {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {x :
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
     simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk, eq_comm (a := i)]
   · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk,
-      if_neg (by omega)]
+      ite_eq_right (by omega)]
 
 /-- Companion to `getElem!_set!` for the off-diagonal case, where no bound on `i` is needed:
 writing at `i` never disturbs another index, in bounds or not. -/
@@ -51,7 +51,7 @@ theorem getElem!_set!_ne {α : Type _} [Inhabited α] {a : Array α} {i : Nat} {
   by_cases hk : k < a.size
   · rw [getElem!_pos (a.set! i x) k (by simpa using hk), getElem!_pos a k hk]
     simp only [Array.set!_eq_setIfInBounds, Array.getElem_setIfInBounds hk,
-      if_neg (Ne.symm h)]
+      ite_eq_right (Ne.symm h)]
   · rw [getElem!_neg (a.set! i x) k (by simpa using hk), getElem!_neg a k hk]
 
 /-- Distinct positions of a duplicate-free array hold distinct values. -/

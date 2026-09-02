@@ -63,7 +63,7 @@ theorem lexCmpFrom_eq_compare (a b : Array UInt64) : ∀ (fuel i : Nat),
           rw [h1, List.compare_cons_nil]
           exact Nat.compare_eq_gt.2 hab'
   | fuel + 1, i, h => by
-    rw [lexCmpFrom, if_pos (by omega)]
+    rw [lexCmpFrom, ite_eq_left (by omega)]
     have hia : i < a.size := by omega
     have hib : i < b.size := by omega
     have hda : a.toList.drop i = a[i]! :: a.toList.drop (i + 1) := by

@@ -631,10 +631,10 @@ antipodal edges, each of the remaining ones. -/
           rcases eq_or_ne j c with rfl | hj
           · rw [Function.update_self] at h
             have := hkey (u' j) (t j)
-            simp only [if_true]
+            simp only [ite_true]
             omega
           · rw [Function.update_of_ne hj] at h
-            simp only [if_neg hj, Nat.add_zero]
+            simp only [ite_eq_right hj, Nat.add_zero]
             exact h
         · have hsum : ∑ j, (fc j + if j = c then 1 else 0) = (∑ j, fc j) + 1 := by
             rw [Finset.sum_add_distrib]; simp
@@ -662,7 +662,7 @@ antipodal edges, each of the remaining ones. -/
     · -- an even number of antipodal steps: each of the `k` differing coordinates is flipped
       have hb := hbig (Finset.univ.filter fun i ↦ xf i ≠ yf i) fun i hi ↦ by
         have h := hfc i
-        rw [if_pos (Finset.mem_filter.1 hi).2] at h
+        rw [ite_eq_left (Finset.mem_filter.1 hi).2] at h
         omega
       omega
     · -- an odd number: each of the `m - k` agreeing coordinates is flipped instead
@@ -672,7 +672,7 @@ antipodal edges, each of the remaining ones. -/
           Finset.card_compl, hcard, hdiff]
       have hb := hbig (Finset.univ.filter fun i ↦ ¬ xf i ≠ yf i) fun i hi ↦ by
         have h := hfc i
-        rw [if_neg (Finset.mem_filter.1 hi).2] at h
+        rw [ite_eq_right (Finset.mem_filter.1 hi).2] at h
         omega
       omega
   have h_reach : (CGraph.foldedCube m).toSimple.Reachable xf yf := by

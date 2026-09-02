@@ -415,10 +415,10 @@ than its rim, and the join bound `le_autCount_wheel` says it has no less.
 private theorem cyc_mod_two (N i : ℕ) (hN : 2 ≤ N) (hi : i < N) :
     (i + 2) % N = if i + 2 = N then 0 else if i + 2 = N + 1 then 1 else i + 2 := by
   rcases lt_trichotomy (i + 2) N with h | h | h
-  · rw [if_neg (by omega), if_neg (by omega), Nat.mod_eq_of_lt h]
-  · rw [if_pos h, ← h, Nat.mod_self]
+  · rw [ite_eq_right (by omega), ite_eq_right (by omega), Nat.mod_eq_of_lt h]
+  · rw [ite_eq_left h, ← h, Nat.mod_self]
   · have h1 : i + 2 = N + 1 := by omega
-    rw [if_neg (by omega), if_pos h1, h1, Nat.add_mod_left, Nat.mod_eq_of_lt (by omega)]
+    rw [ite_eq_right (by omega), ite_eq_left h1, h1, Nat.add_mod_left, Nat.mod_eq_of_lt (by omega)]
 
 theorem wheel_adj_inr_inr {N : ℕ} (u v : (cycle N).V) :
     (wheel N).Adj (Sum.inr u) (Sum.inr v) = (cycle N).Adj u v := by

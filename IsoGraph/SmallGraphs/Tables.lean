@@ -2193,14 +2193,14 @@ theorem _root_.CGraph.matchNum_mycielskian (G : CGraph)
     · subst hef
       have hbb : be ≠ bf := by rintro rfl; exact hij rfl
       have h1 := hne e
-      cases be <;> cases bf <;> simp only [p, if_true] <;>
+      cases be <;> cases bf <;> simp only [p, ite_true] <;>
         first
           | exact absurd rfl hbb
           | exact ⟨h1, h1.symm⟩
           | exact ⟨h1.symm, h1⟩
     · obtain ⟨h1, h2, h3, h4⟩ := hdisco e heS f hfS hef
       cases be <;> cases bf <;>
-        simp only [p, if_true] <;>
+        simp only [p, ite_true] <;>
         first
           | exact ⟨h1, h4⟩
           | exact ⟨h2, h3⟩
@@ -2217,7 +2217,7 @@ theorem _root_.CGraph.matchNum_mycielskian (G : CGraph)
     rw [CGraph.mycielskian_adj_inl_inr]
     cases be
     · exact hadj e
-    · simpa only [p, if_true] using (G.symm (ue e) (ve e)) ▸ hadj e
+    · simpa only [p, ite_true] using (G.symm (ue e) (ve e)) ▸ hadj e
   · intro i j hij
     obtain ⟨h1, h2⟩ := hp i j hij
     exact ⟨fun hh ↦ h1 (Sum.inl_injective (Option.some_injective _ hh)),

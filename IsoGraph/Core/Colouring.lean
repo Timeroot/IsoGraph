@@ -1044,13 +1044,13 @@ theorem chromNum_le_card_sub_indepNum_add_one (G : CGraph) :
     · exact absurd hxy (hs (Finset.mem_coe.2 hx) (Finset.mem_coe.2 hy) hxy.ne)
     · simp [hf, hx, hy]
     · simp [hf, hx, hy]
-    · simp only [hf, dif_neg hx, dif_neg hy, ne_eq, Nat.add_right_cancel_iff]
+    · simp only [hf, dite_eq_right hx, dite_eq_right hy, ne_eq, Nat.add_right_cancel_iff]
       intro h
       exact hxy.ne (congrArg Subtype.val (e.injective (Fin.val_injective h)))
   · show f v < _
     by_cases h : v ∈ s
     · simp [hf, h]
-    · simp only [hf, dif_neg h]
+    · simp only [hf, dite_eq_right h]
       have := (e ⟨v, h⟩).isLt
       omega
 
@@ -1244,7 +1244,7 @@ theorem mul_card_edgeFinset_le_of_cliqueFree {S : SimpleGraph X} [DecidableRel S
   calc 2 * r * S.edgeFinset.card
       ≤ 2 * r * (SimpleGraph.turanGraph (Fintype.card X) r).edgeFinset.card := by
         rw [← h3]; exact Nat.mul_le_mul_left _ h1
-    _ ≤ (r - 1) * (Fintype.card X) ^ 2 := SimpleGraph.mul_card_edgeFinset_turanGraph_le
+    _ ≤ (r - 1) * (Fintype.card X) ^ 2 := SimpleGraph.mul_turanNumber_le
 
 omit [DecidableEq X] in
 /-- **The key pigeonhole step.**  If `v` has three neighbours in `T`, then either two of them are
@@ -3249,25 +3249,25 @@ theorem chromNum_lineGraph_cartesianProduct_le {G H : CGraph}
     rw [← h] at hx
     exact G.loopless u.1 hx
   rcases huv with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> rcases huw with ⟨h3, h4⟩ | ⟨h3, h4⟩
-  · rw [if_pos h1, if_pos h3]
+  · rw [ite_eq_left h1, ite_eq_left h3]
     have hne : v.2 ≠ w.2 := fun h ↦ hvw (Prod.ext (h1 ▸ h3) h)
     refine fun hh ↦ hdp u.2 v.2 w.2 h2 h4 hne (Fin.ext ?_)
     have hval := congrArg Fin.val hh
     simp only [Fin.natAdd] at hval
     omega
-  · rw [if_pos h1, if_neg (hu1 w h3)]
+  · rw [ite_eq_left h1, ite_eq_right (hu1 w h3)]
     intro hh
     have hval := congrArg Fin.val hh
     simp only [Fin.natAdd, Fin.castAdd, Fin.castLE] at hval
     have := (c u.1 w.1).isLt
     omega
-  · rw [if_neg (hu1 v h1), if_pos h3]
+  · rw [ite_eq_right (hu1 v h1), ite_eq_left h3]
     intro hh
     have hval := congrArg Fin.val hh
     simp only [Fin.natAdd, Fin.castAdd, Fin.castLE] at hval
     have := (c u.1 v.1).isLt
     omega
-  · rw [if_neg (hu1 v h1), if_neg (hu1 w h3)]
+  · rw [ite_eq_right (hu1 v h1), ite_eq_right (hu1 w h3)]
     have hne : v.1 ≠ w.1 := fun h ↦ hvw (Prod.ext h (h2 ▸ h4))
     refine fun hh ↦ hcp u.1 v.1 w.1 h1 h3 hne (Fin.ext ?_)
     have hval := congrArg Fin.val hh
@@ -3303,11 +3303,11 @@ theorem le_indepNum_cartesianProduct_cycle_odd (a b : ℕ) (hab : a ≤ b) :
       simp only [hw]
       rcases eq_or_lt_of_le hab with rfl | hlt'
       · refine Or.inl ?_
-        rw [if_pos (by omega), if_pos (by omega)]
+        rw [ite_eq_left (by omega), ite_eq_left (by omega)]
         show (2 * a + 2 + 1) % (2 * a + 3) = 0 % (2 * a + 3)
         simp
       · refine Or.inr ?_
-        rw [if_pos (by omega)]
+        rw [ite_eq_left (by omega)]
         have he : (if 2 * b + 2 ≤ a + b + 3 then 2 * b + 2
             else 2 * (a + b + 3) - (2 * b + 2)) = 2 * a + 3 + 1 := by
           split_ifs with h <;> omega

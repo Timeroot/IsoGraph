@@ -40,7 +40,7 @@ def vtxAt (H : CGraph) (k : ℕ) : Option H.V :=
   if h : k < FinEnum.card H.V then some (FinEnum.equiv.symm ⟨k, h⟩) else none
 
 theorem vtxAt_eq_some (H : CGraph) {k : ℕ} (h : k < FinEnum.card H.V) :
-    vtxAt H k = some (FinEnum.equiv.symm ⟨k, h⟩) := dif_pos h
+    vtxAt H k = some (FinEnum.equiv.symm ⟨k, h⟩) := dite_eq_left h
 
 /-! ## The checks -/
 
@@ -129,7 +129,7 @@ def vEquiv (h : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = true) : G.V �
 
 theorem vtxAt_vEquiv (h : permOK (FinEnum.card G.V) (FinEnum.card H.V) p q = true) (v : G.V) :
     vtxAt H (p.getD (idxOf v) (FinEnum.card H.V)) = some (vEquiv h v) := by
-  rw [vtxAt, dif_pos (permOK_fwd h (idxOf_lt v)).1]
+  rw [vtxAt, dite_eq_left (permOK_fwd h (idxOf_lt v)).1]
   rfl
 
 /-- The same, read off an index rather than a vertex — the form `pairing` meets it in. -/

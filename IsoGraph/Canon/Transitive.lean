@@ -534,7 +534,7 @@ def arcTransitiveBFast (n : Nat) (adj : Fin n → Fin n → Bool) : Bool :=
     set L := autPerms n adj with hL
     set C := arcOrbitList L b with hC
     by_cases hcl : arcOrbitClosed L C (arcTable C) = true
-    · rw [if_pos hcl]
+    · rw [ite_eq_left hcl]
       have hmem := mem_orbitFin_iff_of_closed (L := L) (b := b) (C := C)
         (mem_arcOrbitList_self L b) (fun p hp => mem_orbitFin_of_mem_arcOrbitList L b hp) hcl
       rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
@@ -546,7 +546,7 @@ def arcTransitiveBFast (n : Nat) (adj : Fin n → Fin n → Bool) : Bool :=
         · have h := hall p hp'
           rw [arcTabGet_arcTable, ← hmem] at h
           exact h
-    · rw [if_neg hcl]
+    · rw [ite_eq_right hcl]
       rw [Bool.eq_iff_iff, decide_eq_true_eq, List.all_eq_true]
       simp [self_mem_orbitFin]
 

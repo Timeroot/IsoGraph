@@ -94,7 +94,7 @@ def Roster.finArrow : (n : ℕ) → Roster β → Roster (Fin n → β)
 /-- The roster of a subtype. -/
 def Roster.subtype (r : Roster α) (p : α → Prop) [DecidablePred p] : Roster {x // p x} :=
   ⟨r.toList.filterMap fun a ↦ if h : p a then some ⟨a, h⟩ else none, fun x ↦
-    List.mem_filterMap.mpr ⟨x.1, r.mem_toList x.1, by rw [dif_pos x.2]⟩⟩
+    List.mem_filterMap.mpr ⟨x.1, r.mem_toList x.1, by rw [dite_eq_left x.2]⟩⟩
 
 /-- The roster of the finite subsets of a rostered type. -/
 def Roster.finset [DecidableEq α] (r : Roster α) : Roster (Finset α) :=

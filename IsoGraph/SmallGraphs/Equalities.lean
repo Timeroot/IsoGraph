@@ -335,7 +335,7 @@ def swapBlocksFwd (s a b x : ℕ) : ℕ :=
   if x < s then x else if x < s + a then x + b else if x < s + a + b then x - a else x
 
 theorem swapBlocksFwd_of_lt (s a b x : ℕ) (h : x < s) : swapBlocksFwd s a b x = x := by
-  unfold swapBlocksFwd; rw [if_pos h]
+  unfold swapBlocksFwd; rw [ite_eq_left h]
 
 theorem swapBlocksFwd_of_ge (s a b x : ℕ) (h : s + a + b ≤ x) : swapBlocksFwd s a b x = x := by
   unfold swapBlocksFwd; split_ifs <;> omega
@@ -555,11 +555,11 @@ def spiderDepth : ℕ → List ℕ → ℕ → ℕ
 
 theorem spiderDepth_of_lt : ∀ (off : ℕ) (ks : List ℕ) (v : ℕ), v < off → spiderDepth off ks v = 0
   | _, [], _, _ => rfl
-  | off, k :: rest, v, h => by rw [spiderDepth, if_pos h]
+  | off, k :: rest, v, h => by rw [spiderDepth, ite_eq_left h]
 
 theorem spiderDepth_cons_of_ge (off k : ℕ) (rest : List ℕ) (v : ℕ) (h : off + k ≤ v) :
     spiderDepth off (k :: rest) v = spiderDepth (off + k) rest v := by
-  rw [spiderDepth, if_neg (by omega), if_neg (by omega)]
+  rw [spiderDepth, ite_eq_right (by omega), ite_eq_right (by omega)]
 
 /-- Along every edge of a spider the distance from the centre changes by one. -/
 theorem spiderDepth_parity : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ), 0 < off →
@@ -572,10 +572,12 @@ theorem spiderDepth_parity : ∀ (off : ℕ) (ks : List ℕ) (p q : ℕ), 0 < of
       rcases h with h | h
       · rw [mem_legEdges] at h
         rcases h with ⟨rfl, rfl, hk⟩ | ⟨h1, rfl, h3⟩
-        · rw [spiderDepth, if_pos hoff, spiderDepth, if_neg (by omega), if_pos (by omega)]
+        · rw [spiderDepth, ite_eq_left hoff, spiderDepth, ite_eq_right (by omega),
+            ite_eq_left (by omega)]
           omega
-        · rw [spiderDepth, if_neg (by omega), if_pos (by omega), spiderDepth, if_neg (by omega),
-            if_pos (by omega)]
+        · rw [spiderDepth, ite_eq_right (by omega), ite_eq_left (by omega), spiderDepth,
+            ite_eq_right (by omega),
+            ite_eq_left (by omega)]
           omega
       · have hb := mem_spiderEdges_bound (off + k) rest p q h
         have hp : spiderDepth off (k :: rest) p = spiderDepth (off + k) rest p := by
@@ -621,15 +623,18 @@ theorem thetaDepth_parity : ∀ (b off : ℕ) (xs : List ℕ) (p q : ℕ), 2 ≤
       · rw [mem_thetaEdges_single] at h
         unfold thetaDepth
         rcases h with ⟨rfl, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨hk0, rfl, rfl⟩ | ⟨h1, rfl, h3⟩
-        · rw [if_neg (by omega), if_pos rfl, spiderDepth, if_pos (by omega)]
+        · rw [ite_eq_right (by omega), ite_eq_left rfl, spiderDepth, ite_eq_left (by omega)]
           omega
-        · rw [if_neg (by omega), if_neg (by omega), spiderDepth, if_pos (by omega), spiderDepth,
-            if_neg (by omega), if_pos (by omega)]
+        · rw [ite_eq_right (by omega), ite_eq_right (by omega), spiderDepth, ite_eq_left (by omega),
+            spiderDepth,
+            ite_eq_right (by omega), ite_eq_left (by omega)]
           omega
-        · rw [if_pos rfl, if_neg (by omega), spiderDepth, if_neg (by omega), if_pos (by omega)]
+        · rw [ite_eq_left rfl, ite_eq_right (by omega), spiderDepth, ite_eq_right (by omega),
+            ite_eq_left (by omega)]
           omega
-        · rw [if_neg (by omega), if_neg (by omega), spiderDepth, if_neg (by omega),
-            if_pos (by omega), spiderDepth, if_neg (by omega), if_pos (by omega)]
+        · rw [ite_eq_right (by omega), ite_eq_right (by omega), spiderDepth,
+            ite_eq_right (by omega),
+            ite_eq_left (by omega), spiderDepth, ite_eq_right (by omega), ite_eq_left (by omega)]
           omega
       · have hb := mem_thetaEdges_bound (off + k) rest p q h
         rw [thetaDepth_cons b off k rest p hoff (by omega),
@@ -680,12 +685,12 @@ theorem path_adj_cycRot {N : ℕ} (hN : 3 ≤ N) {x y z : Fin N} (hy : y ≠ x) 
   rw [cycle_adj_eq_iff hN] at h
   have hs : (y.1 + 1) % N = if y.1 + 1 = N then 0 else y.1 + 1 := by
     rcases eq_or_lt_of_le (Nat.succ_le_of_lt hyl) with hq | hq
-    · rw [if_pos (by omega), show y.1 + 1 = N from by omega, Nat.mod_self]
-    · rw [if_neg (by omega), Nat.mod_eq_of_lt hq]
+    · rw [ite_eq_left (by omega), show y.1 + 1 = N from by omega, Nat.mod_self]
+    · rw [ite_eq_right (by omega), Nat.mod_eq_of_lt hq]
   have hp : (y.1 + N - 1) % N = if y.1 = 0 then N - 1 else y.1 - 1 := by
     rcases Nat.eq_zero_or_pos y.1 with hq | hq
-    · rw [if_pos hq, show y.1 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
-    · rw [if_neg (by omega), show y.1 + N - 1 = N + (y.1 - 1) from by omega, Nat.add_mod_left,
+    · rw [ite_eq_left hq, show y.1 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
+    · rw [ite_eq_right (by omega), show y.1 + N - 1 = N + (y.1 - 1) from by omega, Nat.add_mod_left,
         Nat.mod_eq_of_lt (by omega)]
   rw [hs, hp] at h
   rw [path_adj_val]

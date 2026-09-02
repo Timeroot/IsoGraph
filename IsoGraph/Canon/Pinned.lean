@@ -177,13 +177,13 @@ theorem individualize_pinned_new {n : Nat} {p : Part} {v : Nat} (hp : Part.WF n 
     := ⟨hv, rfl, rfl, rfl, rfl⟩
   rw [individualize_snd]
   refine ⟨hd.cLt hp, ?_, ?_, ?_⟩
-  · rw [individualize_cst_getElem! hp hd, if_neg (by omega)]; exact hd.cstc hp
-  · rw [individualize_cen_getElem! hp hd, if_pos rfl]
+  · rw [individualize_cst_getElem! hp hd, ite_eq_right (by omega)]; exact hd.cstc hp
+  · rw [individualize_cen_getElem! hp hd, ite_eq_left rfl]
   · rw [individualize_lab_getElem! hp hd]
     split
     · rename_i hci
       rw [hci, hp.labPos v hv]
-    · rw [if_pos rfl]
+    · rw [ite_eq_left rfl]
 
 theorem individualize_pinned {n : Nat} {p : Part} {v c v' : Nat} (hp : Part.WF n p) (hv : v < n)
     (hpin : Pinned n p c v') : Pinned n (individualize p v).1 c v' := by
@@ -200,9 +200,9 @@ theorem individualize_pinned {n : Nat} {p : Part} {v c v' : Nat} (hp : Part.WF n
     have hcc : p.cst[p.pos[v]!]! = c := by rw [hposv]; exact hpin.cst
     have hec : p.cen[p.pos[v]!]! = c + 1 := by rw [hposv]; exact hpin.cen
     refine ⟨hpin.lt, ?_, ?_, ?_⟩
-    · rw [individualize_cst_getElem! hp hd, if_neg (by rw [hcc, hec]; omega)]; exact hpin.cst
-    · rw [individualize_cen_getElem! hp hd, if_pos hcc.symm, hcc]
-    · rw [individualize_lab_getElem! hp hd, if_pos hposv.symm, hcc, hpin.lab]
+    · rw [individualize_cst_getElem! hp hd, ite_eq_right (by rw [hcc, hec]; omega)]; exact hpin.cst
+    · rw [individualize_cen_getElem! hp hd, ite_eq_left hcc.symm, hcc]
+    · rw [individualize_lab_getElem! hp hd, ite_eq_left hposv.symm, hcc, hpin.lab]
   · -- a different vertex: the pinned singleton is untouched by the split
     have hine : p.pos[v]! ≠ c := by
       intro h
@@ -218,9 +218,9 @@ theorem individualize_pinned {n : Nat} {p : Part} {v c v' : Nat} (hp : Part.WF n
       · rename_i hmem
         exact absurd ((hd.cst_eq hp (by omega) hmem.2).symm.trans hpin.cst) hcne
       · exact hpin.cst
-    · rw [individualize_cen_getElem! hp hd, if_neg (fun h => hcne h.symm)]; exact hpin.cen
-    · rw [individualize_lab_getElem! hp hd, if_neg (fun h => hine h.symm),
-        if_neg (fun h => hcne h.symm)]
+    · rw [individualize_cen_getElem! hp hd, ite_eq_right (fun h => hcne h.symm)]; exact hpin.cen
+    · rw [individualize_lab_getElem! hp hd, ite_eq_right (fun h => hine h.symm),
+        ite_eq_right (fun h => hcne h.symm)]
       exact hpin.lab
 
 theorem child_pinned {n : Nat} {f : Nat → Nat → Bool} {p : Part} {v c v' : Nat} (hp : Part.WF n p)

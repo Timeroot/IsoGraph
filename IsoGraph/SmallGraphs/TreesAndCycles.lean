@@ -155,7 +155,7 @@ theorem degree_doubleStar (m n : ℕ) (v : (CGraph.doubleStar m n).V) :
       = if v.1 = 0 then m + 1 else if v.1 = 1 then n + 1 else 1 := by
   have hv : v.1 < 2 + m + n := v.isLt
   by_cases h0 : v.1 = 0
-  · rw [if_pos h0]
+  · rw [ite_eq_left h0]
     have h := CGraph.degree_ofEdges (2 + m + n) _ v (1 :: (List.range m).map fun i ↦ 2 + i)
       (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
         List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
@@ -170,9 +170,9 @@ theorem degree_doubleStar (m n : ℕ) (v : (CGraph.doubleStar m n).V) :
         simp only [List.mem_cons, List.mem_map_add_range, true_and]
         omega)
     simpa [CGraph.doubleStar] using h
-  rw [if_neg h0]
+  rw [ite_eq_right h0]
   by_cases h1 : v.1 = 1
-  · rw [if_pos h1]
+  · rw [ite_eq_left h1]
     have h := CGraph.degree_ofEdges (2 + m + n) _ v (0 :: (List.range n).map fun i ↦ 2 + m + i)
       (List.nodup_cons.mpr ⟨by simp [List.mem_map_add_range],
         List.Nodup.map (fun a b hab ↦ by omega) List.nodup_range⟩)
@@ -187,7 +187,7 @@ theorem degree_doubleStar (m n : ℕ) (v : (CGraph.doubleStar m n).V) :
         simp only [List.mem_cons, List.mem_map_add_range, true_and, and_true]
         omega)
     simpa [CGraph.doubleStar] using h
-  rw [if_neg h1]
+  rw [ite_eq_right h1]
   have h := CGraph.degree_ofEdges (2 + m + n) _ v [if v.1 < 2 + m then 0 else 1] (by simp)
     (by
       intro w hw
@@ -588,9 +588,9 @@ private theorem lollipopCliqueCol_proper (m k : ℕ) : ∀ u v : ((CGraph.lollip
   by_cases hu : u.1 < m + 2 <;> by_cases hv : v.1 < m + 2
   · rw [lollipop_adj_of_lt m k u v hu hv hne] at hnadj
     simp at hnadj
-  · simp only [hu, hv, if_true, if_false] at hcol'; omega
-  · simp only [hu, hv, if_true, if_false] at hcol'; omega
-  · simp only [hu, hv, if_false] at hcol'
+  · simp only [hu, hv, ite_true, ite_false] at hcol'; omega
+  · simp only [hu, hv, ite_true, ite_false] at hcol'; omega
+  · simp only [hu, hv, ite_false] at hcol'
     have hne' : u.1 ≠ v.1 := fun h ↦ hne (Fin.ext h)
     have hstep : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1 := by omega
     rcases hstep with h | h
@@ -726,16 +726,16 @@ private theorem tadpoleCliqueCol_proper (t k : ℕ) :
       = (if v.1 < 2 * t + 4 then v.1 / 2 else t + 2 + (v.1 - (2 * t + 4)) / 2) :=
     congrArg Fin.val hcol
   by_cases hu : u.1 < 2 * t + 4 <;> by_cases hv : v.1 < 2 * t + 4
-  · simp only [hu, hv, if_true] at hcol'
+  · simp only [hu, hv, ite_true] at hcol'
     rcases (by omega : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1) with h | h
     · rw [tadpole_adj_of_succ_cycle t k u v hv h] at hnadj
       simp at hnadj
     · rw [(CGraph.tadpole (2 * t + 4) k).symm u v,
         tadpole_adj_of_succ_cycle t k v u hu h] at hnadj
       simp at hnadj
-  · simp only [hu, hv, if_true, if_false] at hcol'; omega
-  · simp only [hu, hv, if_true, if_false] at hcol'; omega
-  · simp only [hu, hv, if_false] at hcol'
+  · simp only [hu, hv, ite_true, ite_false] at hcol'; omega
+  · simp only [hu, hv, ite_true, ite_false] at hcol'; omega
+  · simp only [hu, hv, ite_false] at hcol'
     rcases (by omega : v.1 = u.1 + 1 ∨ u.1 = v.1 + 1) with h | h
     · rw [tadpole_adj_of_succ_leg t k u v (by omega) h] at hnadj
       simp at hnadj

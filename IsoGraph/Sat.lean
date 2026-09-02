@@ -117,18 +117,18 @@ theorem exists_adj_of_mem_edgeIdxList {G : CGraph} {p : ℕ × ℕ} (h : p ∈ e
   obtain ⟨u, -, hu⟩ := List.mem_flatMap.1 h
   obtain ⟨v, -, hv⟩ := List.mem_filterMap.1 hu
   by_cases hc : G.Adj u v = true ∧ vIdx u < vIdx v
-  · rw [if_pos hc] at hv
+  · rw [ite_eq_left hc] at hv
     exact ⟨u, v, hc.1, (Option.some_inj.1 hv).symm⟩
-  · rw [if_neg hc] at hv; exact absurd hv (by simp)
+  · rw [ite_eq_right hc] at hv; exact absurd hv (by simp)
 
 theorem exists_not_adj_of_mem_nonEdgeIdxList {G : CGraph} {p : ℕ × ℕ} (h : p ∈ nonEdgeIdxList G) :
     ∃ u v : G.V, u ≠ v ∧ G.Adj u v = false ∧ p = (vIdx u, vIdx v) := by
   obtain ⟨u, -, hu⟩ := List.mem_flatMap.1 h
   obtain ⟨v, -, hv⟩ := List.mem_filterMap.1 hu
   by_cases hc : G.Adj u v = false ∧ vIdx u < vIdx v
-  · rw [if_pos hc] at hv
+  · rw [ite_eq_left hc] at hv
     exact ⟨u, v, fun he ↦ absurd hc.2 (by rw [he]; omega), hc.1, (Option.some_inj.1 hv).symm⟩
-  · rw [if_neg hc] at hv; exact absurd hv (by simp)
+  · rw [ite_eq_right hc] at hv; exact absurd hv (by simp)
 
 /-! ## Subsets as bit vectors -/
 

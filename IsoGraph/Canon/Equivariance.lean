@@ -173,7 +173,7 @@ theorem cenTargetFrom_congr {n : Nat} {c d : Array Nat} (h : ∀ i, i < n → c[
     by_cases hi : i ≥ n
     · simp [hi]
     · rw [h i (Nat.lt_of_not_le hi)]
-      simp only [if_neg hi]
+      simp only [ite_eq_right hi]
       by_cases hd : d[i]! - i > 1
       · simp [hd]
       · simp [hd, cenTargetFrom_congr h fuel d[i]!]
@@ -347,12 +347,12 @@ theorem cenTargetFrom_none {n : Nat} {p : Part} (hp : Part.WF n p) :
     rw [cenTargetFrom] at h
     by_cases hi : i ≥ n
     · omega
-    rw [if_neg hi] at h
+    rw [ite_eq_right hi] at h
     have hcst := hst (by omega)
     have hlt := hp.ltCen i (by omega)
     by_cases hd : p.cen[i]! - i > 1
-    · rw [if_pos hd] at h; simp at h
-    rw [if_neg hd] at h
+    · rw [ite_eq_left hd] at h; simp at h
+    rw [ite_eq_right hd] at h
     have hcen : p.cen[i]! = i + 1 := by omega
     rw [hcen] at h
     by_cases hki : k = i
@@ -483,20 +483,20 @@ theorem setCstFrom_size (c ec : Nat) :
 theorem setCstFrom_getElem! {c ec : Nat} {cst : Array Nat} (hec : ec ≤ cst.size) :
     ∀ (fuel j : Nat), ec ≤ j + fuel → ∀ k,
       (setCstFrom c ec fuel j cst)[k]! = if j ≤ k ∧ k < ec then c + 1 else cst[k]!
-  | 0, j, hf, k => by rw [setCstFrom, if_neg (by omega)]
+  | 0, j, hf, k => by rw [setCstFrom, ite_eq_right (by omega)]
   | fuel + 1, j, hf, k => by
     rw [setCstFrom]
     split
-    · rw [if_neg (by omega)]
+    · rw [ite_eq_right (by omega)]
     · rename_i hj
       rw [setCstFrom_getElem! (by simpa using hec) fuel (j + 1) (by omega) k,
         getElem!_set! (by omega) k]
       by_cases h1 : j + 1 ≤ k ∧ k < ec
-      · rw [if_pos h1, if_pos (by omega)]
-      · rw [if_neg h1]
+      · rw [ite_eq_left h1, ite_eq_left (by omega)]
+      · rw [ite_eq_right h1]
         by_cases h2 : k = j
-        · rw [if_pos h2, if_pos (by omega)]
-        · rw [if_neg h2, if_neg (by omega)]
+        · rw [ite_eq_left h2, ite_eq_left (by omega)]
+        · rw [ite_eq_right h2, ite_eq_right (by omega)]
 
 section Individualize
 
@@ -601,11 +601,11 @@ theorem individualize_pos_self (hp : Part.WF n p) (hd : IndivData n p v i c ec u
     (individualize p v).1.pos[v]! = c := by
   rw [individualize_pos_getElem! hp hd v]
   by_cases hvu : v = u
-  · rw [if_pos hvu]
+  · rw [ite_eq_left hvu]
     have h := hd.posu hp
     rw [← hvu, hd.posv] at h
     omega
-  · rw [if_neg hvu, if_pos rfl]
+  · rw [ite_eq_right hvu, ite_eq_left rfl]
 
 /-- **The cell of each vertex after individualisation.**  `v` gets the singleton cell `c`;
 everything else that was in `v`'s cell moves to `c + 1`; everything else is untouched.  Note that
@@ -619,9 +619,9 @@ theorem individualize_cell (hp : Part.WF n p) (hd : IndivData n p v i c ec u)
   have hiEc := hd.iLtEc hp
   by_cases hwv : w = v
   · subst hwv
-    rw [if_pos rfl, individualize_pos_self hp hd, individualize_cst_getElem! hp hd,
-      if_neg (by omega), hd.cstc hp]
-  rw [if_neg hwv, individualize_pos_getElem! hp hd w]
+    rw [ite_eq_left rfl, individualize_pos_self hp hd, individualize_cst_getElem! hp hd,
+      ite_eq_right (by omega), hd.cstc hp]
+  rw [ite_eq_right hwv, individualize_pos_getElem! hp hd w]
   by_cases hwu : w = u
   · -- `w` is the displaced vertex: it was at the front of the cell and is now at position `i`
     have hic : i ≠ c := by
@@ -631,16 +631,17 @@ theorem individualize_cell (hp : Part.WF n p) (hd : IndivData n p v i c ec u)
       exact hp.labPos v hd.vLt
     have hA : p.cst[p.pos[w]!]! = c := by
       rw [hwu, hd.posu hp, hd.cstc hp]
-    rw [if_pos hwu, hA, if_pos rfl, individualize_cst_getElem! hp hd, if_pos ⟨by omega, hiEc⟩]
-  rw [if_neg hwu, if_neg hwv, individualize_cst_getElem! hp hd]
+    rw [ite_eq_left hwu, hA, ite_eq_left rfl, individualize_cst_getElem! hp hd,
+      ite_eq_left ⟨by omega, hiEc⟩]
+  rw [ite_eq_right hwu, ite_eq_right hwv, individualize_cst_getElem! hp hd]
   have hjN : p.pos[w]! < n := hp.posLt w hw
   have hjc : p.pos[w]! ≠ c := by
     intro h
     exact hwu (by rw [← hd.labc, ← h, hp.labPos w hw])
   by_cases hA : p.cst[p.pos[w]!]! = c
   · have := (hd.mem_iff hp hjN).1 hA
-    rw [if_pos hA, if_pos ⟨by omega, this.2⟩]
-  · rw [if_neg hA, if_neg (fun hh => hA ((hd.mem_iff hp hjN).2 ⟨by omega, hh.2⟩))]
+    rw [ite_eq_left hA, ite_eq_left ⟨by omega, this.2⟩]
+  · rw [ite_eq_right hA, ite_eq_right (fun hh => hA ((hd.mem_iff hp hjN).2 ⟨by omega, hh.2⟩))]
 
 /-- **Individualisation preserves well-formedness.**  `lab`/`pos` stay inverse because the update
 is a transposition, and `cst`/`cen` still describe intervals because `[c, ec)` was cut in two. -/
@@ -690,25 +691,25 @@ theorem individualize_wf (hp : Part.WF n p) (hd : IndivData n p v i c ec u) :
     intro k hk
     rw [hlab k]
     by_cases h1 : k = i
-    · rw [if_pos h1, hpos u, if_pos rfl, h1]
-    rw [if_neg h1]
+    · rw [ite_eq_left h1, hpos u, ite_eq_left rfl, h1]
+    rw [ite_eq_right h1]
     by_cases h2 : k = c
     · have hci : c ≠ i := fun hh => h1 (h2.trans hh)
       have hvu : v ≠ u := fun h => hci (by rw [← hposu, ← h, hd.posv])
-      rw [if_pos h2, hpos v, if_neg hvu, if_pos rfl, h2]
-    · rw [if_neg h2, hpos p.lab[k]!, if_neg (fun h => h2 (hlabu k hk h)),
-        if_neg (fun h => h1 (hlabv k hk h)), hp.posLab k hk]
+      rw [ite_eq_left h2, hpos v, ite_eq_right hvu, ite_eq_left rfl, h2]
+    · rw [ite_eq_right h2, hpos p.lab[k]!, ite_eq_right (fun h => h2 (hlabu k hk h)),
+        ite_eq_right (fun h => h1 (hlabv k hk h)), hp.posLab k hk]
   · -- and `lab` of `pos`
     intro w hw
     rw [hpos w]
     by_cases h1 : w = u
-    · rw [if_pos h1, hlab i, if_pos rfl, h1]
-    rw [if_neg h1]
+    · rw [ite_eq_left h1, hlab i, ite_eq_left rfl, h1]
+    rw [ite_eq_right h1]
     by_cases h2 : w = v
     · have hci : c ≠ i := fun hh => h1 (by rw [h2, ← hlabi, ← hh, hd.labc])
-      rw [if_pos h2, hlab c, if_neg hci, if_pos rfl, h2]
-    · rw [if_neg h2, hlab p.pos[w]!, if_neg (fun h => h2 (hposi w hw h)),
-        if_neg (fun h => h1 (hposc w hw h)), hp.labPos w hw]
+      rw [ite_eq_left h2, hlab c, ite_eq_right hci, ite_eq_left rfl, h2]
+    · rw [ite_eq_right h2, hlab p.pos[w]!, ite_eq_right (fun h => h2 (hposi w hw h)),
+        ite_eq_right (fun h => h1 (hposc w hw h)), hp.labPos w hw]
   · intro k hk
     rw [hcst k]
     split_ifs with h
@@ -737,21 +738,21 @@ theorem individualize_wf (hp : Part.WF n p) (hd : IndivData n p v i c ec u) :
     rw [hcst j, hcst k]
     by_cases h1 : c + 1 ≤ k ∧ k < ec
     · obtain ⟨h1a, h1b⟩ := h1
-      rw [if_pos (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)] at hj1
-      rw [if_neg (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b] at hj2
-      rw [if_pos (⟨by omega, by omega⟩ : c + 1 ≤ j ∧ j < ec),
-        if_pos (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)]
-    rw [if_neg h1] at hj1 ⊢
+      rw [ite_eq_left (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)] at hj1
+      rw [ite_eq_right (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b] at hj2
+      rw [ite_eq_left (⟨by omega, by omega⟩ : c + 1 ≤ j ∧ j < ec),
+        ite_eq_left (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)]
+    rw [ite_eq_right h1] at hj1 ⊢
     by_cases h2 : k = c
-    · rw [if_pos h2] at hj2
+    · rw [ite_eq_left h2] at hj2
       rw [h2, hcstc] at hj1 ⊢
-      rw [if_neg (by omega : ¬(c + 1 ≤ j ∧ j < ec))]
+      rw [ite_eq_right (by omega : ¬(c + 1 ≤ j ∧ j < ec))]
       rw [show j = c by omega, hcstc]
-    · rw [if_neg h2] at hj2
+    · rw [ite_eq_right h2] at hj2
       have hkc : ¬(c ≤ k ∧ k < ec) := fun hh => h1 ⟨by omega, hh.2⟩
       have hck : p.cst[k]! ≠ c := fun hh => hkc ((hd.mem_iff hp hk).1 hh)
       have hjk : p.cst[j]! = p.cst[k]! := hp.cellCst k hk j hj1 hj2
-      rw [if_neg (fun hh =>
+      rw [ite_eq_right (fun hh =>
         hck (hjk.symm.trans (hd.cst_eq hp (Nat.le_of_succ_le hh.1) hh.2))), hjk]
   · -- … and a common end
     intro k hk j hj1 hj2
@@ -766,22 +767,22 @@ theorem individualize_wf (hp : Part.WF n p) (hd : IndivData n p v i c ec u) :
     rw [hcen j, hcen k]
     by_cases h1 : c + 1 ≤ k ∧ k < ec
     · obtain ⟨h1a, h1b⟩ := h1
-      rw [if_pos (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)] at hj1
-      rw [if_neg (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b] at hj2
-      rw [if_neg (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b]
-      rw [if_neg (by omega : ¬ j = c), hd.cen_eq hp (by omega) hj2]
-    rw [if_neg h1] at hj1
+      rw [ite_eq_left (⟨h1a, h1b⟩ : c + 1 ≤ k ∧ k < ec)] at hj1
+      rw [ite_eq_right (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b] at hj2
+      rw [ite_eq_right (by omega : ¬ k = c), hd.cen_eq hp (by omega) h1b]
+      rw [ite_eq_right (by omega : ¬ j = c), hd.cen_eq hp (by omega) hj2]
+    rw [ite_eq_right h1] at hj1
     by_cases h2 : k = c
-    · rw [if_pos h2] at hj2 ⊢
+    · rw [ite_eq_left h2] at hj2 ⊢
       rw [h2, hcstc] at hj1
-      rw [if_pos (by omega : j = c)]
-    · rw [if_neg h2] at hj2 ⊢
+      rw [ite_eq_left (by omega : j = c)]
+    · rw [ite_eq_right h2] at hj2 ⊢
       have hkc : ¬(c ≤ k ∧ k < ec) := fun hh => h1 ⟨by omega, hh.2⟩
       have hck : p.cst[k]! ≠ c := fun hh => hkc ((hd.mem_iff hp hk).1 hh)
       have hjc : j ≠ c := by
         intro hh
         exact hck ((hp.cellCst k hk c (by omega) (by omega)).symm.trans hcstc)
-      rw [if_neg hjc]
+      rw [ite_eq_right hjc]
       exact hp.cellCen k hk j hj1 hj2
 
 end Individualize
@@ -818,8 +819,8 @@ theorem individualize_partEquiv {n : Nat} {σ : Nat → Nat} {p q : Part} (hσ :
   · rw [individualize_cell hp hdp (σ w) (hσ.maps w hw), individualize_cell hq hdq w hw,
       h.cell w hw]
     by_cases hwv : w = v
-    · rw [if_pos hwv, if_pos (by rw [hwv])]
-    · rw [if_neg hwv, if_neg (fun hh => hwv (hσ.inj w hw v hv hh))]
+    · rw [ite_eq_left hwv, ite_eq_left (by rw [hwv])]
+    · rw [ite_eq_right hwv, ite_eq_right (fun hh => hwv (hσ.inj w hw v hv hh))]
 
 /-! ## What `refineStep` counts
 
@@ -936,10 +937,11 @@ theorem bumpFrom_getElem! (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched :
       rw [bumpFrom_getElem! nbrs fuel (j + 1) _ _ (by omega) w
         (by simpa using hw), hdrop, List.count_cons]
       by_cases hwj : w = nbrs[j]!
-      · rw [getElem!_set! (by omega : nbrs[j]! < cnt.size) w, if_pos hwj, if_pos (by simp [hwj]),
+      · rw [getElem!_set! (by omega : nbrs[j]! < cnt.size) w, ite_eq_left hwj,
+          ite_eq_left (by simp [hwj]),
           hwj]
         omega
-      · rw [getElem!_set!_ne hwj, if_neg (by simpa using fun h => hwj h.symm)]
+      · rw [getElem!_set!_ne hwj, ite_eq_right (by simpa using fun h => hwj h.symm)]
         omega
 
 /-- Unfolding lemma for the outer loop.  The definition destructures the inner loop's result
@@ -997,8 +999,8 @@ theorem ofOracle_nbr_count (n : Nat) (f : Nat → Nat → Bool) (u v : Nat) (hu 
   rw [ofOracle_nbr n f u hu,
     show ((Array.range n).filter (f u)).toList = (List.range n).filter (f u) by simp]
   by_cases h : f u v
-  · rw [if_pos h, List.count_filter h, List.count_range, if_pos hv]
-  · rw [if_neg h, List.count_eq_zero_of_not_mem]
+  · rw [ite_eq_left h, List.count_filter h, List.count_range, ite_eq_left hv]
+  · rw [ite_eq_right h, List.count_eq_zero_of_not_mem]
     simp [h]
 
 /-- **What the counting phase computes.**  Run from cleared scratch over the cell starting at
@@ -1125,7 +1127,7 @@ theorem bumpFrom_touched (nbrs : Array Nat) : ∀ (fuel j : Nat) (cnt touched : 
         rw [hsz] at hw
         by_cases hwv : w = nbrs[j]!
         · subst hwv
-          rw [getElem!_set! hv _, if_pos rfl]
+          rw [getElem!_set! hv _, ite_eq_left rfl]
           simp only [ne_eq, Nat.succ_ne_zero, not_false_eq_true, iff_true]
           split
           · exact Array.mem_push.2 (Or.inr rfl)
@@ -1295,7 +1297,7 @@ theorem Collected.push {hit : Array Bool} {cells : Array Nat} (h : Collected hit
     rw [hsz] at hw
     by_cases hwc : w = c
     · subst hwc
-      rw [getElem!_set! hc _, if_pos rfl, Array.mem_push]
+      rw [getElem!_set! hc _, ite_eq_left rfl, Array.mem_push]
       simp
     · rw [getElem!_set!_ne hwc, Array.mem_push]
       simp only [hwc, or_false]
@@ -1497,10 +1499,10 @@ theorem bucketFrom_getElem! (lab cnt : Array Nat) (ec : Nat) :
       dsimp only
       rw [bucketFrom_getElem! lab cnt ec fuel (k + 1) _ _ (by omega) t (by simpa using ht)]
       by_cases hteq : t = cnt[lab[k]!]!
-      · rw [getElem!_set! (by omega : cnt[lab[k]!]! < bc.size) t, if_pos hteq,
-          if_pos (by simp [hteq]), hteq]
+      · rw [getElem!_set! (by omega : cnt[lab[k]!]! < bc.size) t, ite_eq_left hteq,
+          ite_eq_left (by simp [hteq]), hteq]
         omega
-      · rw [getElem!_set!_ne hteq, if_neg (by simpa using fun h => hteq h.symm)]
+      · rw [getElem!_set!_ne hteq, ite_eq_right (by simpa using fun h => hteq h.symm)]
         omega
 
 /-- The bucket table and the list of occurring counts satisfy the same invariant as the count
@@ -1539,7 +1541,7 @@ theorem bucketFrom_touched (lab cnt : Array Nat) (ec : Nat) :
         rw [hsz] at hw
         by_cases hwv : w = cnt[lab[k]!]!
         · subst hwv
-          rw [getElem!_set! hv _, if_pos rfl]
+          rw [getElem!_set! hv _, ite_eq_left rfl]
           simp only [ne_eq, Nat.succ_ne_zero, not_false_eq_true, iff_true]
           split
           · exact Array.mem_push.2 (Or.inr rfl)
@@ -1648,19 +1650,20 @@ theorem offsetFrom_sizes (ks : Array Nat) (hnd : ks.toList.Nodup) :
       sizes.size = ks.size → ∀ i, i < ks.size →
         (offsetFrom ks fuel j sizes bc acc).1[i]! = if i < j then sizes[i]! else bc[ks[i]!]!
   | 0, j, sizes, bc, acc, hf, hsz, i, hi => by
-    rw [offsetFrom, if_pos (by omega)]
+    rw [offsetFrom, ite_eq_left (by omega)]
   | fuel + 1, j, sizes, bc, acc, hf, hsz, i, hi => by
     rw [offsetFrom]
     split
-    · rw [if_pos (by omega)]
+    · rw [ite_eq_left (by omega)]
     · rename_i hj
       rw [offsetFrom_sizes ks hnd fuel (j + 1) _ _ _ (by omega) (by simpa using hsz) i hi]
       rcases Nat.lt_trichotomy i j with h | h | h
-      · rw [if_pos (by omega), if_pos h, getElem!_set!_ne (by omega : i ≠ j)]
+      · rw [ite_eq_left (by omega), ite_eq_left h, getElem!_set!_ne (by omega : i ≠ j)]
       · subst h
-        rw [if_pos (by omega), if_neg (by omega), getElem!_set! (by omega : i < sizes.size) i,
-          if_pos rfl]
-      · rw [if_neg (by omega), if_neg (by omega),
+        rw [ite_eq_left (by omega), ite_eq_right (by omega),
+          getElem!_set! (by omega : i < sizes.size) i,
+          ite_eq_left rfl]
+      · rw [ite_eq_right (by omega), ite_eq_right (by omega),
           getElem!_set!_ne (nodup_getElem!_ne hnd hi (by omega) (by omega))]
 
 /-- **The fragment offsets**: after the pass, the bucket of the `i`-th count starts at the sum of
@@ -1681,7 +1684,7 @@ theorem offsetFrom_bc (ks : Array Nat) (hnd : ks.toList.Nodup) :
         rw [Finset.Ico_self, Finset.sum_empty, Nat.add_zero,
           offsetFrom_ne ks fuel (j + 1) _ _ _ _
             (fun i' h1 h2 => nodup_getElem!_ne hnd hi h2 (by omega)),
-          getElem!_set! (hks j hi) _, if_pos rfl]
+          getElem!_set! (hks j hi) _, ite_eq_left rfl]
         omega
       · have hsplit : ∑ i' ∈ Finset.Ico j i, bc[ks[i']!]!
             = bc[ks[j]!]! + ∑ i' ∈ Finset.Ico (j + 1) i, bc[ks[i']!]! :=
@@ -1706,7 +1709,7 @@ theorem bucketSize_mono (lab cnt : Array Nat) {k i ec t : Nat} (h1 : k ≤ i) (h
 
 theorem bucketSize_pos (lab cnt : Array Nat) {k ec t : Nat} (h : k < ec)
     (ht : cnt[lab[k]!]! = t) : 0 < bucketSize lab cnt k ec t := by
-  rw [bucketSize_succ lab cnt h, if_pos ht]
+  rw [bucketSize_succ lab cnt h, ite_eq_left ht]
   omega
 
 theorem scatterFrom_size1 (lab cnt : Array Nat) (ec : Nat) :
@@ -1744,9 +1747,9 @@ theorem scatterAt_step (lab cnt bc : Array Nat) {k i : Nat} (hk : k < i)
       = scatterAt lab cnt bc k i := by
   rw [scatterAt, scatterAt, bucketSize_succ lab cnt hk]
   by_cases h : cnt[lab[i]!]! = cnt[lab[k]!]!
-  · rw [h, getElem!_set! hb _, if_pos rfl, if_pos rfl]
+  · rw [h, getElem!_set! hb _, ite_eq_left rfl, ite_eq_left rfl]
     omega
-  · rw [getElem!_set!_ne h, if_neg (by simpa using fun h' => h h'.symm)]
+  · rw [getElem!_set!_ne h, ite_eq_right (by simpa using fun h' => h h'.symm)]
     omega
 
 /-- The scatter writes only at the offsets its remaining items name. -/
@@ -1786,18 +1789,18 @@ theorem Sep.step {lab cnt bc : Array Nat} {k ec : Nat} (h : Sep lab cnt k ec bc)
     fun u => bucketSize_succ lab cnt hk
   by_cases ht0 : t = cnt[lab[k]!]!
   · have ht0' : t' ≠ cnt[lab[k]!]! := fun h' => htt (ht0.trans h'.symm)
-    rw [getElem!_set! hb t, if_pos ht0, getElem!_set!_ne ht0', ← ht0]
+    rw [getElem!_set! hb t, ite_eq_left ht0, getElem!_set!_ne ht0', ← ht0]
     have h1 : a + 1 < bucketSize lab cnt k ec t := by
       have := hstep t
-      rw [if_pos ht0.symm] at this
+      rw [ite_eq_left ht0.symm] at this
       omega
     have := h t t' htt (a + 1) b h1 (by have := hmono t'; omega)
     omega
   · by_cases ht0' : t' = cnt[lab[k]!]!
-    · rw [getElem!_set!_ne ht0, getElem!_set! hb t', if_pos ht0', ← ht0']
+    · rw [getElem!_set!_ne ht0, getElem!_set! hb t', ite_eq_left ht0', ← ht0']
       have h1 : b + 1 < bucketSize lab cnt k ec t' := by
         have := hstep t'
-        rw [if_pos ht0'.symm] at this
+        rw [ite_eq_left ht0'.symm] at this
         omega
       have := h t t' htt a (b + 1) (by have := hmono t; omega) h1
       omega
@@ -1826,7 +1829,7 @@ theorem scatterFrom_block (lab cnt : Array Nat) (ec : Nat) :
           rwa [scatterAt, bucketSize_zero lab cnt (le_refl k), Nat.add_zero] at this
         rw [scatterAt, bucketSize_zero lab cnt (le_refl k), Nat.add_zero,
           scatterFrom_ne lab cnt ec fuel (k + 1) _ _ _ (by simpa using hcb) ?_,
-          getElem!_set! hbsz _, if_pos (Nat.add_zero _)]
+          getElem!_set! hbsz _, ite_eq_left (Nat.add_zero _)]
         intro i' h1' h2'
         rw [scatterAt_step lab cnt bc (by omega) hbk, scatterAt]
         by_cases ht : cnt[lab[i']!]! = cnt[lab[k]!]!
@@ -1896,7 +1899,7 @@ theorem writeFrom_lab (block : Array Nat) (c : Nat) :
     · rcases Nat.eq_or_lt_of_le h1 with h | h
       · subst h
         rw [writeFrom_lab_ne block c fuel (k + 1) _ _ _ (by omega),
-          getElem!_set! (by omega) _, if_pos rfl]
+          getElem!_set! (by omega) _, ite_eq_left rfl]
       · exact writeFrom_lab block c fuel (k + 1) _ _ (by omega) (by simpa using hlab) m
           (by omega) h2
 
@@ -1929,7 +1932,7 @@ theorem writeFrom_pos (block : Array Nat) (c : Nat) (hnd : block.toList.Nodup) :
       · subst h
         rw [writeFrom_pos_ne block c fuel (k + 1) _ _ _
             (fun m' h1' h2' => nodup_getElem!_ne hnd h2' h2 (by omega)),
-          getElem!_set! (hp k h2) _, if_pos rfl]
+          getElem!_set! (hp k h2) _, ite_eq_left rfl]
       · exact writeFrom_pos block c hnd fuel (k + 1) _ _ (by omega) (by simpa using hp) m
           (by omega) h2
 
@@ -1982,8 +1985,8 @@ theorem fillBoundsFrom_getElem! (st en : Nat) : ∀ (fuel i : Nat) (cst cen : Ar
       · subst h
         obtain ⟨e1, e2⟩ := fillBoundsFrom_ne st en fuel (i + 1) (cst.set! i st) (cen.set! i en) i
           (by omega)
-        exact ⟨by rw [e1, getElem!_set! (by omega) _, if_pos rfl],
-          by rw [e2, getElem!_set! (by omega) _, if_pos rfl]⟩
+        exact ⟨by rw [e1, getElem!_set! (by omega) _, ite_eq_left rfl],
+          by rw [e2, getElem!_set! (by omega) _, ite_eq_left rfl]⟩
       · exact fillBoundsFrom_getElem! st en fuel (i + 1) _ _ (by omega) (by simpa using hc1)
           (by simpa using hc2) x (by omega) h2
 
@@ -2137,7 +2140,7 @@ theorem clearCntFrom_mem (touched : Array Nat) : ∀ (fuel j : Nat) (cnt : Array
     · rcases Nat.eq_or_lt_of_le h1 with h | h
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < touched.size → touched[j'']! ≠ touched[j]!
-        · rw [clearCntFrom_ne touched fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · rw [clearCntFrom_ne touched fuel (j + 1) _ _ hmem, getElem!_set! hlt _, ite_eq_left rfl]
         · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
@@ -2183,7 +2186,7 @@ theorem clearHitFrom_mem (cells : Array Nat) : ∀ (fuel j : Nat) (hit : Array B
     · rcases Nat.eq_or_lt_of_le h1 with h | h
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < cells.size → cells[j'']! ≠ cells[j]!
-        · rw [clearHitFrom_ne cells fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · rw [clearHitFrom_ne cells fuel (j + 1) _ _ hmem, getElem!_set! hlt _, ite_eq_left rfl]
         · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
@@ -2238,7 +2241,7 @@ theorem clearBcFrom_mem (ks : Array Nat) : ∀ (fuel j : Nat) (bc : Array Nat),
     · rcases Nat.eq_or_lt_of_le h1 with h | h
       · subst h
         by_cases hmem : ∀ j'', j + 1 ≤ j'' → j'' < ks.size → ks[j'']! ≠ ks[j]!
-        · rw [clearBcFrom_ne ks fuel (j + 1) _ _ hmem, getElem!_set! hlt _, if_pos rfl]
+        · rw [clearBcFrom_ne ks fuel (j + 1) _ _ hmem, getElem!_set! hlt _, ite_eq_left rfl]
         · push Not at hmem
           obtain ⟨j'', hj1, hj2, hj3⟩ := hmem
           rw [← hj3]
@@ -2452,7 +2455,7 @@ theorem exists_of_bucketSize {lab cnt : Array Nat} {c ec t : Nat}
   rw [bucketSize]
   refine Finset.sum_eq_zero fun i hi => ?_
   simp only [Finset.mem_Ico] at hi
-  rw [if_neg (hno i hi.1 hi.2)]
+  rw [ite_eq_right (hno i hi.1 hi.2)]
 
 /-! ### The counting sort is a permutation of the cell
 
@@ -2541,7 +2544,7 @@ theorem scatterAt_ne (h : Offsets lab cnt ks sizes bc1 c ec) {i i' : Nat} (h1 : 
     have hstep : bucketSize lab cnt c (i + 1) cnt[lab[i]!]!
         = bucketSize lab cnt c i cnt[lab[i]!]! + 1 := by
       rw [bucketSize_split lab cnt (show c ≤ i by omega) (Nat.le_succ i),
-        bucketSize_succ lab cnt (Nat.lt_succ_self i), if_pos rfl,
+        bucketSize_succ lab cnt (Nat.lt_succ_self i), ite_eq_left rfl,
         bucketSize_zero lab cnt (le_refl _)]
     have hmono : bucketSize lab cnt c (i + 1) cnt[lab[i]!]!
         ≤ bucketSize lab cnt c i' cnt[lab[i]!]! := by
@@ -2610,7 +2613,7 @@ theorem splitCell_eq_singleton {cnt : Array Nat} {c : Nat} {st : SplitState}
     splitCell cnt c st = { st with tr := mixN (mixN st.tr c) cnt[st.lab[c]!]! } := by
   rw [splitCell]
   dsimp only
-  exact if_pos h
+  exact ite_eq_left h
 
 /-- A cell with a single bucket: again only the trace hash moves (and the bucket counter is
 put back). -/
@@ -2620,9 +2623,9 @@ theorem splitCell_eq_one {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 
     splitCell cnt c st = { st with tr := mixN (mixN st.tr c) ks0[0]!, bc := bc0.set! ks0[0]! 0 } := by
   rw [splitCell]
   dsimp only
-  rw [if_neg h1, hb]
+  rw [ite_eq_right h1, hb]
   dsimp only
-  exact if_pos h2
+  exact ite_eq_left h2
 
 /-- The general branch, with each pass of the counting sort named. -/
 theorem splitCell_eq_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 : Array Nat}
@@ -2645,9 +2648,9 @@ theorem splitCell_eq_general {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 
         tr := tr, bc := clearBcFrom (sortNats ks0) (sortNats ks0).size 0 bc2 } := by
   rw [splitCell]
   dsimp only
-  rw [if_neg h1, hb]
+  rw [ite_eq_right h1, hb]
   dsimp only
-  rw [if_neg h2, ho]
+  rw [ite_eq_right h2, ho]
   dsimp only
   rw [hsc]
   dsimp only
@@ -2764,7 +2767,7 @@ theorem splitOk_general {n : Nat} {cnt : Array Nat} {c : Nat} {st : SplitState}
     have h := offsetFrom_sizes (sortNats ks0) hndks (sortNats ks0).size 0
       (Array.replicate (sortNats ks0).size 0) bc0 0 (by omega) (by simp) j hj
     rw [ho] at h
-    rw [h, if_neg (by omega), hbc0 _ (hkslt j hj)]
+    rw [h, ite_eq_right (by omega), hbc0 _ (hkslt j hj)]
   have hbc_eq : ∀ j, j < (sortNats ks0).size → bc1[(sortNats ks0)[j]!]! = sizesSum sizes 0 j := by
     intro j hj
     have h := offsetFrom_bc (sortNats ks0) hndks (sortNats ks0).size 0
@@ -3330,7 +3333,7 @@ theorem splitCell_bc {cnt : Array Nat} {c : Nat} {st : SplitState}
         rw [hbc0size]; exact ((hks0mem _).1 (getElem!_mem (by omega))).1
       refine ⟨by simp [hbc0size], fun t ht => ?_⟩
       by_cases hteq : t = ks0[0]!
-      · rw [getElem!_set! h0lt t, if_pos hteq]
+      · rw [getElem!_set! h0lt t, ite_eq_left hteq]
       · rw [getElem!_set!_ne hteq, hbc0 t ht]
         by_contra hz
         obtain ⟨i, hi, hiv⟩ := mem_iff_getElem!.1 ((hks0mem t).2 ⟨ht, hz⟩)
@@ -3425,7 +3428,7 @@ theorem bucketFrom_facts {cnt : Array Nat} {c : Nat} {st : SplitState} {bc0 ks0 
   · have h := offsetFrom_sizes (sortNats ks0) hndks (sortNats ks0).size 0
       (Array.replicate (sortNats ks0).size 0) bc0 0 (by omega) (by simp) j hj
     rw [ho] at h
-    rw [h, if_neg (by omega), hbc0 _ (hkslt j hj)]
+    rw [h, ite_eq_right (by omega), hbc0 _ (hkslt j hj)]
 
 /-- **The scratch fields move in lockstep too.**  Corresponding cells hash to the same trace and
 queue the same fragments: the branch taken, the fragment sizes and the fragment starts are all
@@ -3651,7 +3654,7 @@ theorem refineStepLo_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat
   dsimp only
   rw [hc]
   dsimp only
-  exact if_pos h
+  exact ite_eq_left h
 
 theorem refineStep_eq_empty {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr : UInt64}
     {sc : Scratch} {cnt touched : Array Nat}
@@ -3679,7 +3682,7 @@ theorem refineStepLo_eq {G : Graph} {p : Part} {inW : Array Bool} {s : Nat} {tr 
   dsimp only
   rw [hc]
   dsimp only
-  rw [if_neg h, hcl]
+  rw [ite_eq_right h, hcl]
   dsimp only
   rw [hst]
   rfl
@@ -4025,7 +4028,7 @@ theorem refineLoop_step {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {
     refineLoop G (fuel + 1) p inW lo tr sc = refineLoop G fuel p' inW' lo' tr' sc' := by
   rw [refineLoop, hfs]
   dsimp only
-  rw [if_pos hg, hstep]
+  rw [ite_eq_left hg, hstep]
 
 theorem refineLoop_skip {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {lo : Nat}
     {tr : UInt64} {sc : Scratch} {s : Nat} (hfs : firstSetFrom inW lo = some s)
@@ -4034,7 +4037,7 @@ theorem refineLoop_skip {G : Graph} {fuel : Nat} {p : Part} {inW : Array Bool} {
       = refineLoop G fuel p (inW.set! s false) (s + 1) tr sc := by
   rw [refineLoop, hfs]
   dsimp only
-  rw [if_neg (by rw [hg]; exact Bool.false_ne_true)]
+  rw [ite_eq_right (by rw [hg]; exact Bool.false_ne_true)]
 
 /-! ### The worklist loop is equivariant -/
 
@@ -4185,12 +4188,12 @@ theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
     have hrwn : rowWords n = (n + 63) / 64 := rfl
     rw [certRow] at hres
     by_cases hm : n % 64 = 0
-    · rw [if_neg (by simp [hm])] at hres
+    · rw [ite_eq_right (by simp [hm])] at hres
       subst hres
       refine ⟨rfl, fun x _ => rfl, ?_⟩
       intro j' hj' hge
       omega
-    · rw [if_pos (by simp [hm])] at hres
+    · rw [ite_eq_left (by simp [hm])] at hres
       have hk : base + n / 64 < out.size := by omega
       subst hres
       refine ⟨by simp, ?_, ?_⟩
@@ -4198,7 +4201,7 @@ theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
         exact getElem!_set!_ne (by omega)
       · intro j' hj' hge
         have hq : j' / 64 = n / 64 := by omega
-        rw [hq, getElem!_set! hk _, if_pos rfl,
+        rw [hq, getElem!_set! hk _, ite_eq_left rfl,
           shl_natshift _ _ (by omega), BitVec.getLsbD_shiftLeft]
         have hr : j' % 64 < n % 64 := by omega
         rw [decide_eq_true (show 63 - j' % 64 < 64 by omega),
@@ -4220,9 +4223,9 @@ theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
       intro t ht
       rw [hacc'def, shl_bit _ _ _ ht]
       rcases Nat.eq_zero_or_pos t with rfl | hpos
-      · rw [if_pos rfl, decide_eq_true (show 0 + 64 * (j / 64) < j + 1 by omega)]
+      · rw [ite_eq_left rfl, decide_eq_true (show 0 + 64 * (j / 64) < j + 1 by omega)]
         simp
-      · rw [if_neg (by omega), hacc (t - 1) (by omega)]
+      · rw [ite_eq_right (by omega), hacc (t - 1) (by omega)]
         have h1 : decide (t - 1 + 64 * (j / 64) < j) = decide (t + 64 * (j / 64) < j + 1) := by
           simp only [decide_eq_decide]; omega
         have h2 : j - 1 - (t - 1) = j - t := by omega
@@ -4230,7 +4233,7 @@ theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
     have hrw : j / 64 < rowWords n := by
       rw [rowWords]; omega
     by_cases h64 : (j + 1) % 64 = 0
-    · rw [if_pos (by simp [h64])] at hres
+    · rw [ite_eq_left (by simp [h64])] at hres
       have hq : base + j / 64 + 1 = base + (j + 1) / 64 := by omega
       rw [hq] at hres
       have hk : base + j / 64 < out.size := by omega
@@ -4247,13 +4250,13 @@ theorem certRow_spec (n : Nat) (b : Nat → Bool) (base : Nat) :
         by_cases hlt : 64 * ((j + 1) / 64) ≤ j'
         · exact hbits j' hj' hlt
         · have hq' : j' / 64 = j / 64 := by omega
-          rw [hq', hunch _ (by omega), getElem!_set! hk _, if_pos rfl,
+          rw [hq', hunch _ (by omega), getElem!_set! hk _, ite_eq_left rfl,
             hacc'ok (63 - j' % 64) (by omega),
             decide_eq_true (show 63 - j' % 64 + 64 * (j / 64) < j + 1 by omega)]
           simp only [Bool.true_and]
           congr 1
           omega
-    · rw [if_neg (by simp [h64])] at hres
+    · rw [ite_eq_right (by simp [h64])] at hres
       have hq : (j + 1) / 64 = j / 64 := by omega
       have hacc'ok' : AccOk b (j + 1) acc' := by
         intro t ht
@@ -4448,19 +4451,19 @@ theorem dfsNode_zero (G : Graph) (path : Array Nat) (invPath : Array UInt64) (p 
 theorem dfsNode_abort {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {st : St} (h : st.abortTo.isSome = true) :
     dfsNode G (fuel + 1) path invPath p st = st := by
-  rw [dfsNode, if_pos h]
+  rw [dfsNode, ite_eq_left h]
 
 theorem dfsNode_pruned {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {st : St} (h : st.abortTo.isSome = false) (hp : pruneNode invPath st = none) :
     dfsNode G (fuel + 1) path invPath p st = st := by
-  rw [dfsNode, if_neg (by simp [h]), hp]
+  rw [dfsNode, ite_eq_right (by simp [h]), hp]
 
 theorem dfsNode_leaf {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {st st' : St} (h : st.abortTo.isSome = false)
     (hp : pruneNode invPath st = some st') (hc : p.targetCell G.n = none) :
     dfsNode G (fuel + 1) path invPath p st
       = leafUpdate G path invPath p.lab { st' with nodes := st'.nodes + 1 } := by
-  rw [dfsNode, if_neg (by simp [h]), hp]
+  rw [dfsNode, ite_eq_right (by simp [h]), hp]
   simp only []
   rw [hc]
 
@@ -4472,7 +4475,7 @@ theorem dfsNode_branch {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Ar
           { nGens := st'.autos.size, gens := Thunk.mk fun _ ↦ usableAutos st'.autos path,
             mark := Array.replicate G.n false }
           { st' with nodes := st'.nodes + 1 } := by
-  rw [dfsNode, if_neg (by simp [h]), hp]
+  rw [dfsNode, ite_eq_right (by simp [h]), hp]
   simp only []
   rw [hc]
 
@@ -4486,7 +4489,7 @@ theorem dfsChildren_abort {G : Graph} {fuel : Nat} {path : Array Nat} {invPath :
     dfsChildren G fuel path invPath p (v :: vs) processed orb st = st := by
   rw [dfsChildren]
   simp only []
-  rw [if_pos h]
+  rw [ite_eq_left h]
 
 theorem dfsChildren_marked {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
@@ -4499,7 +4502,7 @@ theorem dfsChildren_marked {G : Graph} {fuel : Nat} {path : Array Nat} {invPath 
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
   rw [dfsChildren]
   simp only []
-  rw [if_neg (by simp [h]), ← hor, if_pos hm]
+  rw [ite_eq_right (by simp [h]), ← hor, ite_eq_left hm]
 
 theorem dfsChildren_step {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
@@ -4522,7 +4525,7 @@ theorem dfsChildren_step {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : 
                mark := orbitClosure G.n (usableAutos st.autos path) processed } := rfl
   rw [dfsChildren]
   simp only []
-  rw [if_neg (by simp [h]), ← hor, if_neg (by simp [hm]), hi]
+  rw [ite_eq_right (by simp [h]), ← hor, ite_eq_right (by simp [hm]), hi]
   simp only []
   rw [hr]
   rfl
@@ -4540,7 +4543,7 @@ theorem dfsChildren_step_stop {G : Graph} {fuel : Nat} {path : Array Nat} {invPa
           (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st) := by
   rw [dfsChildren_step h hm hi hr]
   simp only []
-  rw [if_pos hs]
+  rw [ite_eq_left hs]
 
 theorem dfsChildren_step_go {G : Graph} {fuel : Nat} {path : Array Nat} {invPath : Array UInt64}
     {p : Part} {v : Nat} {vs : List Nat} {processed : Array Nat} {orb : Orbits} {st : St}
@@ -4559,7 +4562,7 @@ theorem dfsChildren_step_go {G : Graph} {fuel : Nat} {path : Array Nat} {invPath
             (dfsNode G fuel (path.push v) (invPath.push (mix tr (p''.shapeHash G.n))) p'' st)) := by
   rw [dfsChildren_step h hm hi hr]
   simp only []
-  rw [if_neg (by simp [hs])]
+  rw [ite_eq_right (by simp [hs])]
 
 /-- `unwind` only clears a backjump request; it never touches the recorded leaves. -/
 theorem unwind_best (path : Array Nat) (st : St) : (unwind path st).best = st.best := by
@@ -4591,10 +4594,10 @@ theorem dfsNode_ok (n : Nat) (f : Nat → Nat → Bool) :
   case refine_1 => intro path invPath p st hp hst; rw [dfsNode]; exact hst
   case refine_2 =>
     intro path invPath p st fuel habort hp hst
-    rw [dfsNode, if_pos habort]; exact hst
+    rw [dfsNode, ite_eq_left habort]; exact hst
   case refine_3 =>
     intro path invPath p st fuel habort hprune hp hst
-    rw [dfsNode, if_neg habort, hprune]; exact hst
+    rw [dfsNode, ite_eq_right habort, hprune]; exact hst
   case refine_4 =>
     intro path invPath p st fuel habort st1 hprune htc hp hst
     have hst1 : StOk (Graph.ofOracle n f) st1 := pruneNode_ok hprune hst
@@ -4679,8 +4682,8 @@ theorem invLab_foldl_get (n : Nat) (a : Array Nat) (l : List Nat) (hnd : l.Nodup
         intro j hj heq
         exact absurd (hinj j (List.mem_cons_of_mem _ hj) i (by simp) heq ▸ hj)
           (List.nodup_cons.1 hnd).1
-      rw [invLab_foldl_unchanged n a t _ _ hne, if_pos hai,
-        getElem!_set! (show a[i]! < b.size by rw [hb]; exact hai) a[i]!, if_pos rfl]
+      rw [invLab_foldl_unchanged n a t _ _ hne, ite_eq_left hai,
+        getElem!_set! (show a[i]! < b.size by rw [hb]; exact hai) a[i]!, ite_eq_left rfl]
     · refine ih (List.nodup_cons.1 hnd).2
         (fun x hx y hy => hinj x (List.mem_cons_of_mem _ hx) y (List.mem_cons_of_mem _ hy)) _
         ?_ hit
@@ -4747,7 +4750,7 @@ theorem canonical_isPerm (n : Nat) (f : Nat → Nat → Bool) :
 theorem canonicalLabellingOfOracle_eq (n : Nat) (f : Nat → Nat → Bool) :
     canonicalLabellingOfOracle n f = (canonical (Graph.ofOracle n f)).lab := by
   rw [canonicalLabellingOfOracle]
-  simp only [canonical_isPerm n f, if_pos]
+  simp only [canonical_isPerm n f, ite_eq_left]
 
 
 end Canon

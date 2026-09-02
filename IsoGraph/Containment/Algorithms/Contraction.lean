@@ -452,7 +452,7 @@ theorem isAut_of_mem_searchAuts (hhs : ∀ x : H.V, x ∈ hs) {a : List H.V}
 
 /-- When there are interchangeable vertices to order, the automorphisms stand down. -/
 theorem searchAuts_of_symPairs {hs : List H.V} (h : ¬ (symPairs H hs).isEmpty = true) :
-    searchAuts H hs = [] := by rw [searchAuts, if_neg h]
+    searchAuts H hs = [] := by rw [searchAuts, ite_eq_right h]
 
 end Autos
 
@@ -826,7 +826,8 @@ theorem testBit_getElem!_orTab (f : G.V → ℕ) (hrk : H.V → ℕ) {m i k : �
       = (pre.filter fun q ↦ hrk q.2 == i).any fun q ↦ (f q.1).testBit k := by
   rw [orTab, getElem!_foldl_or f hrk pre _ (by simpa using hi)]
   rw [show (Array.replicate m 0)[i]! = 0 by
-    rw [Array.getElem!_eq_getD, Array.getD_eq_getD_getElem?, Array.getElem?_replicate, if_pos hi]
+    rw [Array.getElem!_eq_getD, Array.getD_eq_getD_getElem?, Array.getElem?_replicate,
+      ite_eq_left hi]
     rfl]
   simpa using testBit_foldl_or (γ := G.V × H.V) (fun q ↦ f q.1) k
     (pre.filter fun q ↦ hrk q.2 == i) 0
@@ -919,8 +920,8 @@ theorem reachMask_eq_mask (hgs : ∀ v, v ∈ gs) : ∀ (n : ℕ) (S front pool 
     rw [reachMask, reachAux]
     simp only [stepMask_eq hgs]
     by_cases hemp : (pool.filter fun v ↦ front.any (G.Adj v)) = []
-    · rw [if_pos (by simp [hemp, mask_eq_zero_iff]), if_pos (by simp [hemp])]
-    · rw [if_neg (by simp [mask_eq_zero_iff, hemp]), if_neg (by simp [hemp]),
+    · rw [ite_eq_left (by simp [hemp, mask_eq_zero_iff]), ite_eq_left (by simp [hemp])]
+    · rw [ite_eq_right (by simp [mask_eq_zero_iff, hemp]), ite_eq_right (by simp [hemp]),
         ← reachMask_eq_mask hgs n _ _ _, xor_stepMask hgs, mask_append, Nat.lor_comm]
 
 /-- The flood, stopped as soon as it has covered `target`.  `connViaMask` only ever asks whether
@@ -942,8 +943,8 @@ private theorem or_reachMask (rs : List (Row G)) :
   | n + 1, S, front, pool, T, h => by
     rw [reachMask]
     by_cases hz : (stepMask rs front pool == 0) = true
-    · rw [if_pos hz]; exact h
-    · rw [if_neg hz]
+    · rw [ite_eq_left hz]; exact h
+    · rw [ite_eq_right hz]
       exact or_reachMask rs n _ _ _ T (by rw [← Nat.lor_assoc, h])
 
 private theorem and_eq_self_trans {a b c : ℕ} (hab : a &&& b = a) (hbc : b ||| c = c) :
@@ -965,14 +966,14 @@ theorem reachUntil_eq (rs : List (Row G)) : ∀ (target n S front pool : ℕ),
   | _, 0, _, _, _ => rfl
   | target, n + 1, S, front, pool => by
     by_cases ht : (target &&& S == target) = true
-    · rw [reachUntil, if_pos ht, eq_comm, beq_iff_eq]
+    · rw [reachUntil, ite_eq_left ht, eq_comm, beq_iff_eq]
       exact and_eq_self_trans (by simpa using ht)
         (or_reachMask rs (n + 1) S front pool S (Nat.or_self S))
-    · rw [reachUntil, if_neg ht, reachMask]
+    · rw [reachUntil, ite_eq_right ht, reachMask]
       by_cases hz : (stepMask rs front pool == 0) = true
-      · rw [if_pos hz, if_pos hz]
+      · rw [ite_eq_left hz, ite_eq_left hz]
         exact (Bool.eq_false_iff.mpr ht).symm
-      · rw [if_neg hz, if_neg hz]
+      · rw [ite_eq_right hz, ite_eq_right hz]
         exact reachUntil_eq rs target n _ _ _
 
 /-- **Spare fuel changes nothing.**  `reachAux` stops of its own accord once nothing new arrives,
@@ -1073,10 +1074,10 @@ theorem connVia_eq_connViaMask (hgs : ∀ v, v ∈ gs) {n : ℕ} (pool f : List 
     (hn : f.length + pool.length ≤ n) :
     connVia G pool f = connViaMask G (rowList G gs) n (mask G gs pool) (mask G gs f) := by
   rcases eq_or_ne f [] with rfl | hne
-  · rw [connViaMask, if_pos (by simp [mask])]
+  · rw [connViaMask, ite_eq_left (by simp [mask])]
     rfl
   · have h0 : ¬(mask G gs f == 0) = true := by simp [mask_eq_zero_iff, hne]
-    rw [connViaMask, if_neg h0]
+    rw [connViaMask, ite_eq_right h0]
     -- the row the lowest bit names is a vertex of the block
     obtain ⟨v, hv⟩ := List.exists_mem_of_ne_nil f hne
     cases hf : (rowList G gs).find? fun p ↦ mask G gs f &&& p.bit != 0 with
@@ -1511,10 +1512,10 @@ theorem candLabWith_eq_candLabMask (hgs : ∀ v, v ∈ gs) (hhs : ∀ x : H.V, x
       · subst hxy
         rw [Array.getElem!_set!_self _ _ _
             (by rw [size_orTab]; exact List.idxOf_lt_length_of_mem (hhs x)),
-          if_pos rfl, hslot x, hcons]
+          ite_eq_left rfl, hslot x, hcons]
         exact Nat.lor_comm _ _
       · rw [Array.getElem!_set!_ne _ _ _ _ (fun h ↦ hxy ((List.idxOf_inj (hhs x)).mp h)),
-          if_neg hxy, hslot y]
+          ite_eq_right hxy, hslot y]
     have hb := hkey _ (mask G gs) (bit_slot hgs hhs · pre)
       (fun f ↦ by rw [getElem!_bitTab hgs, show v :: f = [v] ++ f from rfl, mask_append])
     have hnb := hkey _ (nbrMask G gs) (nb_slot hgs hhs · pre)

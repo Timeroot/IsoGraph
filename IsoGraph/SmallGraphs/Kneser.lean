@@ -165,8 +165,8 @@ theorem fracChromNum_kneser (hk : 0 < k) (h : 2 * k ≤ n) :
           = (if i ∈ A.1 then (1 / k : ℚ) else 0) := by
         intro i
         by_cases hi : i ∈ A.1
-        · rw [if_pos (mem_kneserStar.2 hi), if_pos hi]
-        · rw [if_neg (fun h ↦ hi (mem_kneserStar.1 h)), if_neg hi]
+        · rw [ite_eq_left (mem_kneserStar.2 hi), ite_eq_left hi]
+        · rw [ite_eq_right (fun h ↦ hi (mem_kneserStar.1 h)), ite_eq_right hi]
       have hsum : ∑ i : Fin n, (if A ∈ kneserStar n k i then (1 / k : ℚ) else 0)
           = ∑ _i ∈ A.1, (1 / k : ℚ) := by
         simp only [hstep]
@@ -477,7 +477,7 @@ theorem le_chromNum_kneser_two (n : ℕ) : n - 2 ≤ (kneser n 2).chromNum := by
       refine card_le_of_colouring_pairs
         (fun a ↦ if h : a.card = 2 then C (⟨a, h⟩ : (kneser n 2).V) else ⟨0, hm0⟩) ?_
       intro a b ha hb hab
-      simp only [dif_pos ha, dif_pos hb]
+      simp only [dite_eq_left ha, dite_eq_left hb]
       refine C.valid ?_
       rw [CGraph.toSimple_adj, kneser_adj]
       have hne : (⟨a, ha⟩ : (kneser n 2).V) ≠ ⟨b, hb⟩ := by

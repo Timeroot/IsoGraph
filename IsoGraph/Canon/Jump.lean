@@ -76,10 +76,10 @@ theorem commonPrefixFrom_ne (a b : Array Nat) (m : Nat) :
     · omega
     · rename_i him
       split at hlt
-      · rw [if_neg him, if_pos ‹_›]
+      · rw [ite_eq_right him, ite_eq_left ‹_›]
         exact commonPrefixFrom_ne a b m fuel (i + 1) (by omega) (by omega) hlt
       · rename_i hne
-        rw [if_neg him, if_neg hne]
+        rw [ite_eq_right him, ite_eq_right hne]
         simpa using hne
 
 theorem commonPrefix_le (a b : Array Nat) : commonPrefix a b ≤ min a.size b.size :=

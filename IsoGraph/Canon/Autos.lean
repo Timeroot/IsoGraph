@@ -76,7 +76,7 @@ theorem autoOf_foldl_get (n : Nat) (σ τ : Array Nat) (l : List Nat) (hnd : l.N
         exact absurd (hinj j (List.mem_cons_of_mem _ hj) i (by simp) heq ▸ hj)
           (List.nodup_cons.1 hnd).1
       rw [autoOf_foldl_unchanged σ τ t _ _ hne,
-        getElem!_set! (show σ[i]! < b.size by rw [hb]; exact hσi) σ[i]!, if_pos rfl]
+        getElem!_set! (show σ[i]! < b.size by rw [hb]; exact hσi) σ[i]!, ite_eq_left rfl]
     · exact ih (List.nodup_cons.1 hnd).2
         (fun x hx y hy => hinj x (List.mem_cons_of_mem _ hx) y (List.mem_cons_of_mem _ hy)) _
         (by simp [hb]) hit

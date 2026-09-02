@@ -2056,14 +2056,14 @@ matching lower bound.
 theorem cyc_mod_succ (N j : ℕ) (hj : j < N) :
     (j + 1) % N = if j + 1 = N then 0 else j + 1 := by
   rcases eq_or_lt_of_le (Nat.succ_le_of_lt hj) with h | h
-  · rw [if_pos (by omega), show j + 1 = N from by omega, Nat.mod_self]
-  · rw [if_neg (by omega), Nat.mod_eq_of_lt h]
+  · rw [ite_eq_left (by omega), show j + 1 = N from by omega, Nat.mod_self]
+  · rw [ite_eq_right (by omega), Nat.mod_eq_of_lt h]
 
 theorem cyc_mod_pred (N i : ℕ) (hi : i < N) :
     (i + N - 1) % N = if i = 0 then N - 1 else i - 1 := by
   rcases Nat.eq_zero_or_pos i with rfl | hi0
-  · rw [if_pos rfl, show 0 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
-  · rw [if_neg (by omega), show i + N - 1 = N + (i - 1) from by omega, Nat.add_mod_left,
+  · rw [ite_eq_left rfl, show 0 + N - 1 = N - 1 from by omega, Nat.mod_eq_of_lt (by omega)]
+  · rw [ite_eq_right (by omega), show i + N - 1 = N + (i - 1) from by omega, Nat.add_mod_left,
       Nat.mod_eq_of_lt (by omega)]
 
 /-- The two neighbours of `i` in a cycle of length at least three, named by their labels. -/
@@ -2579,12 +2579,12 @@ theorem ladderCol_proper (N : ℕ) (u v w : (path N □g complete 2).V)
       have e1 : u.2.1 ≠ v.2.1 := fun hh ↦ hv2 (Fin.ext hh)
       have e2 : u.2.1 ≠ w.2.1 := fun hh ↦ hw2 (Fin.ext hh)
       omega
-    · rw [if_pos hv1, if_neg hw1]
+    · rw [ite_eq_left hv1, ite_eq_right hw1]
       split_ifs <;> decide
   · rcases huw with ⟨hw1, hw2⟩ | ⟨⟨hw1, hw2⟩, hw3⟩
-    · rw [if_neg hv1, if_pos hw1]
+    · rw [ite_eq_right hv1, ite_eq_left hw1]
       split_ifs <;> decide
-    · rw [if_neg hv1, if_neg hw1]
+    · rw [ite_eq_right hv1, ite_eq_right hw1]
       have hne : v.1.1 ≠ w.1.1 := fun h ↦
         hvw (Prod.ext (Fin.ext h) (hv3.symm.trans hw3))
       have hu := u.1.isLt
@@ -2592,9 +2592,9 @@ theorem ladderCol_proper (N : ℕ) (u v w : (path N □g complete 2).V)
       have hw := w.1.isLt
       have hpar : min u.1.1 v.1.1 % 2 ≠ min u.1.1 w.1.1 % 2 := by omega
       by_cases h1 : min u.1.1 v.1.1 % 2 = 0
-      · rw [if_pos h1, if_neg (by omega)]
+      · rw [ite_eq_left h1, ite_eq_right (by omega)]
         decide
-      · rw [if_neg h1, if_pos (by omega)]
+      · rw [ite_eq_right h1, ite_eq_left (by omega)]
         decide
 
 theorem crownCol_proper (n : ℕ) (u v w : (complete (n + 2) ⊗g complete 2).V)
@@ -2615,16 +2615,16 @@ theorem crownCol_proper (n : ℕ) (u v w : (complete (n + 2) ⊗g complete 2).V)
     omega
   have h1 : v.1 ≠ w.1 := fun hh ↦ hvw (Prod.ext hh h2)
   unfold crownCol
-  rw [if_neg huv2, if_neg huw2]
+  rw [ite_eq_right huv2, ite_eq_right huw2]
   by_cases h0 : u.2.1 = 0
-  · rw [if_pos h0, if_pos h0]
+  · rw [ite_eq_left h0, ite_eq_left h0]
     intro hcol
     have hce : crownIdx (n + 2) u.1 v.1 - 1 = crownIdx (n + 2) u.1 w.1 - 1 :=
       congrArg Fin.val hcol
     have p1 := crownIdx_pos (n + 2) huv1
     have p2 := crownIdx_pos (n + 2) huw1
     exact h1 (crownIdx_inj (n + 2) u.1 v.1 w.1 (by omega))
-  · rw [if_neg h0, if_neg h0]
+  · rw [ite_eq_right h0, ite_eq_right h0]
     intro hcol
     have hce : crownIdx (n + 2) v.1 u.1 - 1 = crownIdx (n + 2) w.1 u.1 - 1 :=
       congrArg Fin.val hcol
@@ -2669,16 +2669,16 @@ theorem prismCol_proper (n : ℕ) (u v w : (cycle (n + 3) □g complete 2).V)
   · rcases hw with ⟨hw1, hw2⟩ | ⟨hw1, hw2⟩
     · exfalso; omega
     · have huw' : u.1.1 ≠ w.1.1 := by omega
-      rw [if_pos hv1, if_neg huw']
+      rw [ite_eq_left hv1, ite_eq_right huw']
       split_ifs <;> first | decide | (exfalso; omega)
   · rcases hw with ⟨hw1, hw2⟩ | ⟨hw1, hw2⟩
     · have huv' : u.1.1 ≠ v.1.1 := by omega
-      rw [if_neg huv', if_pos hw1]
+      rw [ite_eq_right huv', ite_eq_left hw1]
       split_ifs <;> first | decide | (exfalso; omega)
     · have huv' : u.1.1 ≠ v.1.1 := by omega
       have huw' : u.1.1 ≠ w.1.1 := by omega
       have hvw' : v.1.1 ≠ w.1.1 := by omega
-      rw [if_neg huv', if_neg huw']
+      rw [ite_eq_right huv', ite_eq_right huw']
       split_ifs <;> first | decide | (exfalso; omega)
 
 /-- The indexing of `grotzschColTable` as a function on the vertices themselves. -/
@@ -2747,8 +2747,8 @@ theorem prodCol_symm {G H : CGraph} {k l : ℕ}
     prodCol c d p q = prodCol c d q p := by
   unfold prodCol
   by_cases h : p.1 = q.1
-  · rw [if_pos h, if_pos h.symm, hd]
-  · rw [if_neg h, if_neg (fun hh ↦ h hh.symm), hc]
+  · rw [ite_eq_left h, ite_eq_left h.symm, hd]
+  · rw [ite_eq_right h, ite_eq_right (fun hh ↦ h hh.symm), hc]
 
 end
 

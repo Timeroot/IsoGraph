@@ -376,6 +376,13 @@ def enumSum (α : Type) (e : FinEnum α) : String :=
   let l := @FinEnum.toList α e
   toString ((l.map fun x ↦ (@FinEnum.equiv α e x).1).sum)
 
+section MathlibEnums
+
+-- The four definitions below have a class as their type but are deliberately not instances: they
+-- are the reference dictionaries the timings run against, handed to `enumSum` by hand.  Nothing
+-- ever finds them by instance search, so the reducibility the linter asks for is immaterial.
+set_option warn.classDefReducibility false
+
 /-- The enumeration of `Fin n` that Mathlib supplies: a `List.finRange n` searched by `idxOf`. -/
 def finEnumFinMathlib (n : ℕ) : FinEnum (Fin n) := @FinEnum.fin n
 
@@ -392,6 +399,8 @@ and deduplicated, then filtered down to the ones of the right size. -/
 def kneserEnumMathlib (n k : ℕ) : FinEnum {s : Finset (Fin n) // s.card = k} :=
   @FinEnum.Subtype.finEnum (Finset (Fin n)) (@FinEnum.Finset.finEnum (Fin n) (@FinEnum.fin n))
     (fun s ↦ s.card = k) (fun _ ↦ inferInstance)
+
+end MathlibEnums
 
 /-- `G` with its enumeration replaced.  The vertex type and the adjacency are untouched, so this
 is the same graph; what changes is the index every algorithm reaches for.  This is how the fast

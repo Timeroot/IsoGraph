@@ -142,16 +142,16 @@ instance (priority := 2000) instSum [FinEnum α] [FinEnum β] : FinEnum (α ⊕ 
         dsimp only
         cases s with
         | inl a =>
-          rw [Sum.elim_inl, dif_pos (equiv a).isLt]
+          rw [Sum.elim_inl, dite_eq_left (equiv a).isLt]
           exact congrArg _ (congrArg _ (Fin.ext rfl) |>.trans (Equiv.symm_apply_apply _ _))
         | inr b =>
-          rw [Sum.elim_inr, dif_neg (by simp)]
+          rw [Sum.elim_inr, dite_eq_right (by simp)]
           exact congrArg _ (congrArg _ (Fin.ext (by simp)) |>.trans (Equiv.symm_apply_apply _ _))
       right_inv := fun i ↦ by
         dsimp only
         by_cases h : i.val < card α
-        · rw [dif_pos h]; exact Fin.ext (by simp)
-        · rw [dif_neg h]; exact Fin.ext (by simp; omega) }
+        · rw [dite_eq_left h]; exact Fin.ext (by simp)
+        · rw [dite_eq_right h]; exact Fin.ext (by simp; omega) }
 
 @[simp] theorem card_sum' [FinEnum α] [FinEnum β] : card (α ⊕ β) = card α + card β := rfl
 
@@ -491,11 +491,11 @@ theorem nodup_subtypeList (p : α → Prop) [FinEnum α] [DecidablePred p] :
   simp only [Option.mem_def] at hb hb'
   by_cases ha : p a
   · by_cases ha' : p a'
-    · rw [dif_pos ha] at hb
-      rw [dif_pos ha'] at hb'
+    · rw [dite_eq_left ha] at hb
+      rw [dite_eq_left ha'] at hb'
       exact congrArg Subtype.val (Option.some.inj (hb.trans hb'.symm))
-    · rw [dif_neg ha'] at hb'; exact absurd hb' (by simp)
-  · rw [dif_neg ha] at hb; exact absurd hb (by simp)
+    · rw [dite_eq_right ha'] at hb'; exact absurd hb' (by simp)
+  · rw [dite_eq_right ha] at hb; exact absurd hb (by simp)
 
 instance (priority := 2000) instSubtype [FinEnum α] [Elems α] (p : α → Prop) [DecidablePred p] :
     FinEnum {x // p x} :=

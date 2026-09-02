@@ -179,7 +179,7 @@ theorem mem_trails {nb : G.V → List G.V} (hnb : ∀ u w : G.V, G.Adj u w = tru
       rw [chainEnd] at hend
       subst hend
       refine List.mem_append_left _ ?_
-      rw [if_pos (by
+      rw [ite_eq_left (by
         simp only [Bool.and_eq_true, List.contains_eq_mem, decide_eq_true_eq,
           Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
         exact ⟨hnb u w hw.1, hfirst⟩)]
@@ -248,13 +248,13 @@ theorem degree_le (t : H.ImmersionOf G) (x : H.V) :
   · intro y hy
     rw [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy
     have h1 : H.Adj x y = true := hy
-    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset, dif_pos h1]
+    simp only [Finset.mem_coe, SimpleGraph.mem_neighborFinset, dite_eq_left h1]
     simpa using (t.walk h1).adj_getVert_succ (i := 0) (t.length_pos h1)
   · intro y hy y' hy' he
     rw [Finset.mem_coe, SimpleGraph.mem_neighborFinset] at hy hy'
     have h1 : H.Adj x y = true := hy
     have h2 : H.Adj x y' = true := hy'
-    simp only [dif_pos h1, dif_pos h2] at he
+    simp only [dite_eq_left h1, dite_eq_left h2] at he
     by_contra hne
     have hsym : s(x, y) ≠ s(x, y') := by
       rw [Ne, Sym2.eq_iff]
@@ -297,14 +297,14 @@ def toImmModel (t : H.ImmersionOf G) (ord : H.V → ℕ) (hord : Function.Inject
   f := t.toFun
   f_inj := t.injective
   seg x y := if h : H.Adj x y = true then (t.walk h).support.tail else []
-  isWalk x y h _ := by rw [dif_pos h]; exact isWalkList_support_tail _
-  ends x y h _ := by rw [dif_pos h]; exact chainEnd_support_tail _
+  isWalk x y h _ := by rw [dite_eq_left h]; exact isWalkList_support_tail _
+  ends x y h _ := by rw [dite_eq_left h]; exact chainEnd_support_tail _
   trail x y h _ := by
-    rw [dif_pos h, edgeList_support_tail]
+    rw [dite_eq_left h, edgeList_support_tail]
     exact (SimpleGraph.Walk.isTrail_def _).mp (t.isTrail' h)
   disj x y x' y' h hc h' hc' hne e he := by
-    rw [dif_pos h, edgeList_support_tail] at he
-    rw [dif_pos h', edgeList_support_tail]
+    rw [dite_eq_left h, edgeList_support_tail] at he
+    rw [dite_eq_left h', edgeList_support_tail]
     have hsym : s(x, y) ≠ s(x', y') := by
       rw [Ne, Sym2.eq_iff]
       rintro (⟨rfl, rfl⟩ | ⟨rfl, rfl⟩)
@@ -399,8 +399,8 @@ def toImmersionOf (m : ImmModel H G) : H.ImmersionOf G where
   reverse' := fun {x y} h h' ↦ by
     simp only [trailOf]
     rcases m.lt_or_lt h with hc | hc
-    · rw [dif_pos hc, dif_neg (by omega)]
-    · rw [dif_pos hc, dif_neg (by omega), SimpleGraph.Walk.reverse_reverse]
+    · rw [dite_eq_left hc, dite_eq_right (by omega)]
+    · rw [dite_eq_left hc, dite_eq_right (by omega), SimpleGraph.Walk.reverse_reverse]
   edgeDisjoint' := fun {x y} h {x' y'} h' hne e he he' ↦ by
     rw [m.mem_edges_trailOf h] at he
     rw [m.mem_edges_trailOf h'] at he'
@@ -654,8 +654,8 @@ theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       intro hu
       obtain ⟨p, hp, hpu⟩ := List.mem_filterMap.mp hu
       by_cases hx : p.1 = x
-      · rw [if_pos hx] at hpu; exact absurd hpu (by simp)
-      · rw [if_neg hx, Option.some_inj] at hpu
+      · rw [ite_eq_left hx] at hpu; exact absurd hpu (by simp)
+      · rw [ite_eq_right hx, Option.some_inj] at hpu
         exact goalImm_inj hg hbu (mem_branches_of_subset hsub hp) (fun he ↦ hx he.symm) hpu.symm
     have hlo : ∀ m ∈ symLo H rank pairs x (branches pre), m ≤ rank u := by
       intro m hm
@@ -688,14 +688,14 @@ theorem mem_candImm {hs : List H.V} (hmem : ∀ x : H.V, x ∈ hs) {gs : List G.
       obtain ⟨t, ht, het⟩ := List.mem_flatten.mp hused
       obtain ⟨r, hr, hrt⟩ := List.mem_filterMap.mp ht
       by_cases ho : oriented H hs r.1 r.2.1 = true ∧ ¬(x = r.1 ∧ y = r.2.1)
-      · rw [if_pos ho] at hrt
+      · rw [ite_eq_left ho] at hrt
         cases hb : findB r.1 (branches pre) with
         | none => rw [hb] at hrt; exact absurd hrt.symm (by simp)
         | some w =>
           rw [hb, Option.map_some, Option.some_inj] at hrt
           exact trailOk_disj hok hu (mem_runs_of_subset hsub hr) ho.1 ho.2
             (mem_branches_of_subset hsub (findB_mem hb)) he (hrt ▸ het)
-      · rw [if_neg ho] at hrt; exact absurd hrt.symm (by simp)
+      · rw [ite_eq_right ho] at hrt; exact absurd hrt.symm (by simp)
     · obtain ⟨u, hfu⟩ := Option.isSome_iff_exists.mp (goalImm_findB hg (hmem x))
       obtain ⟨v, hfv⟩ := Option.isSome_iff_exists.mp (goalImm_findB hg (hmem y))
       exact List.mem_flatMap.mpr ⟨u, hgs u, List.mem_flatMap.mpr ⟨v, hgs v,

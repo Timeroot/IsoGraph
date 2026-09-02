@@ -796,7 +796,7 @@ def doubleStarLeftZero (n : ℕ) : doubleStar 0 n ≃cg star (n + 1) := by
       intro a
       have ha : a.1 = 0 := Nat.lt_one_iff.mp a.isLt
       show (if a.1 = 0 then 1 else if a.1 = 1 then 0 else a.1) = 1
-      rw [if_pos ha]
+      rw [ite_eq_left ha]
     have hr : ∀ b : (CGraph.complete (n + 1)).V,
         (E (Sum.inr b)).1 = if b.1 = 0 then 0 else 1 + b.1 := by
       intro b
@@ -822,18 +822,18 @@ def doubleStarLeftZero (n : ℕ) : doubleStar 0 n ≃cg star (n + 1) := by
       have hb : b.1 < n + 1 := b.isLt
       simp only [CGraph.star, CGraph.bipartite_adj_inl_inr, iff_true]
       rcases Nat.eq_zero_or_pos b.1 with hb0 | hb0
-      · rw [if_pos hb0]
+      · rw [ite_eq_left hb0]
         simp
-      · rw [if_neg (by omega : ¬ b.1 = 0)]
+      · rw [ite_eq_right (by omega : ¬ b.1 = 0)]
         simp only [true_and, and_true]
         omega
     · rw [hr a, hl b]
       have ha : a.1 < n + 1 := a.isLt
       simp only [CGraph.star, CGraph.bipartite_adj_inr_inl, iff_true]
       rcases Nat.eq_zero_or_pos a.1 with ha0 | ha0
-      · rw [if_pos ha0]
+      · rw [ite_eq_left ha0]
         simp
-      · rw [if_neg (by omega : ¬ a.1 = 0)]
+      · rw [ite_eq_right (by omega : ¬ a.1 = 0)]
         simp only [true_and, and_true]
         omega
     · rw [hr a, hr b]
@@ -842,16 +842,16 @@ def doubleStarLeftZero (n : ℕ) : doubleStar 0 n ≃cg star (n + 1) := by
       simp only [CGraph.star, CGraph.bipartite_adj_inr_inr, Bool.false_eq_true, iff_false]
       rcases Nat.eq_zero_or_pos a.1 with ha0 | ha0 <;>
         rcases Nat.eq_zero_or_pos b.1 with hb0 | hb0
-      · rw [if_pos ha0, if_pos hb0]
+      · rw [ite_eq_left ha0, ite_eq_left hb0]
         simp only [true_and]
         omega
-      · rw [if_pos ha0, if_neg (by omega : ¬ b.1 = 0)]
+      · rw [ite_eq_left ha0, ite_eq_right (by omega : ¬ b.1 = 0)]
         simp only [true_and]
         omega
-      · rw [if_neg (by omega : ¬ a.1 = 0), if_pos hb0]
+      · rw [ite_eq_right (by omega : ¬ a.1 = 0), ite_eq_left hb0]
         simp only [true_and]
         omega
-      · rw [if_neg (by omega : ¬ a.1 = 0), if_neg (by omega : ¬ b.1 = 0)]
+      · rw [ite_eq_right (by omega : ¬ a.1 = 0), ite_eq_right (by omega : ¬ b.1 = 0)]
         omega
 
 attribute [simp] IsoGraph.cyclePendant_singleton_one
@@ -1476,7 +1476,7 @@ theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < 
         intro he
         rw [he] at hcard
         simp at hcard
-      rw [if_pos (by omega), if_pos (by omega), CGraph.foldedCube_adj, hcard]
+      rw [ite_eq_left (by omega), ite_eq_left (by omega), CGraph.foldedCube_adj, hcard]
       simp [hne]
     · have hkn' : k = n := by omega
       subst hkn'
@@ -1486,12 +1486,12 @@ theorem not_isBipartite_foldedCube_of_even {n : ℕ} (h2 : n % 2 = 0) (hn : 0 < 
         have := congrFun he ⟨0, by omega⟩
         simp [CGraph.prefixVec] at this
         omega
-      rw [if_pos (by omega), if_neg (by omega), CGraph.foldedCube_adj,
+      rw [ite_eq_left (by omega), ite_eq_right (by omega), CGraph.foldedCube_adj,
         show (Finset.univ.filter fun i ↦ CGraph.prefixVec k k i ≠ CGraph.prefixVec k 0 i)
           = (Finset.univ.filter fun i ↦ CGraph.prefixVec k 0 i ≠ CGraph.prefixVec k k i) from
           Finset.filter_congr fun i _ ↦ by exact ne_comm, hcard]
       simp [Ne.symm hne]
-  · rw [if_neg (by omega), if_pos (by omega)]
+  · rw [ite_eq_right (by omega), ite_eq_left (by omega)]
 
 theorem not_isBipartite_foldedCube_even (m : ℕ) : ¬ IsBipartite (foldedCube (2 * m + 2)) :=
   not_isBipartite_foldedCube_of_even (by omega) (by omega)

@@ -1241,8 +1241,8 @@ theorem isHamiltonian_crown {n : ℕ} (h3 : 3 ≤ n) : (crown n).IsHamiltonian :
   have hshift : ∀ a < n, (a + 2) % n = if a + 2 < n then a + 2 else a + 2 - n := by
     intro a ha
     rcases Nat.lt_or_ge (a + 2) n with h | h
-    · rw [if_pos h, Nat.mod_eq_of_lt h]
-    · rw [if_neg (by omega), Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
+    · rw [ite_eq_left h, Nat.mod_eq_of_lt h]
+    · rw [ite_eq_right (by omega), Nat.mod_eq_sub_mod h, Nat.mod_eq_of_lt (by omega)]
   have hne : ∀ a b : ℕ, a % n ≠ b % n → vtx n a ≠ vtx n b :=
     fun _ _ h hc ↦ h (congrArg Fin.val hc)
   have key : ∀ a b : Fin n, a ≠ b →
@@ -1265,15 +1265,15 @@ theorem isHamiltonian_crown {n : ℕ} (h3 : 3 ≤ n) : (crown n).IsHamiltonian :
     have hi2 : i / 2 < n := by omega
     have hj2 : j / 2 < n := by omega
     by_cases hie : i % 2 = 0 <;> by_cases hje : j % 2 = 0
-    · rw [if_pos hie, if_pos hje, Prod.mk.injEq] at hij
+    · rw [ite_eq_left hie, ite_eq_left hje, Prod.mk.injEq] at hij
       have h := congrArg Fin.val hij.1
       rw [vtx_val hi2, vtx_val hj2] at h
       omega
-    · rw [if_pos hie, if_neg hje, Prod.mk.injEq] at hij
+    · rw [ite_eq_left hie, ite_eq_right hje, Prod.mk.injEq] at hij
       exact absurd hij.2 hside
-    · rw [if_neg hie, if_pos hje, Prod.mk.injEq] at hij
+    · rw [ite_eq_right hie, ite_eq_left hje, Prod.mk.injEq] at hij
       exact absurd hij.2.symm hside
-    · rw [if_neg hie, if_neg hje, Prod.mk.injEq] at hij
+    · rw [ite_eq_right hie, ite_eq_right hje, Prod.mk.injEq] at hij
       have h : (i / 2 + 2) % n = (j / 2 + 2) % n := congrArg Fin.val hij.1
       rw [hshift _ hi2, hshift _ hj2] at h
       split at h <;> split at h <;> omega
@@ -1282,17 +1282,18 @@ theorem isHamiltonian_crown {n : ℕ} (h3 : 3 ≤ n) : (crown n).IsHamiltonian :
     rcases Nat.lt_or_ge (i + 1) (2 * n) with hlt | hge
     · rw [Nat.mod_eq_of_lt hlt]
       by_cases hie : i % 2 = 0
-      · rw [if_pos hie, if_neg (by omega), show (i + 1) / 2 = i / 2 by omega]
+      · rw [ite_eq_left hie, ite_eq_right (by omega), show (i + 1) / 2 = i / 2 by omega]
         refine (key _ _ (hne _ _ ?_)).1
         rw [Nat.mod_eq_of_lt hi2, hshift _ hi2]
         split <;> omega
-      · rw [if_neg hie, if_pos (by omega), show (i + 1) / 2 = i / 2 + 1 by omega]
+      · rw [ite_eq_right hie, ite_eq_left (by omega), show (i + 1) / 2 = i / 2 + 1 by omega]
         refine (key _ _ (hne _ _ ?_)).2
         rw [Nat.mod_eq_of_lt (by omega : i / 2 + 1 < n), hshift _ hi2]
         split <;> omega
     · have hin : i = 2 * n - 1 := by omega
       subst hin
-      rw [show 2 * n - 1 + 1 = 2 * n by omega, Nat.mod_self, if_neg (by omega), if_pos rfl]
+      rw [show 2 * n - 1 + 1 = 2 * n by omega, Nat.mod_self, ite_eq_right (by omega),
+        ite_eq_left rfl]
       refine (key _ _ (hne _ _ ?_)).2
       rw [show (2 * n - 1) / 2 = n - 1 by omega, hshift _ (by omega)]
       simp only [Nat.zero_div, Nat.zero_mod]
@@ -1310,15 +1311,15 @@ theorem isHamiltonian_circulant {n : ℕ} {S : List ℕ} (h3 : 3 ≤ n) (h1 : 1 
     rwa [vtx_val hi, vtx_val hj] at h
   · have hsucc : (i + 1) % n = if i + 1 = n then 0 else i + 1 := by
       rcases Nat.lt_or_ge (i + 1) n with h | h
-      · rw [if_neg (by omega), Nat.mod_eq_of_lt h]
-      · rw [if_pos (by omega), show i + 1 = n by omega, Nat.mod_self]
+      · rw [ite_eq_right (by omega), Nat.mod_eq_of_lt h]
+      · rw [ite_eq_left (by omega), show i + 1 = n by omega, Nat.mod_self]
     have hlt : (i + 1) % n < n := Nat.mod_lt _ (by omega)
     have hval : ((i + 1) % n + n - i) % n = 1 := by
       rw [hsucc]
       rcases Nat.lt_or_ge (i + 1) n with h | h
-      · rw [if_neg (by omega), show i + 1 + n - i = n + 1 by omega, Nat.add_mod_left,
+      · rw [ite_eq_right (by omega), show i + 1 + n - i = n + 1 by omega, Nat.add_mod_left,
           Nat.mod_eq_of_lt (by omega)]
-      · rw [if_pos (by omega), show 0 + n - i = 1 by omega, Nat.mod_eq_of_lt (by omega)]
+      · rw [ite_eq_left (by omega), show 0 + n - i = 1 by omega, Nat.mod_eq_of_lt (by omega)]
     simp only [circulant, ofRel_adj, Bool.and_eq_true, Bool.or_eq_true, ne_eq, decide_eq_true_eq]
     refine ⟨fun h ↦ ?_, Or.inl ?_⟩
     · have h' := congrArg Fin.val h

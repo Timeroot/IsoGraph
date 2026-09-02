@@ -1267,14 +1267,14 @@ def prodPath (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') :
 theorem prodPath_col (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') {x₁ : A.V} {x₂ y₂ : A'.V}
     (h : (A □g A').Adj (x₁, x₂) (x₁, y₂)) (ha : A'.Adj x₂ y₂) :
     prodPath f f' (x₁, x₂) (x₁, y₂) h = (f'.path ha).map (sndHom B B' (f.toFun x₁)) := by
-  rw [prodPath, dif_pos rfl]
+  rw [prodPath, dite_eq_left rfl]
   rfl
 
 /-- An edge along the first coordinate takes the first factor's path, in one row. -/
 theorem prodPath_row (f : A.TopMinorOf B) (f' : A'.TopMinorOf B') {x₁ y₁ : A.V} {x₂ : A'.V}
     (hx : x₁ ≠ y₁) (h : (A □g A').Adj (x₁, x₂) (y₁, x₂)) (ha : A.Adj x₁ y₁) :
     prodPath f f' (x₁, x₂) (y₁, x₂) h = (f.path ha).map (fstHom B B' (f'.toFun x₂)) := by
-  rw [prodPath, dif_neg hx]
+  rw [prodPath, dite_eq_right hx]
   rfl
 
 /-- A topological minor of each factor is a topological minor of the cartesian product. -/
@@ -1521,14 +1521,14 @@ def prodWalk (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') :
 theorem prodWalk_col (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') {x₁ : A.V} {x₂ y₂ : A'.V}
     (h : (A □g A').Adj (x₁, x₂) (x₁, y₂)) (ha : A'.Adj x₂ y₂) :
     prodWalk f f' (x₁, x₂) (x₁, y₂) h = (f'.walk ha).map (sndHom B B' (f.toFun x₁)) := by
-  rw [prodWalk, dif_pos rfl]
+  rw [prodWalk, dite_eq_left rfl]
   rfl
 
 /-- An edge along the first coordinate takes the first factor's trail, in one row. -/
 theorem prodWalk_row (f : A.ImmersionOf B) (f' : A'.ImmersionOf B') {x₁ y₁ : A.V} {x₂ : A'.V}
     (hx : x₁ ≠ y₁) (h : (A □g A').Adj (x₁, x₂) (y₁, x₂)) (ha : A.Adj x₁ y₁) :
     prodWalk f f' (x₁, x₂) (y₁, x₂) h = (f.walk ha).map (fstHom B B' (f'.toFun x₂)) := by
-  rw [prodWalk, dif_neg hx]
+  rw [prodWalk, dite_eq_right hx]
   rfl
 
 /-- An immersion of each factor is an immersion of the cartesian product. -/

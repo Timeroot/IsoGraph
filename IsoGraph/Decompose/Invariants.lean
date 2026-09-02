@@ -89,10 +89,10 @@ theorem chromNum_cycle_ite (n : ℕ) :
   rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
   · subst hm
     rw [show m + m + 3 = 2 * m + 3 by ring, chromNum_cycle_odd,
-      if_pos (by omega : (m + m) % 2 = 0)]
+      ite_eq_left (by omega : (m + m) % 2 = 0)]
   · subst hm
     rw [show 2 * m + 1 + 3 = 2 * (m + 1) + 2 by ring, chromNum_cycle_even,
-      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+      ite_eq_right (by omega : ¬ (2 * m + 1) % 2 = 0)]
 
 /-- **The chromatic index of a complete graph**, in a shape that fires on a numeral: `n - 1`
 colours for an even order, `n` for an odd one. -/
@@ -109,10 +109,10 @@ theorem edgeChromNum_cycle_ite (n : ℕ) :
   rcases Nat.even_or_odd n with ⟨m, hm⟩ | ⟨m, hm⟩
   · subst hm
     rw [show m + m + 3 = 2 * m + 3 by ring, edgeChromNum_cycle_odd,
-      if_pos (by omega : (m + m) % 2 = 0)]
+      ite_eq_left (by omega : (m + m) % 2 = 0)]
   · subst hm
     rw [show 2 * m + 1 + 3 = 2 * m + 4 by ring, edgeChromNum_cycle_even,
-      if_neg (by omega : ¬ (2 * m + 1) % 2 = 0)]
+      ite_eq_right (by omega : ¬ (2 * m + 1) % 2 = 0)]
 
 /-- **The domination number of a join**, as a value rather than as a pair of case lemmas.  One
 vertex dominates `G ∇ H` exactly when one side has a universal vertex, and a vertex from each side

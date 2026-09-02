@@ -339,8 +339,8 @@ theorem reachCloseAux_fix (n : ℕ) (nbr : ℕ → ℕ) (m m' : ℕ) (hm' : m' =
     (hb : m < 2 ^ n) :
     reachStep n nbr (reachCloseAux n nbr m m' hm' hb) = reachCloseAux n nbr m m' hm' hb := by
   induction m, m', hm', hb using reachCloseAux.induct with
-  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dif_pos rfl]; exact hm₁.symm
-  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dif_neg hne]; exact ih
+  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dite_eq_left rfl]; exact hm₁.symm
+  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dite_eq_right hne]; exact ih
 
 theorem reachStep_reachSet (n : ℕ) (nbr : ℕ → ℕ) (m : ℕ) (hb : m < 2 ^ n) :
     reachStep n nbr (reachSet n nbr m hb) = reachSet n nbr m hb :=
@@ -349,8 +349,8 @@ theorem reachStep_reachSet (n : ℕ) (nbr : ℕ → ℕ) (m : ℕ) (hb : m < 2 ^
 theorem reachCloseAux_lt (n : ℕ) (nbr : ℕ → ℕ) (m m' : ℕ) (hm' : m' = reachStep n nbr m)
     (hb : m < 2 ^ n) : reachCloseAux n nbr m m' hm' hb < 2 ^ n := by
   induction m, m', hm', hb using reachCloseAux.induct with
-  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dif_pos rfl]; exact hb₁
-  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dif_neg hne]; exact ih
+  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dite_eq_left rfl]; exact hb₁
+  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dite_eq_right hne]; exact ih
 
 theorem reachSet_lt (n : ℕ) (nbr : ℕ → ℕ) (m : ℕ) (hb : m < 2 ^ n) :
     reachSet n nbr m hb < 2 ^ n := reachCloseAux_lt n nbr m _ rfl hb
@@ -360,8 +360,8 @@ theorem reachCloseAux_ind {n : ℕ} {nbr : ℕ → ℕ} (P : ℕ → Prop)
     (hstep : ∀ m, P m → P (reachStep n nbr m)) (m m' : ℕ) (hm' : m' = reachStep n nbr m)
     (hb : m < 2 ^ n) (h : P m) : P (reachCloseAux n nbr m m' hm' hb) := by
   induction m, m', hm', hb using reachCloseAux.induct with
-  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dif_pos rfl]; exact h
-  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dif_neg hne]; exact ih (hstep m₁ h)
+  | case1 m₁ hm₁ hb₁ => rw [reachCloseAux, dite_eq_left rfl]; exact h
+  | case2 m₁ hb₁ hne ih => rw [reachCloseAux, dite_eq_right hne]; exact ih (hstep m₁ h)
 
 theorem reachSet_ind {n : ℕ} {nbr : ℕ → ℕ} (P : ℕ → Prop)
     (hstep : ∀ m, P m → P (reachStep n nbr m)) (m : ℕ) (hb : m < 2 ^ n) (h : P m) :
@@ -512,7 +512,7 @@ theorem rowsSpec_rowsOfCode (n c : ℕ) : RowsSpec n c (rowsOfCode n c) := by
   · rw [getD_rowsOfCode hi]; exact rowOfCode_lt n c i
   · rw [rowsOfCode, Array.getD_eq_getD_getElem?]
     simp only [Array.getElem?_map, Array.getElem?_range]
-    rw [if_neg hi]
+    rw [ite_eq_right hi]
     exact Nat.two_pow_pos n
 
 theorem not_reach_avoid {n : ℕ} {adj : Fin n → Fin n → Bool} {v i : Fin n}
@@ -547,12 +547,12 @@ theorem testBit_delRow {n c u : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c ro
     (a b : Fin n) :
     (delRow n rows u a.1).testBit b.1 = avoid (graphOfCode n c).Adj ⟨u, hu⟩ a b := by
   by_cases hau : a.1 = u
-  · rw [delRow, delRowWith, if_pos (Or.inl hau), Nat.zero_testBit, avoid]
+  · rw [delRow, delRowWith, ite_eq_left (Or.inl hau), Nat.zero_testBit, avoid]
     have ha : a = (⟨u, hu⟩ : Fin n) := Fin.ext hau
     simp [ha]
   · have ha : a ≠ (⟨u, hu⟩ : Fin n) := fun h ↦ hau (congrArg Fin.val h)
     have hb : (decide (b ≠ (⟨u, hu⟩ : Fin n))) = decide (b.1 ≠ u) := by simp [Fin.ext_iff]
-    rw [delRow, delRowWith, if_neg (by simp only [not_or, not_le]; exact ⟨hau, a.2⟩),
+    rw [delRow, delRowWith, ite_eq_right (by simp only [not_or, not_le]; exact ⟨hau, a.2⟩),
       Nat.testBit_and,
       testBit_coMask b.2, hrows.1 a b, avoid, hb]
     simp [ha]
@@ -573,7 +573,7 @@ theorem getD_delRows (n : ℕ) (rows : Array ℕ) (u : ℕ) :
   rw [delRows, Array.getD_eq_getD_getElem?]
   by_cases hi : i < n
   · simp [hi]
-  · rw [delRow, delRowWith, if_pos (Or.inr (by omega))]
+  · rw [delRow, delRowWith, ite_eq_left (Or.inr (by omega))]
     simp [hi]
 
 /-- The vertices of the parent reachable from `x` once `u` is deleted: the part of `x`. -/
@@ -805,13 +805,13 @@ theorem getD_compTab {n c u x : ℕ} {rows : Array ℕ} (hrows : RowsSpec n c ro
     simp [hu]
   rw [houter, compRow, compRowWith]
   by_cases hbr : compFrom n (delRows n rows u) (if u = 0 then 1 else 0) == coMask n u
-  · rw [if_pos hbr, Array.getD_eq_getD_getElem?]
+  · rw [ite_eq_left hbr, Array.getD_eq_getD_getElem?]
     rw [beq_iff_eq, compFrom_eq] at hbr
     rw [show ((Array.replicate n (compFrom n (delRows n rows u) (if u = 0 then 1 else 0)))[x]?)
       = some (compFrom n (delRows n rows u) (if u = 0 then 1 else 0)) by simp [hx]]
     rw [Option.getD_some, compFrom_eq]
     exact hbr.trans (compMask_eq_coMask hrows hu hx hxu hx₀ hbr).symm
-  · rw [if_neg hbr, Array.getD_eq_getD_getElem?]
+  · rw [ite_eq_right hbr, Array.getD_eq_getD_getElem?]
     simp [hx, compFrom_eq]
 
 /-- The mask loop, reading the table. -/
@@ -1018,7 +1018,7 @@ theorem connMasks_complete : ConnMasksComplete connMasks := by
   have hcard : maskCard (n + 1) s = deg adj v := by
     have h1 : deg adj v = deg adjπ (Fin.last (n + 1)) := by
       rw [hdegπ, hπ, Equiv.swap_apply_right]
-    rw [h1, deg_castSucc_split adjπ (Fin.last (n + 1)), if_neg (by simp [hlπ])]
+    rw [h1, deg_castSucc_split adjπ (Fin.last (n + 1)), ite_eq_right (by simp [hlπ])]
     simp only [Nat.add_zero, maskCard]
     exact Fintype.sum_equiv σ _ _ fun i ↦ by rw [hbit i, hsπ]
   -- the new vertex has at least one neighbour, since the graph is connected and has ≥ 2 vertices

@@ -146,8 +146,8 @@ theorem symmMatOfArray_eq {α : Type} (xs : Array α) {f : α → α → Bool}
   have hj : j < xs.size := by simpa using h₃
   simp only [Array.getElem_mapFinIdx, Array.getElem_map]
   by_cases hij : i ≤ j
-  · rw [if_pos hij, getD_triRows hi hj hij]
-  · rw [if_neg hij, getD_triRows hj hi (Nat.le_of_lt (Nat.lt_of_not_le hij)), hs]
+  · rw [ite_eq_left hij, getD_triRows hi hj hij]
+  · rw [ite_eq_right hij, getD_triRows hj hi (Nat.le_of_lt (Nat.lt_of_not_le hij)), hs]
 
 /-- The `Fin n`, in order. -/
 def finArray (n : Nat) : Array (Fin n) := Array.ofFn id
@@ -617,12 +617,12 @@ theorem permOfArrays_val {m : Nat} {a : Array Nat} (h : Canon.IsPerm m fun v => 
     (hinv : ∀ i, i < m → (invArray m a)[a[i]!]! = i) (i : Fin m) :
     (permOfArrays m a (invArray m a) i).1 = a[i.1]! := by
   have hmaps : ∀ k : Fin m, a[k.1]! < m := fun k => h.maps _ k.2
-  have hfa : ∀ k : Fin m, finFn m a k = ⟨a[k.1]!, hmaps k⟩ := fun k => dif_pos (hmaps k)
+  have hfa : ∀ k : Fin m, finFn m a k = ⟨a[k.1]!, hmaps k⟩ := fun k => dite_eq_left (hmaps k)
   have hb : ∀ k : Fin m, finFn m (invArray m a) ⟨a[k.1]!, hmaps k⟩ = k := by
     intro k
     have hv : (invArray m a)[a[k.1]!]! = k.1 := hinv k.1 k.2
     have hlt : (invArray m a)[(⟨a[k.1]!, hmaps k⟩ : Fin m).1]! < m := by rw [hv]; exact k.2
-    exact Fin.ext (by rw [finFn, dif_pos hlt]; exact hv)
+    exact Fin.ext (by rw [finFn, dite_eq_left hlt]; exact hv)
   have hleft : ∀ k, finFn m (invArray m a) (finFn m a k) = k := fun k => by rw [hfa k]; exact hb k
   have hinj : Function.Injective fun k : Fin m => (⟨a[k.1]!, hmaps k⟩ : Fin m) := by
     intro x y hxy
@@ -631,7 +631,7 @@ theorem permOfArrays_val {m : Nat} {a : Array Nat} (h : Canon.IsPerm m fun v => 
     intro k
     obtain ⟨l, rfl⟩ := Finite.surjective_of_injective hinj k
     rw [hb l, hfa l]
-  simp only [permOfArrays, dif_pos (And.intro hleft hright)]
+  simp only [permOfArrays, dite_eq_left (And.intro hleft hright)]
   exact congrArg Fin.val (hfa i)
 
 /-! ### The renaming of `{0, …, n-1}` induced by a permutation of `Fin n` -/
@@ -641,7 +641,7 @@ def natOfPerm (m : Nat) (σ : Equiv.Perm (Fin m)) (v : Nat) : Nat :=
   if h : v < m then (σ ⟨v, h⟩).1 else v
 
 theorem natOfPerm_lt {m : Nat} (σ : Equiv.Perm (Fin m)) {v : Nat} (hv : v < m) :
-    natOfPerm m σ v = (σ ⟨v, hv⟩).1 := dif_pos hv
+    natOfPerm m σ v = (σ ⟨v, hv⟩).1 := dite_eq_left hv
 
 theorem natOfPerm_isPerm (m : Nat) (σ : Equiv.Perm (Fin m)) : Canon.IsPerm m (natOfPerm m σ) where
   maps v hv := by rw [natOfPerm_lt σ hv]; exact (σ ⟨v, hv⟩).2

@@ -807,13 +807,13 @@ theorem cycleList_two_nbrs {G : CGraph} {u : G.V} {vs : List G.V}
       have e2 : (u :: vs)[if j + 1 = vs.length + 1 then 0 else j + 1]'
           (by split_ifs; omega) = u :=
         (getElem_congr_idx (u :: vs)
-          (show (if j + 1 = vs.length + 1 then 0 else j + 1) = 0 from if_pos hje)
+          (show (if j + 1 = vs.length + 1 then 0 else j + 1) = 0 from ite_eq_left hje)
           (by split_ifs; omega)).trans hhead
       rw [e1, e2]
       exact hcl
     · have e2 : (u :: vs)[if j + 1 = vs.length + 1 then 0 else j + 1]'
           (by split_ifs; omega) = (u :: vs)[j + 1]'(by omega) :=
-        getElem_congr_idx (u :: vs) (if_neg hje) (by split_ifs; omega)
+        getElem_congr_idx (u :: vs) (ite_eq_right hje) (by split_ifs; omega)
       rw [e2]
       exact List.isChain_iff_getElem.1 hch j (by omega)
   refine ⟨(u :: vs)[if i + 1 = vs.length + 1 then 0 else i + 1]'(by split_ifs <;> omega),
@@ -880,7 +880,7 @@ theorem exists_edgeColouring {G : CGraph} {k : ℕ}
     have hew : s(u, w) ∈ G.toSimple.edgeSet := by
       rw [SimpleGraph.mem_edgeSet, toSimple_adj]; exact huw
     beta_reduce
-    rw [dif_pos hev, dif_pos hew]
+    rw [dite_eq_left hev, dite_eq_left hew]
     refine col.valid ?_
     have hne : (⟨s(u, v), hev⟩ : {e : Sym2 G.V // e ∈ G.toSimple.edgeSet}) ≠ ⟨s(u, w), hew⟩ := by
       intro hh

@@ -904,12 +904,12 @@ noncomputable def SubgraphOf.toMinorOf (f : H.SubgraphOf G) : H.MinorOf G where
       constructor
       · intro hv
         by_cases h : ∃ y, f y = v
-        · rw [dif_pos h, Option.some.injEq] at hv
+        · rw [dite_eq_left h, Option.some.injEq] at hv
           rw [← h.choose_spec, hv]
-        · rw [dif_neg h] at hv; exact absurd hv (by simp)
+        · rw [dite_eq_right h] at hv; exact absurd hv (by simp)
       · rintro rfl
         have h : ∃ y, f y = f x := ⟨x, rfl⟩
-        rw [dif_pos h, Option.some.injEq]
+        rw [dite_eq_left h, Option.some.injEq]
         exact f.injective h.choose_spec
     rw [hset]
     exact connectedOn_singleton G (f x)
@@ -917,8 +917,8 @@ noncomputable def SubgraphOf.toMinorOf (f : H.SubgraphOf G) : H.MinorOf G where
     have hx : ∃ z, f z = f x := ⟨x, rfl⟩
     have hy : ∃ z, f z = f y := ⟨y, rfl⟩
     refine ⟨f x, f y, ?_, ?_, f.map_adj h⟩
-    · rw [dif_pos hx, Option.some.injEq]; exact f.injective hx.choose_spec
-    · rw [dif_pos hy, Option.some.injEq]; exact f.injective hy.choose_spec
+    · rw [dite_eq_left hx, Option.some.injEq]; exact f.injective hx.choose_spec
+    · rw [dite_eq_left hy, Option.some.injEq]; exact f.injective hy.choose_spec
 
 /-- An induced subgraph is an induced minor. -/
 noncomputable def InducedSubgraphOf.toInducedMinorOf (f : H.InducedSubgraphOf G) :
@@ -929,12 +929,12 @@ noncomputable def InducedSubgraphOf.toInducedMinorOf (f : H.InducedSubgraphOf G)
     simp only [SubgraphOf.toMinorOf] at hu hv
     by_cases hx : ∃ z, f.toSubgraphOf z = u
     · by_cases hy : ∃ z, f.toSubgraphOf z = v
-      · rw [dif_pos hx, Option.some.injEq] at hu
-        rw [dif_pos hy, Option.some.injEq] at hv
+      · rw [dite_eq_left hx, Option.some.injEq] at hu
+        rw [dite_eq_left hy, Option.some.injEq] at hv
         rw [← hx.choose_spec, ← hy.choose_spec, hu, hv] at huv
         exact f.adj_map huv
-      · rw [dif_neg hy] at hv; exact absurd hv (by simp)
-    · rw [dif_neg hx] at hu; exact absurd hu (by simp)
+      · rw [dite_eq_right hy] at hv; exact absurd hv (by simp)
+    · rw [dite_eq_right hx] at hu; exact absurd hu (by simp)
 
 /-- A homomorphism onto every vertex is a quotient map; this is the shape a `QuotientOf` gives
 back as a plain homomorphism. -/

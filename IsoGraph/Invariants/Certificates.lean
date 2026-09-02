@@ -227,7 +227,7 @@ theorem three_le_girth {G : CGraph} (h : ¬ G.IsAcyclic) : 3 ≤ G.girth :=
 
 theorem girth_le_length {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a} (h : w.IsCycle) :
     G.girth ≤ w.length :=
-  SimpleGraph.girth_le_length h
+  SimpleGraph.Walk.IsCycle.girth_le_length h
 
 theorem not_isAcyclic_of_isCycle {G : CGraph} {a : G.V} {w : G.toSimple.Walk a a}
     (h : w.IsCycle) : ¬ G.IsAcyclic := fun hac ↦ hac w h
@@ -556,7 +556,7 @@ private theorem cycleSearch_of_cycleList {G : CGraph} {nb : G.V → List G.V}
     rw [List.isChain_cons_cons] at hch
     rw [cycleSearch_succ, List.any_eq_true]
     refine ⟨w, (hnb _ _).2 hch.1, ?_⟩
-    simp only [hwa, if_false, hwp]
+    simp only [hwa, ite_false, hwp]
     refine ih f (w :: path) (by simp at hf ⊢; omega) (by simp at h2 ⊢; omega) hnd' ?_ ?_
     · simpa using hch.2
     · rw [List.getLastD_cons] at hcl; exact hcl

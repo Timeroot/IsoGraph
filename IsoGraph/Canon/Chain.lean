@@ -609,7 +609,7 @@ theorem chainStep_reaches {n : Nat} {adj : Fin n → Fin n → Bool} {f : Nat �
       | false =>
         have hpush : chainStepF n f path p c st v
             = (st.1.push (orbitMap n f (path.push p.lab[c]!) (path.push v)), st.2) := by
-          rw [chainStepF, if_neg (by simp [horb]), if_pos hso]
+          rw [chainStepF, ite_eq_right (by simp [horb]), ite_eq_left hso]
         rw [hpush]
         have hdmem : orbitMap n f (path.push p.lab[c]!) (path.push v)
             ∈ (l.foldl (chainStepF n f path p c)
@@ -621,7 +621,7 @@ theorem chainStep_reaches {n : Nat} {adj : Fin n → Fin n → Bool} {f : Nat �
           exact Fin.ext (by rw [hτval i, ← hji, orbitMap_fixes_path hso j hj])
         · rw [hτval a, ha, orbitMap_maps_base hso]
       | true =>
-        have hskip : chainStepF n f path p c st v = st := by rw [chainStepF, if_pos horb]
+        have hskip : chainStepF n f path p c st v = st := by rw [chainStepF, ite_eq_left horb]
         rw [hskip]
         have hFauto := foldl_chainStepF_isAuto (path := path) (p := p) (c := c) l st hauto
         obtain ⟨b, hbmem, hbr⟩ :

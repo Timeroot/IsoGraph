@@ -290,7 +290,7 @@ theorem mem_reachAux_of_adj : ∀ (n : ℕ) (S front pool : List G.V), pool.leng
       exact absurd (List.mem_filter.mpr ⟨hv, List.any_eq_true.mpr ⟨u, hinv v hv u hu hadj, hadj⟩⟩)
         (by rw [List.isEmpty_iff.mp hnil]; simp)
     · rename_i hnil
-      rw [if_neg hnil]
+      rw [ite_eq_right hnil]
       cases hva : front.any (G.Adj v)
       · refine mem_reachAux_of_adj n _ _ _ ?_ ?_
           (List.mem_filter.mpr ⟨hv, by simp [hva]⟩) hu hadj
@@ -762,8 +762,8 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
         f.branch w = some x' := by
       intro w x' hw
       by_cases hwv : w = v
-      · simp only [if_pos hwv] at hw; exact absurd hw (by simp)
-      · simpa only [if_neg hwv] using hw
+      · simp only [ite_eq_left hwv] at hw; exact absurd hw (by simp)
+      · simpa only [ite_eq_right hwv] using hw
     refine ⟨⟨fun w ↦ if w = v then none else f.branch w, fun x' ↦ ?_, fun x₁ x₂ hadj ↦ ?_⟩,
       fun w x' hw ↦ ?_, hres⟩
     · by_cases hx' : x' = x
@@ -783,11 +783,11 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
           rw [Set.mem_ofPred_eq, Set.mem_ofPred_eq]
           by_cases hwv : w = v
           · subst hwv
-            rw [if_pos rfl, hbv]
+            rw [ite_eq_left rfl, hbv]
             constructor
             · intro h; exact absurd h (by simp)
             · intro h; exact absurd (Option.some_inj.mp h).symm hx'
-          · rw [if_neg hwv]
+          · rw [ite_eq_right hwv]
         rw [hset]
         exact f.connectedOn x'
     · obtain ⟨a, b, ha, hb, hab⟩ := f.map_adj hadj
@@ -806,7 +806,8 @@ theorem exists_model_erase (hH : ∀ x : H.V, ∃ y z, y ≠ z ∧ H.Adj x y = t
         have : a = w₀ := huniq a (hsupp a x₁ ha) w₀ hun (by rw [G.symm]; exact hab) hpu
         subst this
         exact hne (Option.some_inj.mp (ha.symm.trans hus))
-      exact ⟨a, b, by simp only [if_neg hav]; exact ha, by simp only [if_neg hbv']; exact hb, hab⟩
+      exact ⟨a, b, by simp only [ite_eq_right hav]; exact ha,
+        by simp only [ite_eq_right hbv']; exact hb, hab⟩
     · have hwv : w ≠ v := by rintro rfl; simp at hw
       exact (List.mem_erase_of_ne hwv).mpr (hsupp w x' (hres w x' hw))
 
@@ -1355,8 +1356,8 @@ theorem atLeastP_eq {α : Type} (p : α → Bool) (l : List α) :
     | succ k =>
       rw [atLeastP, List.countP_cons]
       cases p a
-      · rw [if_neg (by simp), ih]; simp
-      · rw [if_pos (by simp), ih]; simp
+      · rw [ite_eq_right (by simp), ih]; simp
+      · rw [ite_eq_left (by simp), ih]; simp
 
 /-- What `poolOk` runs: the same two tests, with the counting one stopped as soon as it is
 decided and the inner scan closure-free. -/
@@ -1487,7 +1488,7 @@ private theorem and_perm₄ (a b c d : Bool) : (a && b && c && d) = (c && a && d
     split <;> rfl
   | some (x, u :: T), todo =>
     refine List.filterMap_congr fun v hv ↦ ?_
-    rw [step, if_pos (List.contains_iff_mem.mpr hv)]
+    rw [step, ite_eq_left (List.contains_iff_mem.mpr hv)]
     simp only [attOf_eq_attHit, symOk_eq_symFloor_le, minRank_singleton, anyAdj_eq]
     rw [and_perm₅]
   | none, [] =>
@@ -1496,7 +1497,7 @@ private theorem and_perm₄ (a b c d : Bool) : (a && b && c && d) = (c && a && d
     split <;> rfl
   | none, x :: rest =>
     refine List.filterMap_congr fun v hv ↦ ?_
-    rw [step, if_pos (List.contains_iff_mem.mpr hv)]
+    rw [step, ite_eq_left (List.contains_iff_mem.mpr hv)]
     simp only [attOf_eq_attHit, feasibleSeed_eq_feasibleNeed, symOk_eq_symFloor_le,
       minRank_singleton]
     rw [and_perm₄]
@@ -1558,7 +1559,7 @@ theorem getSet_eq_nil {bs : List (H.V × List G.V)} {x : H.V} (h : x ∉ bs.map 
   | cons p rest ih =>
     obtain ⟨y, S⟩ := p
     simp only [List.map_cons, List.mem_cons, not_or] at h
-    rw [getSet, if_neg fun hy ↦ h.1 hy.symm]
+    rw [getSet, ite_eq_right fun hy ↦ h.1 hy.symm]
     exact ih h.2
 
 theorem mem_flatMap_of_mem_getSet {bs : List (H.V × List G.V)} {x : H.V} {v : G.V}
@@ -1599,21 +1600,21 @@ theorem branchOf_eq_some_iff {bs : List (H.V × List G.V)} (hk : (bs.map Prod.fs
     rw [branchOf, getSet]
     by_cases hyx : y = x
     · subst hyx
-      rw [if_pos rfl]
+      rw [ite_eq_left rfl]
       by_cases hvS : S.contains v
-      · rw [if_pos hvS]
+      · rw [ite_eq_left hvS]
         exact ⟨fun _ ↦ List.contains_iff_mem.mp hvS, fun _ ↦ rfl⟩
-      · rw [if_neg hvS, ih hk.2 hf.2.1, getSet_eq_nil H G hk.1]
+      · rw [ite_eq_right hvS, ih hk.2 hf.2.1, getSet_eq_nil H G hk.1]
         simp only [List.not_mem_nil, false_iff]
         exact fun hv ↦ hvS (List.contains_iff_mem.mpr hv)
-    · rw [if_neg hyx]
+    · rw [ite_eq_right hyx]
       by_cases hvS : S.contains v
-      · rw [if_pos hvS]
+      · rw [ite_eq_left hvS]
         simp only [Option.some_inj]
         refine ⟨fun hxy ↦ absurd hxy hyx, fun hv ↦ ?_⟩
         exact absurd rfl (hf.2.2 v (List.contains_iff_mem.mp hvS) v
           (mem_flatMap_of_mem_getSet H G hv))
-      · rw [if_neg hvS]
+      · rw [ite_eq_right hvS]
         exact ih hk.2 hf.2.1
 
 /-- What a finished state says, unpacked: distinct keys, disjoint sets, every vertex of `H`
@@ -1853,7 +1854,7 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
       have hfv : feasibleSeed H G x v rest st.done st.avail = true := hfeas v rfl
       refine ⟨[((), ⟨rest, some (x, [v]), st.done, st.avail.erase v⟩)], ?_, rfl, rfl⟩
       rw [List.map_cons, List.map_nil, trace, trace, Option.bind_some]
-      simp only [headSt, step, List.contains_iff_mem, hvav, if_pos, hcur, htodo, hL, hfv,
+      simp only [headSt, step, List.contains_iff_mem, hvav, ite_eq_left, hcur, htodo, hL, hfv,
         hsymv v (List.mem_cons_self ..), hindv v (List.mem_cons_self ..), Bool.and_self]
       rfl
     · rw [PickChain] at hL
@@ -1868,7 +1869,7 @@ theorem trace_picks {x : H.V} {rest : List H.V} :
         ?_, by simp [hlen], rfl⟩
       have hmem : v ∈ eraseAll G st.avail (w :: L) := (mem_eraseAll G hav _ v).mpr ⟨hvav, hvL⟩
       rw [List.map_cons, trace, hr, Option.bind_some, hhead, step]
-      simp only [List.contains_iff_mem, hmem, if_pos, hadj, hseed, hrank,
+      simp only [List.contains_iff_mem, hmem, ite_eq_left, hadj, hseed, hrank,
         hsymv v (List.mem_cons_self ..), hindv v (List.mem_cons_self ..), Bool.and_self]
       rfl
 
@@ -1899,12 +1900,12 @@ theorem countP_le_flatMap (x : H.V) : ∀ xs : List H.V,
     have hys := countP_le_flatMap x ys
     rw [List.flatMap_cons, List.countP_append, List.countP_cons]
     cases hadj : H.Adj x y
-    · simp only [Bool.false_eq_true, if_false]
+    · simp only [Bool.false_eq_true, ite_false]
       omega
     · obtain ⟨u, hu, w, hw, huw⟩ := linked_iff.mp (linked_l l f hl hadj)
       have hpos : 0 < (l y).countP fun u ↦ (l x).any (G.Adj u) :=
         List.countP_pos_iff.mpr ⟨w, hw, List.any_eq_true.mpr ⟨u, hu, by rw [G.symm]; exact huw⟩⟩
-      simp only [if_true]
+      simp only [ite_true]
       omega
 
 include hl hnd in
@@ -2070,7 +2071,7 @@ theorem trace_block (x : H.V) (xs p : List H.V) (st : State H G) (hok : Ok l st 
       (poolFloor rank pairs ((x, l x) :: st.done) [] xs) (eraseAll G st.avail (l x))⟩) :: r, ?_,
     by simp [hlen], ⟨rfl, rfl, by rw [hdone]; rfl, havail, hndav⟩⟩
   rw [blockOf, trace, hr, Option.bind_some, hhead, step]
-  simp only [poolOk, hc1, hc2, hc3, decide_true, Bool.and_true, if_pos]
+  simp only [poolOk, hc1, hc2, hc3, decide_true, Bool.and_true, ite_eq_left]
   rfl
 
 include f hl hnd hcc hhsnd hch hsym hind in

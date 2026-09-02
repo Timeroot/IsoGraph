@@ -51,7 +51,7 @@ private theorem othNbr_mem (hreg : H.IsRegularWith 2) {u v : H.V} (h : H.toSimpl
     othNbr u v ∈ (H.toSimple.neighborFinset v).erase u := by
   have hpos : ((H.toSimple.neighborFinset v).erase u).Nonempty := by
     rw [← Finset.card_pos, card_erase_nbrs hreg h]; omega
-  rw [othNbr, dif_pos hpos]
+  rw [othNbr, dite_eq_left hpos]
   exact hpos.choose_spec
 
 private theorem adj_othNbr (hreg : H.IsRegularWith 2) {u v : H.V} (h : H.toSimple.Adj v u) :

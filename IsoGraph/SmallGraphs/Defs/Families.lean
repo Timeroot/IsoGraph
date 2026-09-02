@@ -289,7 +289,7 @@ theorem hammingBelow_eq {n : ℕ} (x y : Fin n → Bool) :
   | m + 1, h => by
     have hm : m < n := h
     rw [hammingBelow, hammingBelow_eq x y m (Nat.le_of_lt hm), List.take_add_one,
-      List.countP_append, dif_pos hm]
+      List.countP_append, dite_eq_left hm]
     rw [show (List.finRange n)[m]? = some ⟨m, hm⟩ by
       rw [List.getElem?_eq_getElem (by simpa using hm)]; simp]
     simp [List.countP_cons, Nat.add_comm]

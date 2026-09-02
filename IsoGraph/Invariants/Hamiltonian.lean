@@ -384,20 +384,20 @@ theorem isHamiltonian_join_complete_one {X : CGraph} {n : ℕ} (g : ℕ → X.V)
     · rfl
     · simp [Nat.ne_of_gt hj0] at hij
     · simp [Nat.ne_of_gt hi0] at hij
-    · simp only [Nat.ne_of_gt hi0, Nat.ne_of_gt hj0, if_false] at hij
+    · simp only [Nat.ne_of_gt hi0, Nat.ne_of_gt hj0, ite_false] at hij
       have := hinj (i - 1) (by omega) (j - 1) (by omega) (Sum.inr_injective hij)
       omega
   · intro i hi
     rcases Nat.lt_or_ge (i + 1) (n + 1) with hlt | hge
     · rw [Nat.mod_eq_of_lt hlt]
       rcases Nat.eq_zero_or_pos i with rfl | hi0
-      · rw [if_pos rfl, if_neg (by omega), join_adj_inl_inr]
-      · rw [if_neg (by omega), if_neg (by omega), join_adj_inr_inr,
+      · rw [ite_eq_left rfl, ite_eq_right (by omega), join_adj_inl_inr]
+      · rw [ite_eq_right (by omega), ite_eq_right (by omega), join_adj_inr_inr,
           show i + 1 - 1 = (i - 1) + 1 by omega]
         exact hadj (i - 1) (by omega)
     · have hin : i = n := by omega
       subst hin
-      rw [Nat.mod_self, if_pos rfl, if_neg (by omega), join_adj_inr_inl]
+      rw [Nat.mod_self, ite_eq_left rfl, ite_eq_right (by omega), join_adj_inr_inl]
 
 /-- One step along the `X` factor of `X □g complete 2`, staying in the same copy. -/
 private theorem adj_prod_left {X : CGraph} {a b : X.V} (c : (complete 2).V)
@@ -426,13 +426,13 @@ theorem isHamiltonian_cartesianProduct_complete_two {X : CGraph} {n : ℕ} (g : 
   · intro i hi j hj hij
     have hne : (vtx 2 0) ≠ (vtx 2 1) := by decide
     by_cases hin : i < n <;> by_cases hjn : j < n
-    · rw [if_pos hin, if_pos hjn, Prod.mk.injEq] at hij
+    · rw [ite_eq_left hin, ite_eq_left hjn, Prod.mk.injEq] at hij
       exact hinj i hin j hjn hij.1
-    · rw [if_pos hin, if_neg hjn, Prod.mk.injEq] at hij
+    · rw [ite_eq_left hin, ite_eq_right hjn, Prod.mk.injEq] at hij
       exact absurd hij.2 hne
-    · rw [if_neg hin, if_pos hjn, Prod.mk.injEq] at hij
+    · rw [ite_eq_right hin, ite_eq_left hjn, Prod.mk.injEq] at hij
       exact absurd hij.2.symm hne
-    · rw [if_neg hin, if_neg hjn, Prod.mk.injEq] at hij
+    · rw [ite_eq_right hin, ite_eq_right hjn, Prod.mk.injEq] at hij
       have := hinj (2 * n - 1 - i) (by omega) (2 * n - 1 - j) (by omega) hij.1
       omega
   · intro i hi
@@ -441,18 +441,19 @@ theorem isHamiltonian_cartesianProduct_complete_two {X : CGraph} {n : ℕ} (g : 
     rcases Nat.lt_or_ge (i + 1) (2 * n) with hlt | hge
     · rw [Nat.mod_eq_of_lt hlt]
       rcases Nat.lt_or_ge (i + 1) n with h1 | h1
-      · rw [if_pos (by omega), if_pos h1]
+      · rw [ite_eq_left (by omega), ite_eq_left h1]
         exact adj_prod_left _ (hadj i h1)
       · rcases Nat.eq_or_lt_of_le h1 with heq | hgt
-        · rw [if_pos (by omega), if_neg (by omega), show 2 * n - 1 - (i + 1) = i by omega]
+        · rw [ite_eq_left (by omega), ite_eq_right (by omega),
+            show 2 * n - 1 - (i + 1) = i by omega]
           exact adj_prod_right _ hrung
-        · rw [if_neg (by omega), if_neg (by omega),
+        · rw [ite_eq_right (by omega), ite_eq_right (by omega),
             show 2 * n - 1 - i = (2 * n - 1 - (i + 1)) + 1 by omega]
           exact adj_prod_left _ ((X.symm _ _).trans (hadj (2 * n - 1 - (i + 1)) (by omega)))
     · have hin : i = 2 * n - 1 := by omega
       subst hin
-      rw [show 2 * n - 1 + 1 = 2 * n by omega, Nat.mod_self, if_neg (by omega),
-        if_pos (by omega), show 2 * n - 1 - (2 * n - 1) = 0 by omega]
+      rw [show 2 * n - 1 + 1 = 2 * n by omega, Nat.mod_self, ite_eq_right (by omega),
+        ite_eq_left (by omega), show 2 * n - 1 - (2 * n - 1) = 0 by omega]
       exact adj_prod_right _ hrung'
 
 /-! ### A certificate from an equal split
@@ -477,13 +478,13 @@ theorem isHamiltonian_join_of_card_eq {G H : CGraph} (hcard : H.card = G.card) (
     have hi2 : i / 2 < G.card := by omega
     have hj2 : j / 2 < G.card := by omega
     by_cases hie : i % 2 = 0 <;> by_cases hje : j % 2 = 0
-    · rw [if_pos hie, if_pos hje] at hij
+    · rw [ite_eq_left hie, ite_eq_left hje] at hij
       have h := congrArg Fin.val (FinEnum.equiv.symm.injective (Sum.inl_injective hij))
       rw [vtx_val hi2, vtx_val hj2] at h
       omega
-    · rw [if_pos hie, if_neg hje] at hij; simp at hij
-    · rw [if_neg hie, if_pos hje] at hij; simp at hij
-    · rw [if_neg hie, if_neg hje] at hij
+    · rw [ite_eq_left hie, ite_eq_right hje] at hij; simp at hij
+    · rw [ite_eq_right hie, ite_eq_left hje] at hij; simp at hij
+    · rw [ite_eq_right hie, ite_eq_right hje] at hij
       have h := congrArg Fin.val (FinEnum.equiv.symm.injective (Sum.inr_injective hij))
       simp only [Fin.val_cast] at h
       rw [Nat.mod_eq_of_lt hi2, Nat.mod_eq_of_lt hj2] at h
@@ -492,12 +493,12 @@ theorem isHamiltonian_join_of_card_eq {G H : CGraph} (hcard : H.card = G.card) (
     rcases Nat.lt_or_ge (i + 1) (2 * G.card) with hlt | hge
     · rw [Nat.mod_eq_of_lt hlt]
       by_cases hie : i % 2 = 0
-      · rw [if_pos hie, if_neg (by omega), join_adj_inl_inr]
-      · rw [if_neg hie, if_pos (by omega), join_adj_inr_inl]
+      · rw [ite_eq_left hie, ite_eq_right (by omega), join_adj_inl_inr]
+      · rw [ite_eq_right hie, ite_eq_left (by omega), join_adj_inr_inl]
     · have hin : i = 2 * G.card - 1 := by omega
       subst hin
-      rw [show 2 * G.card - 1 + 1 = 2 * G.card by omega, Nat.mod_self, if_neg (by omega),
-        if_pos rfl, join_adj_inr_inl]
+      rw [show 2 * G.card - 1 + 1 = 2 * G.card by omega, Nat.mod_self, ite_eq_right (by omega),
+        ite_eq_left rfl, join_adj_inr_inl]
 
 /-- **The complement of a balanced disjoint union is Hamiltonian.**  Complementing a disjoint
 union gives a join, and a join of two graphs of the same order is Hamiltonian. -/

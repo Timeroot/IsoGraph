@@ -110,18 +110,18 @@ theorem cpCol_proper (n : ℕ) (u v w : (cocktailParty (n + 2)).V)
   refine hvw ?_
   unfold cpRaw at hraw
   by_cases hu : u.1.1 = 0 ∧ u.2.1 = 0
-  · rw [if_pos hu, if_pos hu] at hraw
+  · rw [ite_eq_left hu, ite_eq_left hu] at hraw
     have hv0 : ¬(v.1.1 = 0 ∧ v.2.1 = 0) := by omega
     have hw0 : ¬(w.1.1 = 0 ∧ w.2.1 = 0) := by omega
     have h4 := cpVal_inj n _ _ _ _ bv bw cv cw hv0 hw0 (cp_two_mul_inj n hraw)
     exact cp_vertex_ext v w h4.1 h4.2
-  · rw [if_neg hu, if_neg hu] at hraw
+  · rw [ite_eq_right hu, ite_eq_right hu] at hraw
     by_cases hv : v.1.1 = 0 ∧ v.2.1 = 0
     · exfalso
       have hw0 : ¬(w.1.1 = 0 ∧ w.2.1 = 0) := by
         rintro ⟨hw1, hw2⟩
         exact hvw (cp_vertex_ext v w (by omega) (by omega))
-      rw [if_pos hv, if_neg hw0] at hraw
+      rw [ite_eq_left hv, ite_eq_right hw0] at hraw
       have h5 : cpVal n u.1.1 u.2.1 = cpVal n w.1.1 w.2.1 := by
         have h2 : cpVal n u.1.1 u.2.1 + cpVal n u.1.1 u.2.1
             = cpVal n u.1.1 u.2.1 + cpVal n w.1.1 w.2.1 := by rw [← hraw]; ring
@@ -130,14 +130,14 @@ theorem cpCol_proper (n : ℕ) (u v w : (cocktailParty (n + 2)).V)
       omega
     · by_cases hw : w.1.1 = 0 ∧ w.2.1 = 0
       · exfalso
-        rw [if_neg hv, if_pos hw] at hraw
+        rw [ite_eq_right hv, ite_eq_left hw] at hraw
         have h5 : cpVal n u.1.1 u.2.1 = cpVal n v.1.1 v.2.1 := by
           have h2 : cpVal n u.1.1 u.2.1 + cpVal n u.1.1 u.2.1
               = cpVal n u.1.1 u.2.1 + cpVal n v.1.1 v.2.1 := by rw [hraw]; ring
           exact add_left_cancel h2
         have h6 := cpVal_inj n _ _ _ _ bu bv cu cv hu hv h5
         omega
-      · rw [if_neg hv, if_neg hw] at hraw
+      · rw [ite_eq_right hv, ite_eq_right hw] at hraw
         have h4 := cpVal_inj n _ _ _ _ bv bw cv cw hv hw (add_left_cancel hraw)
         exact cp_vertex_ext v w h4.1 h4.2
 

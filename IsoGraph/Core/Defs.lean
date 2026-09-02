@@ -362,25 +362,25 @@ def sigmaUnion {ι : Type} [FinEnum ι] (F : ι → CGraph)
     obtain ⟨j, b⟩ := y
     by_cases h : i = j
     · subst h
-      rw [dif_pos (rfl : i = i), dif_pos (rfl : i = i)]
+      rw [dite_eq_left (rfl : i = i), dite_eq_left (rfl : i = i)]
       exact (F i).symm a b
-    · rw [dif_neg h, dif_neg (Ne.symm h)]
+    · rw [dite_eq_right h, dite_eq_right (Ne.symm h)]
   loopless x := by
     obtain ⟨i, a⟩ := x
-    rw [dif_pos (rfl : i = i)]
+    rw [dite_eq_left (rfl : i = i)]
     exact (F i).loopless a
 
 @[simp] theorem sigmaUnion_adj_mk {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (i : ι) (a b : (F i).V) :
     (sigmaUnion F).Adj ⟨i, a⟩ ⟨i, b⟩ = (F i).Adj a b := by
   show (if h : i = i then (F i).Adj (h ▸ a) b else false) = _
-  rw [dif_pos (rfl : i = i)]
+  rw [dite_eq_left (rfl : i = i)]
 
 theorem sigmaUnion_adj_of_fst_ne {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (x y : (sigmaUnion F).V) (h : x.1 ≠ y.1) :
     (sigmaUnion F).Adj x y = false := by
   show (if h : x.1 = y.1 then (F y.1).Adj (h ▸ x.2) y.2 else false) = _
-  rw [dif_neg h]
+  rw [dite_eq_right h]
 
 @[simp] theorem sigmaUnion_adj_ne {ι : Type} [FinEnum ι] (F : ι → CGraph)
  (i j : ι) (a : (F i).V) (b : (F j).V) (h : i ≠ j) :
@@ -399,7 +399,8 @@ theorem sigmaUnion_eq_ofRel {ι : Type} [FinEnum ι] (F : ι → CGraph)
     simp only [sigmaUnion_adj_mk]
     show (F i).Adj a b = ((F i).Adj a b || (F i).Adj b a)
     rw [(F i).symm b a, Bool.or_self]
-  · simp only [sigmaUnion_adj_ne F i j a b h, dif_neg h, dif_neg (Ne.symm h), Bool.or_self]
+  · simp only [sigmaUnion_adj_ne F i j a b h, dite_eq_right h, dite_eq_right (Ne.symm h),
+      Bool.or_self]
 
 @[simp] theorem card_sigmaUnion {ι : Type} [FinEnum ι] (F : ι → CGraph)
  :

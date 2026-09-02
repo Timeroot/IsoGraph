@@ -998,7 +998,8 @@ theorem isAcyclic_disjUnion : (G ⊕g H).IsAcyclic ↔ G.IsAcyclic ∧ H.IsAcycl
 private theorem girth_disjUnion_le_left {G : CGraph} (H : CGraph) (hG : ¬ G.IsAcyclic) :
     (G ⊕g H).girth ≤ G.girth := by
   obtain ⟨a, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hG
-  have h := SimpleGraph.girth_le_length (hw.map (f := disjUnionInl G H) Sum.inl_injective)
+  have h :=
+    SimpleGraph.Walk.IsCycle.girth_le_length (hw.map (f := disjUnionInl G H) Sum.inl_injective)
   rw [SimpleGraph.Walk.length_map] at h
   show (G ⊕g H).toSimple.girth ≤ G.toSimple.girth
   rw [hlen]
@@ -1007,7 +1008,8 @@ private theorem girth_disjUnion_le_left {G : CGraph} (H : CGraph) (hG : ¬ G.IsA
 private theorem girth_disjUnion_le_right {H : CGraph} (G : CGraph) (hH : ¬ H.IsAcyclic) :
     (G ⊕g H).girth ≤ H.girth := by
   obtain ⟨b, w, hw, hlen⟩ := SimpleGraph.exists_girth_eq_length.2 hH
-  have h := SimpleGraph.girth_le_length (hw.map (f := disjUnionInr G H) Sum.inr_injective)
+  have h :=
+    SimpleGraph.Walk.IsCycle.girth_le_length (hw.map (f := disjUnionInr G H) Sum.inr_injective)
   rw [SimpleGraph.Walk.length_map] at h
   show (G ⊕g H).toSimple.girth ≤ H.toSimple.girth
   rw [hlen]
@@ -1024,13 +1026,13 @@ private theorem exists_side_girth {G H : CGraph} (h : ¬ (G ⊕g H).IsAcyclic) :
     refine Or.inl ⟨fun hac ↦ hac _ hw', ?_⟩
     show G.toSimple.girth ≤ (G ⊕g H).toSimple.girth
     rw [hlen, ← hl]
-    exact SimpleGraph.girth_le_length hw'
+    exact SimpleGraph.Walk.IsCycle.girth_le_length hw'
   | Sum.inr b =>
     obtain ⟨w', hw', hl⟩ := exists_cycle_of_inr hw
     refine Or.inr ⟨fun hac ↦ hac _ hw', ?_⟩
     show H.toSimple.girth ≤ (G ⊕g H).toSimple.girth
     rw [hlen, ← hl]
-    exact SimpleGraph.girth_le_length hw'
+    exact SimpleGraph.Walk.IsCycle.girth_le_length hw'
 
 /-- **The girth of a disjoint union.**  A cycle lives on one side, so the shortest cycle is the
 shorter of the two sides' shortest — except that the `0`-for-acyclic convention means an acyclic
@@ -1040,21 +1042,21 @@ theorem girth_disjUnion :
     (G ⊕g H).girth =
       if G.girth = 0 then H.girth else if H.girth = 0 then G.girth else min G.girth H.girth := by
   by_cases hG : G.IsAcyclic <;> by_cases hH : H.IsAcyclic
-  · rw [if_pos (girth_eq_zero_iff.2 hG), girth_eq_zero_iff.2 hH]
+  · rw [ite_eq_left (girth_eq_zero_iff.2 hG), girth_eq_zero_iff.2 hH]
     exact girth_eq_zero_iff.2 (isAcyclic_disjUnion.2 ⟨hG, hH⟩)
   · have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hH (isAcyclic_disjUnion.1 h).2
-    rw [if_pos (girth_eq_zero_iff.2 hG)]
+    rw [ite_eq_left (girth_eq_zero_iff.2 hG)]
     refine le_antisymm (girth_disjUnion_le_right G hH) ?_
     rcases exists_side_girth hne with ⟨h, -⟩ | ⟨-, h⟩
     · exact absurd hG h
     · exact h
   · have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hG (isAcyclic_disjUnion.1 h).1
-    rw [if_neg (girth_eq_zero_iff.not.2 hG), if_pos (girth_eq_zero_iff.2 hH)]
+    rw [ite_eq_right (girth_eq_zero_iff.not.2 hG), ite_eq_left (girth_eq_zero_iff.2 hH)]
     refine le_antisymm (girth_disjUnion_le_left H hG) ?_
     rcases exists_side_girth hne with ⟨-, h⟩ | ⟨h, -⟩
     · exact h
     · exact absurd hH h
-  · rw [if_neg (girth_eq_zero_iff.not.2 hG), if_neg (girth_eq_zero_iff.not.2 hH)]
+  · rw [ite_eq_right (girth_eq_zero_iff.not.2 hG), ite_eq_right (girth_eq_zero_iff.not.2 hH)]
     have hne : ¬ (G ⊕g H).IsAcyclic := fun h ↦ hG (isAcyclic_disjUnion.1 h).1
     refine le_antisymm (le_min (girth_disjUnion_le_left H hG)
       (girth_disjUnion_le_right G hH)) ?_

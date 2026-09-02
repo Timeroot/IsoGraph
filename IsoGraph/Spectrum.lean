@@ -1117,10 +1117,13 @@ theorem path_adjMat_mulVec (n : ℕ) (f : ℕ → ℝ) (h0 : f 0 = 0) (hn : f (n
       = (if i.1 + 1 = j.1 then f (j.1 + 1) else 0) + (if j.1 + 1 = i.1 then f i.1 else 0) := by
     intro j
     rcases eq_or_ne (i.1 + 1) j.1 with h1 | h1
-    · rw [if_pos ((path_adj_iff n i j).2 (Or.inl h1)), if_pos h1, if_neg (by omega)]; ring
+    · rw [ite_eq_left ((path_adj_iff n i j).2 (Or.inl h1)), ite_eq_left h1,
+        ite_eq_right (by omega)]; ring
     · rcases eq_or_ne (j.1 + 1) i.1 with h2 | h2
-      · rw [if_pos ((path_adj_iff n i j).2 (Or.inr h2)), if_neg h1, if_pos h2, h2]; ring
-      · rw [if_neg (fun h ↦ (path_adj_iff n i j).1 h |>.elim h1 h2), if_neg h1, if_neg h2]; ring
+      · rw [ite_eq_left ((path_adj_iff n i j).2 (Or.inr h2)), ite_eq_right h1, ite_eq_left h2,
+          h2]; ring
+      · rw [ite_eq_right (fun h ↦ (path_adj_iff n i j).1 h |>.elim h1 h2), ite_eq_right h1,
+          ite_eq_right h2]; ring
   simp only [Matrix.mulVec, dotProduct, adjMat_apply]
   rw [fintype_eq_fin (FinEnum.instFintype : Fintype (path n).V)]
   calc ∑ j : Fin n, (if (path n).Adj i j = true then (1 : ℝ) else 0) * f (j.1 + 1)
@@ -1233,8 +1236,8 @@ The cycle is the case `S = [1]`, whose connection set is `{1, n - 1}`; `charpoly
 private theorem mod_succ_eq (n j : ℕ) (hj : j < n) :
     (j + 1) % n = if j + 1 = n then 0 else j + 1 := by
   rcases eq_or_lt_of_le (Nat.succ_le_of_lt hj) with h | h
-  · rw [if_pos (by omega), show j + 1 = n from by omega, Nat.mod_self]
-  · rw [if_neg (by omega), Nat.mod_eq_of_lt h]
+  · rw [ite_eq_left (by omega), show j + 1 = n from by omega, Nat.mod_self]
+  · rw [ite_eq_right (by omega), Nat.mod_eq_of_lt h]
 
 theorem cycle_adj_iff {n : ℕ} (hn : 2 ≤ n) (i j : (cycle n).V) :
     (cycle n).Adj i j = true ↔ ((i.1 + 1) % n = j.1 ∨ (j.1 + 1) % n = i.1) := by
@@ -1408,16 +1411,16 @@ private theorem circ_sum_eq_eig {n : ℕ} (hn : 0 < n) (S : List ℕ) (m : ℕ) 
       push_cast
       ring
     by_cases h : circulantSet n S d.1 = true
-    · rw [if_pos h, if_pos h, if_pos h, cycZeta_add_inv, hc]
-    · rw [if_neg h, if_neg h, if_neg h, add_zero]
+    · rw [ite_eq_left h, ite_eq_left h, ite_eq_left h, cycZeta_add_inv, hc]
+    · rw [ite_eq_right h, ite_eq_right h, ite_eq_right h, add_zero]
   have hreal : ∀ d : Fin n,
       (if circulantSet n S d.1 then ((2 * Real.cos (2 * Real.pi * d.1 * m / n) : ℝ) : ℂ) else 0)
         = ((2 * (if circulantSet n S d.1 then
             Real.cos (2 * Real.pi * d.1 * m / n) else 0) : ℝ) : ℂ) := by
     intro d
     by_cases h : circulantSet n S d.1 = true
-    · rw [if_pos h, if_pos h]
-    · rw [if_neg h, if_neg h, mul_zero, Complex.ofReal_zero]
+    · rw [ite_eq_left h, ite_eq_left h]
+    · rw [ite_eq_right h, ite_eq_right h, mul_zero, Complex.ofReal_zero]
   have h2 : (2 : ℂ) * ∑ d : Fin n, (if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
       = ∑ d : Fin n, ((if circulantSet n S d.1 then cycZeta n ^ (d.1 * m) else 0)
           + (if circulantSet n S d.1 then (cycZeta n ^ (d.1 * m))⁻¹ else 0)) := by
@@ -1518,8 +1521,8 @@ private theorem circA_mul_circP {n : ℕ} (hn : 0 < n) (S : List ℕ) :
     intro j
     rw [circulant_adj]
     by_cases h : circulantSet n S ((j.1 + n - i.1) % n) = true
-    · rw [if_pos h, if_pos h, one_mul]
-    · rw [if_neg h, if_neg h, zero_mul]
+    · rw [ite_eq_left h, ite_eq_left h, one_mul]
+    · rw [ite_eq_right h, ite_eq_right h, zero_mul]
   rw [Matrix.mul_diagonal]
   simp only [Matrix.mul_apply, circA, circP, Matrix.of_apply]
   rw [Finset.sum_congr rfl fun j _ ↦ hstep j]
@@ -1534,8 +1537,8 @@ private theorem circA_mul_circP {n : ℕ} (hn : 0 < n) (S : List ℕ) :
         (if circulantSet n S ((j.1 + n - i.1) % n) then
           cycZeta n ^ (((j.1 + n - i.1) % n) * m.1) else 0)
     by_cases h : circulantSet n S ((j.1 + n - i.1) % n) = true
-    · rw [if_pos h, if_pos h, harith j]
-    · rw [if_neg h, if_neg h, mul_zero]
+    · rw [ite_eq_left h, ite_eq_left h, harith j]
+    · rw [ite_eq_right h, ite_eq_right h, mul_zero]
   · rw [← Finset.mul_sum, circ_sum_eq_eig hn S m.1, circEig]
 
 private theorem circA_eq_conj {n : ℕ} (hn : 0 < n) (S : List ℕ) :
@@ -1604,7 +1607,7 @@ theorem circulantEig_one {n : ℕ} (hn : 3 ≤ n) (m : ℕ) :
   rw [circulantEig, Finset.sum_eq_add_of_mem _ _ (Finset.mem_range.2 (show 1 < n from by omega))
       (Finset.mem_range.2 (show n - 1 < n from by omega)) (show (1 : ℕ) ≠ n - 1 from by omega)
       hzero,
-    if_pos hs1, if_pos hs2]
+    ite_eq_left hs1, ite_eq_left hs2]
   have hangle : 2 * Real.pi * ((n - 1 : ℕ) : ℝ) * m / n
       = ((m : ℤ) : ℝ) * (2 * Real.pi) - 2 * Real.pi * m / n := by
     rw [Nat.cast_sub (show 1 ≤ n from by omega)]
@@ -3385,18 +3388,18 @@ private theorem rayleigh_pair {G : CGraph} {u v : G.V} (h : G.Adj u v) (s : ℝ)
   · have hAw : ∀ x, (G.adjMat *ᵥ fun y ↦ (if y = u then (1 : ℝ) else 0)
         + s * (if y = v then 1 else 0)) x = G.adjMat x u + s * G.adjMat x v := fun x ↦ by
       simp only [Matrix.mulVec, dotProduct, mul_add, Finset.sum_add_distrib, mul_ite, mul_one,
-        mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true, mul_comm s, ← mul_assoc]
+        mul_zero, Finset.sum_ite_eq', Finset.mem_univ, ite_true, mul_comm s, ← mul_assoc]
       rw [← Finset.sum_mul, Finset.sum_ite_eq' Finset.univ v (fun y ↦ G.adjMat x y)]
       simp [mul_comm]
     simp only [dotProduct, hAw, add_mul, Finset.sum_add_distrib, ite_mul, one_mul, zero_mul,
-      Finset.sum_ite_eq', Finset.mem_univ, if_true, mul_assoc]
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true, mul_assoc]
     rw [← Finset.mul_sum,
       Finset.sum_ite_eq' Finset.univ v (fun y ↦ G.adjMat y u + s * G.adjMat y v)]
-    simp only [if_true, Finset.mem_univ, huv, hvu, huu, hvv]
+    simp only [ite_true, Finset.mem_univ, huv, hvu, huu, hvv]
     ring
   · simp only [dotProduct, add_mul, mul_add, Finset.sum_add_distrib, ite_mul, mul_ite, one_mul,
-      zero_mul, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true, if_neg hne,
-      if_neg hne.symm]
+      zero_mul, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, ite_true, ite_eq_right hne,
+      ite_eq_right hne.symm]
     ring
 
 /-- **A graph with an edge has an eigenvalue at least `1`.** -/
@@ -3605,8 +3608,8 @@ theorem lambdaMax_le_lambdaMax_of_adj {G H : CGraph} [Nonempty G.V] [Nonempty H.
     have hwy : w (e y) = u y := by simp [hw]
     rw [hwx, hwy]
     by_cases h : H.Adj x y
-    · rw [adjMat_apply, adjMat_apply, if_pos h, if_pos (hadj x y h)]
-    · rw [adjMat_apply, if_neg h, zero_mul]
+    · rw [adjMat_apply, adjMat_apply, ite_eq_left h, ite_eq_left (hadj x y h)]
+    · rw [adjMat_apply, ite_eq_right h, zero_mul]
       exact mul_nonneg (adjMat_nonneg G _ _) hnn
   have h4 := G.rayleigh_le_lambdaMax w
   rw [hnormw] at h4
@@ -5856,12 +5859,12 @@ private theorem chain_up {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (
   rw [Finset.sum_eq_single (⟨i.1 + 1, by omega⟩ : Fin (m + 1))]
   · simp
   · intro b _ hb
-    exact if_neg fun hh ↦ hb (Fin.ext hh.symm)
+    exact ite_eq_right fun hh ↦ hb (Fin.ext hh.symm)
   · intro hh; exact absurd (Finset.mem_univ _) hh
 
 private theorem chain_up_last {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : i.1 = m) :
     (∑ j : Fin (m + 1), if i.1 + 1 = j.1 then u j else 0) = 0 := by
-  refine Finset.sum_eq_zero fun j _ ↦ if_neg ?_
+  refine Finset.sum_eq_zero fun j _ ↦ ite_eq_right ?_
   have := j.isLt
   omega
 
@@ -5869,14 +5872,14 @@ private theorem chain_down {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1))
     (∑ j : Fin (m + 1), if j.1 + 1 = i.1 then u j else 0) = u ⟨i.1 - 1, by omega⟩ := by
   have hlt := i.isLt
   rw [Finset.sum_eq_single (⟨i.1 - 1, by omega⟩ : Fin (m + 1))]
-  · exact if_pos (by simp; omega)
+  · exact ite_eq_left (by simp; omega)
   · intro b _ hb
-    exact if_neg fun hh ↦ hb (Fin.ext (by simp; omega))
+    exact ite_eq_right fun hh ↦ hb (Fin.ext (by simp; omega))
   · intro hh; exact absurd (Finset.mem_univ _) hh
 
 private theorem chain_down_zero {m : ℕ} (u : Fin (m + 1) → ℝ) (i : Fin (m + 1)) (h : i.1 = 0) :
     (∑ j : Fin (m + 1), if j.1 + 1 = i.1 then u j else 0) = 0 :=
-  Finset.sum_eq_zero fun j _ ↦ if_neg (by omega)
+  Finset.sum_eq_zero fun j _ ↦ ite_eq_right (by omega)
 
 /-! #### The affine diagram `D̃ₘ₊₄` -/
 
@@ -5923,15 +5926,15 @@ theorem affineD_mulVec_inl (m : ℕ) (v : (affineD m).V → ℝ) (i : Fin (m + 1
     intro j
     rw [adjMat_apply]
     by_cases h : i.1 + 1 = j.1 ∨ j.1 + 1 = i.1
-    · rw [if_pos ((affineD_adj_inl_inl m i j).2 h), if_pos h, one_mul]
-    · rw [if_neg fun hh ↦ h ((affineD_adj_inl_inl m i j).1 hh), if_neg h, zero_mul]
+    · rw [ite_eq_left ((affineD_adj_inl_inl m i j).2 h), ite_eq_left h, one_mul]
+    · rw [ite_eq_right fun hh ↦ h ((affineD_adj_inl_inl m i j).1 hh), ite_eq_right h, zero_mul]
   have hleaf : ∀ k : Fin 4, (affineD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k)
       = if (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1) then v (Sum.inr k) else 0 := by
     intro k
     rw [adjMat_apply]
     by_cases h : (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ 2 ≤ k.1)
-    · rw [if_pos ((affineD_adj_inl_inr m i k).2 h), if_pos h, one_mul]
-    · rw [if_neg fun hh ↦ h ((affineD_adj_inl_inr m i k).1 hh), if_neg h, zero_mul]
+    · rw [ite_eq_left ((affineD_adj_inl_inr m i k).2 h), ite_eq_left h, one_mul]
+    · rw [ite_eq_right fun hh ↦ h ((affineD_adj_inl_inr m i k).1 hh), ite_eq_right h, zero_mul]
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inl i)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
         + ∑ k : Fin 4, (affineD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
@@ -5953,14 +5956,15 @@ theorem affineD_mulVec_inr_le (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
     intro j
     rw [adjMat_apply]
     by_cases hj : j.1 = 0
-    · rw [if_pos ((affineD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
-    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+    · rw [ite_eq_left ((affineD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), ite_eq_left (Fin.ext hj),
+        one_mul]
+    · rw [ite_eq_right fun hh ↦ ?_, ite_eq_right fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
       rcases (affineD_adj_inr_inl m k j).1 hh with h | h
       · exact hj h.1
       · omega
   have hleaf : ∀ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
     intro l
-    rw [adjMat_apply, if_neg (by rw [affineD_adj_inr_inr]; simp), zero_mul]
+    rw [adjMat_apply, ite_eq_right (by rw [affineD_adj_inr_inr]; simp), zero_mul]
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
@@ -5969,7 +5973,7 @@ theorem affineD_mulVec_inr_le (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
        exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
-    Finset.mem_univ, if_true]
+    Finset.mem_univ, ite_true]
 
 theorem affineD_mulVec_inr_ge (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) (hk : 2 ≤ k.1) :
     ((affineD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨m, Nat.lt_succ_self m⟩) := by
@@ -5978,14 +5982,15 @@ theorem affineD_mulVec_inr_ge (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
     intro j
     rw [adjMat_apply]
     by_cases hj : j.1 = m
-    · rw [if_pos ((affineD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
-    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+    · rw [ite_eq_left ((affineD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), ite_eq_left (Fin.ext hj),
+        one_mul]
+    · rw [ite_eq_right fun hh ↦ ?_, ite_eq_right fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
       rcases (affineD_adj_inr_inl m k j).1 hh with h | h
       · omega
       · exact hj h.1
   have hleaf : ∀ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
     intro l
-    rw [adjMat_apply, if_neg (by rw [affineD_adj_inr_inr]; simp), zero_mul]
+    rw [adjMat_apply, ite_eq_right (by rw [affineD_adj_inr_inr]; simp), zero_mul]
   have hsplit : ((affineD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (affineD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 4, (affineD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
@@ -5994,7 +5999,7 @@ theorem affineD_mulVec_inr_ge (m : ℕ) (v : (affineD m).V → ℝ) (k : Fin 4) 
        exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
-    Finset.mem_univ, if_true]
+    Finset.mem_univ, ite_true]
 
 /-- The marks of `D̃ₘ₊₄`: `2` along the chain and `1` at the four pendant vertices. -/
 def marksAffineD (m : ℕ) : (affineD m).V → ℝ := Sum.elim (fun _ ↦ 2) (fun _ ↦ 1)
@@ -6010,14 +6015,14 @@ theorem mulVec_affineD (m : ℕ) :
     have hi : i.1 ≤ m := Nat.lt_succ_iff.1 i.isLt
     rcases Nat.eq_or_lt_of_le hi with hm | hm
     · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
-      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_pos hm]
+      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, ite_eq_left h0, ite_eq_left hm]
         norm_num [marksAffineD]
-      · rw [chain_up_last _ _ hm, chain_down _ _ h0, if_neg (by omega), if_pos hm]
+      · rw [chain_up_last _ _ hm, chain_down _ _ h0, ite_eq_right (by omega), ite_eq_left hm]
         norm_num [marksAffineD]
     · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
-      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_neg (by omega)]
+      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, ite_eq_left h0, ite_eq_right (by omega)]
         norm_num [marksAffineD]
-      · rw [chain_up _ _ hm, chain_down _ _ h0, if_neg (by omega), if_neg (by omega)]
+      · rw [chain_up _ _ hm, chain_down _ _ h0, ite_eq_right (by omega), ite_eq_right (by omega)]
         norm_num [marksAffineD]
   · rcases Nat.lt_or_ge k.1 2 with hk | hk
     · rw [affineD_mulVec_inr_le _ _ _ (by omega)]
@@ -6090,15 +6095,15 @@ theorem dynkinD_mulVec_inl (m : ℕ) (v : (dynkinD m).V → ℝ) (i : Fin (m + 1
     intro j
     rw [adjMat_apply]
     by_cases h : i.1 + 1 = j.1 ∨ j.1 + 1 = i.1
-    · rw [if_pos ((dynkinD_adj_inl_inl m i j).2 h), if_pos h, one_mul]
-    · rw [if_neg fun hh ↦ h ((dynkinD_adj_inl_inl m i j).1 hh), if_neg h, zero_mul]
+    · rw [ite_eq_left ((dynkinD_adj_inl_inl m i j).2 h), ite_eq_left h, one_mul]
+    · rw [ite_eq_right fun hh ↦ h ((dynkinD_adj_inl_inl m i j).1 hh), ite_eq_right h, zero_mul]
   have hleaf : ∀ k : Fin 3, (dynkinD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k)
       = if (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2) then v (Sum.inr k) else 0 := by
     intro k
     rw [adjMat_apply]
     by_cases h : (i.1 = 0 ∧ k.1 ≤ 1) ∨ (i.1 = m ∧ k.1 = 2)
-    · rw [if_pos ((dynkinD_adj_inl_inr m i k).2 h), if_pos h, one_mul]
-    · rw [if_neg fun hh ↦ h ((dynkinD_adj_inl_inr m i k).1 hh), if_neg h, zero_mul]
+    · rw [ite_eq_left ((dynkinD_adj_inl_inr m i k).2 h), ite_eq_left h, one_mul]
+    · rw [ite_eq_right fun hh ↦ h ((dynkinD_adj_inl_inr m i k).1 hh), ite_eq_right h, zero_mul]
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inl i)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inl i) (Sum.inl j) * v (Sum.inl j))
         + ∑ k : Fin 3, (dynkinD m).adjMat (Sum.inl i) (Sum.inr k) * v (Sum.inr k) :=
@@ -6120,14 +6125,15 @@ theorem dynkinD_mulVec_inr_le (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) 
     intro j
     rw [adjMat_apply]
     by_cases hj : j.1 = 0
-    · rw [if_pos ((dynkinD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
-    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+    · rw [ite_eq_left ((dynkinD_adj_inr_inl m k j).2 (Or.inl ⟨hj, hk⟩)), ite_eq_left (Fin.ext hj),
+        one_mul]
+    · rw [ite_eq_right fun hh ↦ ?_, ite_eq_right fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
       rcases (dynkinD_adj_inr_inl m k j).1 hh with h | h
       · exact hj h.1
       · omega
   have hleaf : ∀ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
     intro l
-    rw [adjMat_apply, if_neg (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
+    rw [adjMat_apply, ite_eq_right (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
@@ -6136,7 +6142,7 @@ theorem dynkinD_mulVec_inr_le (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) 
        exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
-    Finset.mem_univ, if_true]
+    Finset.mem_univ, ite_true]
 
 theorem dynkinD_mulVec_inr_two (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3) (hk : k.1 = 2) :
     ((dynkinD m).adjMat *ᵥ v) (Sum.inr k) = v (Sum.inl ⟨m, Nat.lt_succ_self m⟩) := by
@@ -6145,14 +6151,15 @@ theorem dynkinD_mulVec_inr_two (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3)
     intro j
     rw [adjMat_apply]
     by_cases hj : j.1 = m
-    · rw [if_pos ((dynkinD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), if_pos (Fin.ext hj), one_mul]
-    · rw [if_neg fun hh ↦ ?_, if_neg fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
+    · rw [ite_eq_left ((dynkinD_adj_inr_inl m k j).2 (Or.inr ⟨hj, hk⟩)), ite_eq_left (Fin.ext hj),
+        one_mul]
+    · rw [ite_eq_right fun hh ↦ ?_, ite_eq_right fun hh ↦ hj (Fin.ext_iff.1 hh), zero_mul]
       rcases (dynkinD_adj_inr_inl m k j).1 hh with h | h
       · omega
       · exact hj h.1
   have hleaf : ∀ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) = 0 := by
     intro l
-    rw [adjMat_apply, if_neg (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
+    rw [adjMat_apply, ite_eq_right (by rw [dynkinD_adj_inr_inr]; simp), zero_mul]
   have hsplit : ((dynkinD m).adjMat *ᵥ v) (Sum.inr k)
       = (∑ j : Fin (m + 1), (dynkinD m).adjMat (Sum.inr k) (Sum.inl j) * v (Sum.inl j))
         + ∑ l : Fin 3, (dynkinD m).adjMat (Sum.inr k) (Sum.inr l) * v (Sum.inr l) :=
@@ -6161,7 +6168,7 @@ theorem dynkinD_mulVec_inr_two (m : ℕ) (v : (dynkinD m).V → ℝ) (k : Fin 3)
        exact Fintype.sum_sum_type _
   rw [hsplit]
   simp only [hchain, hleaf, Finset.sum_const_zero, add_zero, Finset.sum_ite_eq' Finset.univ,
-    Finset.mem_univ, if_true]
+    Finset.mem_univ, ite_true]
 
 /-- The marks of `Dₘ₊₄`: `2` along the chain and `1` at the three pendant vertices. -/
 def marksDynkinD (m : ℕ) : (dynkinD m).V → ℝ := Sum.elim (fun _ ↦ 2) (fun _ ↦ 1)
@@ -6182,14 +6189,14 @@ theorem mulVec_le_dynkinD (m : ℕ) (x : (dynkinD m).V) :
     have hi : i.1 ≤ m := Nat.lt_succ_iff.1 i.isLt
     rcases Nat.eq_or_lt_of_le hi with hm | hm
     · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
-      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_pos hm]
+      · rw [chain_up_last _ _ hm, chain_down_zero _ _ h0, ite_eq_left h0, ite_eq_left hm]
         norm_num [marksDynkinD]
-      · rw [chain_up_last _ _ hm, chain_down _ _ h0, if_neg (by omega), if_pos hm]
+      · rw [chain_up_last _ _ hm, chain_down _ _ h0, ite_eq_right (by omega), ite_eq_left hm]
         norm_num [marksDynkinD]
     · rcases Nat.eq_zero_or_pos i.1 with h0 | h0
-      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, if_pos h0, if_neg (by omega)]
+      · rw [chain_up _ _ hm, chain_down_zero _ _ h0, ite_eq_left h0, ite_eq_right (by omega)]
         norm_num [marksDynkinD]
-      · rw [chain_up _ _ hm, chain_down _ _ h0, if_neg (by omega), if_neg (by omega)]
+      · rw [chain_up _ _ hm, chain_down _ _ h0, ite_eq_right (by omega), ite_eq_right (by omega)]
         norm_num [marksDynkinD]
   · rcases Nat.lt_or_ge k.1 2 with hk | hk
     · rw [dynkinD_mulVec_inr_le _ _ _ (by omega)]
@@ -6226,25 +6233,26 @@ theorem two_notMem_spectrum_dynkinD (m : ℕ) : (2 : ℝ) ∉ (dynkinD m).spectr
     intro h
     have e := congrFun hv (Sum.inl (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)))
     rw [dynkinD_mulVec_inl, chain_up _ _ (by simpa using h), chain_down_zero _ _ (by simp),
-      if_pos (by simp), if_neg (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC] at e
+      ite_eq_left (by simp), ite_eq_right (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC] at e
     simpa using e
   have hlast : 0 < m → C (m - 1) + v (Sum.inr 2) = 2 * C m := by
     intro h
     have e := congrFun hv (Sum.inl (⟨m, Nat.lt_succ_self m⟩ : Fin (m + 1)))
     rw [dynkinD_mulVec_inl, chain_up_last _ _ (by simp), chain_down _ _ (by simpa using h),
-      if_neg (by simp; omega), if_pos (by simp), Pi.smul_apply, smul_eq_mul, hC, hC] at e
+      ite_eq_right (by simp; omega), ite_eq_left (by simp), Pi.smul_apply, smul_eq_mul, hC, hC] at e
     simpa using e
   have hint : ∀ t : ℕ, t + 1 < m → C (t + 1 + 1) + C t = 2 * C (t + 1) := by
     intro t ht
     have e := congrFun hv (Sum.inl (⟨t + 1, by omega⟩ : Fin (m + 1)))
     rw [dynkinD_mulVec_inl, chain_up _ _ (by simpa using ht), chain_down _ _ (by simp),
-      if_neg (by simp), if_neg (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC, hC] at e
+      ite_eq_right (by simp), ite_eq_right (by simp; omega), Pi.smul_apply, smul_eq_mul, hC, hC,
+      hC] at e
     simpa using e
   have hsingle : m = 0 → v (Sum.inr 0) + v (Sum.inr 1) + v (Sum.inr 2) = 2 * C 0 := by
     intro h
     have e := congrFun hv (Sum.inl (⟨0, Nat.succ_pos m⟩ : Fin (m + 1)))
     rw [dynkinD_mulVec_inl, chain_up_last _ _ (by simp [h]), chain_down_zero _ _ (by simp),
-      if_pos (by simp), if_pos (by simp [h]), Pi.smul_apply, smul_eq_mul, hC] at e
+      ite_eq_left (by simp), ite_eq_left (by simp [h]), Pi.smul_apply, smul_eq_mul, hC] at e
     simpa using e
   -- the chain is constant
   have key : ∀ t : ℕ, t < m → C t = C 0 ∧ C (t + 1) = C 0 := by
@@ -6375,7 +6383,7 @@ theorem transpose_mul_incMat (G : CGraph) :
   rw [hsum, Matrix.add_apply]
   by_cases hef : e = f
   · subst hef
-    rw [adjMat_apply, if_neg (by simp)]
+    rw [adjMat_apply, ite_eq_right (by simp)]
     simp only [Matrix.smul_apply, Matrix.one_apply_eq, smul_eq_mul, mul_one, zero_add]
     rw [show (Finset.univ.filter fun v : G.V ↦ v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V))
         = Finset.univ.filter fun v : G.V ↦ v ∈ (e.1 : Sym2 G.V) from
@@ -6384,9 +6392,9 @@ theorem transpose_mul_incMat (G : CGraph) :
   · rw [Matrix.smul_apply, Matrix.one_apply_ne hef, smul_zero, add_zero, adjMat_apply,
       card_filter_mem_inter (fun h ↦ hef (Subtype.ext h))]
     by_cases hmeet : ∃ v, v ∈ (e.1 : Sym2 G.V) ∧ v ∈ (f.1 : Sym2 G.V)
-    · rw [if_pos hmeet, if_pos]
+    · rw [ite_eq_left hmeet, ite_eq_left]
       simpa [lineGraph_adj, hef] using hmeet
-    · rw [if_neg hmeet, if_neg]
+    · rw [ite_eq_right hmeet, ite_eq_right]
       simpa [lineGraph_adj, hef] using hmeet
 
 /-- **No eigenvalue of a line graph is below `-2`.**  This is the factorisation
@@ -6482,7 +6490,7 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
   rw [hsum, Matrix.add_apply]
   by_cases huv : u = v
   · subst huv
-    rw [adjMat_apply, if_neg (by simp [G.loopless u]), zero_add]
+    rw [adjMat_apply, ite_eq_right (by simp [G.loopless u]), zero_add]
     simp only [Matrix.smul_apply, Matrix.one_apply_eq, smul_eq_mul, mul_one, and_self]
     rw [card_filter_mem_incMat u, h u]
   · rw [Matrix.smul_apply, Matrix.one_apply_ne huv, smul_zero, add_zero, adjMat_apply]
@@ -6494,7 +6502,7 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
         simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
         exact ⟨fun he ↦ Subtype.ext ((Sym2.mem_and_mem_iff huv).1 he),
           fun he ↦ by rw [he]; simp⟩
-      rw [hfil, Finset.card_singleton, if_pos hadj, Nat.cast_one]
+      rw [hfil, Finset.card_singleton, ite_eq_left hadj, Nat.cast_one]
     · have hfil : (Finset.univ.filter fun e : (lineGraph G).V ↦
           u ∈ (e.1 : Sym2 G.V) ∧ v ∈ (e.1 : Sym2 G.V)) = ∅ := by
         refine Finset.filter_eq_empty_iff.2 fun {e} _ he ↦ hadj ?_
@@ -6502,7 +6510,7 @@ theorem incMat_mul_transpose_of_isRegularWith {G : CGraph} {k : ℕ}
         have h2 := e.2
         rw [hz] at h2
         exact h2
-      rw [hfil, Finset.card_empty, if_neg hadj, Nat.cast_zero]
+      rw [hfil, Finset.card_empty, ite_eq_right hadj, Nat.cast_zero]
 
 /-- **The spectrum of the line graph of a `k`-regular graph.**  Each eigenvalue `λ` of `G`
 contributes `λ + k - 2` to `L(G)`, and the remaining `|E| - |V|` eigenvalues are all `-2`.  The
@@ -6681,7 +6689,7 @@ private theorem exists_conj_vecMulVec {G : CGraph} [Nonempty G.V] {U : Matrix G.
     simp [hc, Finset.card_univ, mul_comm]
   have hcsq : c ^ 2 * FinEnum.card G.V = 1 := by
     have h1 := horth i₀ i₀
-    rw [if_pos rfl] at h1
+    rw [ite_eq_left rfl] at h1
     simp only [dotProduct, Matrix.transpose_apply, hc, Finset.sum_const, Finset.card_univ,
       CGraph.fintypeCard, nsmul_eq_mul] at h1
     rw [← h1]
@@ -6696,7 +6704,7 @@ private theorem exists_conj_vecMulVec {G : CGraph} [Nonempty G.V] {U : Matrix G.
     · obtain ⟨e, he⟩ : ∃ e, ∀ x, U x i = e :=
         ⟨U (Classical.arbitrary G.V) i, fun x ↦ hconstv i hi x _⟩
       have h1 := horth i i₀
-      rw [if_neg hne] at h1
+      rw [ite_eq_right hne] at h1
       simp only [dotProduct, Matrix.transpose_apply, he, hc, Finset.sum_const, Finset.card_univ,
         CGraph.fintypeCard, nsmul_eq_mul] at h1
       have hcne : c ≠ 0 := by
@@ -6867,7 +6875,7 @@ theorem exists_orthonormal_eigenbasis (G : CGraph) :
   refine ⟨fun i x ↦ U x i, fun i ↦ funext fun x ↦ ?_, fun i j ↦ ?_, fun v ↦ funext fun x ↦ ?_⟩
   · have h := congrFun (congrFun hAU x) i
     simp only [Matrix.mul_apply, Matrix.diagonal_apply, mul_ite, mul_zero, Finset.sum_ite_eq',
-      Finset.mem_univ, if_true] at h
+      Finset.mem_univ, ite_true] at h
     simpa [Matrix.mulVec, dotProduct, mul_comm] using h
   · have h := congrFun (congrFun hUU i) j
     simp only [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply] at h
@@ -7002,15 +7010,16 @@ theorem count_spectrum_lambdaMax_eq_one {G : CGraph} [Nonempty G.V] (hconn : G.I
     obtain ⟨b, hb⟩ := exists_smul_of_mulVec_eq_lambdaMax hconn hwpos hw (hj.2 ▸ heig j)
     have hii : a * a * (w ⬝ᵥ w) = 1 := by
       have := hortho i i
-      rw [if_pos rfl, ha, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      rw [ite_eq_left rfl, ha, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
       linarith [this]
     have hij : a * b * (w ⬝ᵥ w) = 0 := by
       have := hortho i j
-      rw [if_neg hne, ha, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      rw [ite_eq_right hne, ha, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul,
+        smul_eq_mul] at this
       linarith [this]
     have hjj : b * b * (w ⬝ᵥ w) = 1 := by
       have := hortho j j
-      rw [if_pos rfl, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
+      rw [ite_eq_left rfl, hb, smul_dotProduct, dotProduct_smul, smul_eq_mul, smul_eq_mul] at this
       linarith [this]
     nlinarith [hii, hij, hjj, hww]
   · rw [Finset.one_le_card]
@@ -7526,7 +7535,7 @@ theorem adj_eq_false_of_card_toFinset_spectrum_eq_one {G : CGraph} [Nonempty G.V
   rw [adjMat_apply, Matrix.zero_apply] at h2
   by_contra hn
   rw [Bool.not_eq_false] at hn
-  rw [if_pos hn] at h2
+  rw [ite_eq_left hn] at h2
   exact one_ne_zero h2
 
 /-- **A connected regular graph with two distinct eigenvalues is complete.**  With the spectrum
@@ -7587,7 +7596,7 @@ theorem adj_of_card_toFinset_spectrum_eq_two {G : CGraph} {k : ℕ} (hconn : G.I
     exact hkr (by rw [hk0]; linarith [hdiag.trans h0])
   · by_contra hn
     have h1 := hoff i j hij
-    rw [adjMat_apply, if_neg hn] at h1
+    rw [adjMat_apply, ite_eq_right hn] at h1
     exact h0 h1.symm
 
 /-- **A connected regular graph with three distinct eigenvalues is strongly regular.**  Writing
@@ -7658,13 +7667,13 @@ theorem exists_isSRGWith_of_card_toFinset_spectrum_eq_three {G : CGraph} {k : �
       (Fintype.card (G.toSimple.commonNeighbors i j) : ℝ) = t + (r + s) := by
     intro i j hij
     have h1 := hoff i j hij.ne
-    rw [adjMat_apply, if_pos (by simpa [toSimple_adj] using hij)] at h1
+    rw [adjMat_apply, ite_eq_left (by simpa [toSimple_adj] using hij)] at h1
     linarith
   have hnadj : ∀ i j, i ≠ j → ¬G.toSimple.Adj i j →
       (Fintype.card (G.toSimple.commonNeighbors i j) : ℝ) = t := by
     intro i j hij hnij
     have h1 := hoff i j hij
-    rw [adjMat_apply, if_neg (by simpa [toSimple_adj] using hnij)] at h1
+    rw [adjMat_apply, ite_eq_right (by simpa [toSimple_adj] using hnij)] at h1
     linarith
   -- read off the two parameters as natural numbers
   obtain ⟨l, hl⟩ : ∃ l : ℕ, ∀ v w, G.toSimple.Adj v w →
@@ -9296,7 +9305,7 @@ theorem path_adjMat_mulVec' (n : ℕ) (g : ℕ → ℝ) (i : Fin n) :
     have hj := j.isLt
     rw [hf]
     simp only
-    rw [if_neg (by omega), if_neg (by omega)]
+    rw [ite_eq_right (by omega), ite_eq_right (by omega)]
   rw [hv, path_adjMat_mulVec n f h0 hn i]
   have hleft : f i.1 = if i.1 = 0 then 0 else g i.1 := by
     rw [hf]
@@ -9305,7 +9314,7 @@ theorem path_adjMat_mulVec' (n : ℕ) (g : ℕ → ℝ) (i : Fin n) :
   have hright : f (i.1 + 2) = if i.1 + 2 = n + 1 then 0 else g (i.1 + 2) := by
     rw [hf]
     simp only
-    rw [if_neg (show i.1 + 2 ≠ 0 by omega)]
+    rw [ite_eq_right (show i.1 + 2 ≠ 0 by omega)]
   rw [hleft, hright]
 
 /-- The Laplacian of the path acts as the second difference, provided the function is extended
@@ -9327,7 +9336,7 @@ theorem path_lapMat_mulVec (n : ℕ) (g : ℕ → ℝ) (h0 : g 0 = g 1) (hn : g 
   rw [lapMat_mulVec_apply, hsum, hdot]
   rcases Nat.eq_zero_or_pos i.1 with hi0 | hi0
   · rcases eq_or_ne (i.1 + 2) (n + 1) with h2 | h2
-    · rw [if_pos hi0, if_pos h2, if_pos hi0, if_pos h2]
+    · rw [ite_eq_left hi0, ite_eq_left h2, ite_eq_left hi0, ite_eq_left h2]
       have e1 : g i.1 = g 1 := by rw [hi0, h0]
       have e2 : g (i.1 + 2) = g (i.1 + 1) := by
         rw [show i.1 + 2 = n + 1 from h2, hn]
@@ -9335,19 +9344,19 @@ theorem path_lapMat_mulVec (n : ℕ) (g : ℕ → ℝ) (h0 : g 0 = g 1) (hn : g 
         omega
       rw [e1, e2, show i.1 + 1 = 1 from by omega]
       ring
-    · rw [if_pos hi0, if_neg h2, if_pos hi0, if_neg h2]
+    · rw [ite_eq_left hi0, ite_eq_right h2, ite_eq_left hi0, ite_eq_right h2]
       have e1 : g i.1 = g (i.1 + 1) := by rw [hi0, h0]
       rw [e1]
       ring
   · rcases eq_or_ne (i.1 + 2) (n + 1) with h2 | h2
-    · rw [if_neg (by omega), if_pos h2, if_neg (by omega), if_pos h2]
+    · rw [ite_eq_right (by omega), ite_eq_left h2, ite_eq_right (by omega), ite_eq_left h2]
       have e2 : g (i.1 + 2) = g (i.1 + 1) := by
         rw [show i.1 + 2 = n + 1 from h2, hn]
         congr 1
         omega
       rw [e2]
       ring
-    · rw [if_neg (by omega), if_neg h2, if_neg (by omega), if_neg h2]
+    · rw [ite_eq_right (by omega), ite_eq_right h2, ite_eq_right (by omega), ite_eq_right h2]
       ring
 
 open Real in
@@ -10185,12 +10194,12 @@ theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E)
       rcases eq_or_ne i c with rfl | hi
       · simp [hcc]
         ring
-      · simp only [if_neg hi]
+      · simp only [ite_eq_right hi]
         rw [zero_sub, neg_mul_neg, hAsq c i]
         ring
     rw [dotProduct, Finset.sum_congr rfl fun i _ ↦ hterm i]
     rw [Finset.sum_sub_distrib, Finset.sum_add_distrib, hrow, Finset.sum_ite_eq' Finset.univ c,
-      if_pos (Finset.mem_univ c)]
+      ite_eq_left (Finset.mem_univ c)]
     have hzero : ∑ i, 2 * ((if i = c then d else 0) * G.adjMat c i) = 0 := by
       refine Finset.sum_eq_zero fun i _ ↦ ?_
       rcases eq_or_ne i c with rfl | hi
@@ -10213,9 +10222,9 @@ theorem maxDeg_add_one_le_lapLambdaMax (G : CGraph) [Nonempty G.V] (h : 0 < G.E)
         · have hjc : j ≠ c := by
             rintro rfl
             simp [G.adj_self] at hadj
-          rw [hxc, hxne j hjc, adjMat_apply, if_pos hadj]
+          rw [hxc, hxne j hjc, adjMat_apply, ite_eq_left hadj]
           ring
-        · rw [adjMat_apply, if_neg hadj]
+        · rw [adjMat_apply, ite_eq_right hadj]
           ring
       rw [Finset.sum_congr rfl fun j _ ↦ hterm j, ← Finset.sum_mul, hrow]
     have hcolc : ∑ i, f i c = d * (d + 1) ^ 2 := by
@@ -10299,9 +10308,10 @@ theorem two_mul_algConn_le_degree_add_degree (G : CGraph) [Nonempty G.V] {u v : 
     rw [show (G.lapMat *ᵥ x) i = x ⬝ᵥ (fun j ↦ G.lapMat i j) from by
       rw [dotProduct_comm]; rfl, hdot]
   have hauv : G.lapMat u v = 0 := by
-    rw [lapMat_apply_of_ne G huv, adjMat_apply, if_neg h, neg_zero]
+    rw [lapMat_apply_of_ne G huv, adjMat_apply, ite_eq_right h, neg_zero]
   have havu : G.lapMat v u = 0 := by
-    rw [lapMat_apply_of_ne G (Ne.symm huv), G.adjMat_symm v u, adjMat_apply, if_neg h, neg_zero]
+    rw [lapMat_apply_of_ne G (Ne.symm huv), G.adjMat_symm v u, adjMat_apply, ite_eq_right h,
+      neg_zero]
   have hquad : x ⬝ᵥ (G.lapMat *ᵥ x) = (G.toSimple.degree u : ℝ) + G.toSimple.degree v := by
     rw [hdot, hmv, hmv, hauv, havu, lapMat_apply_self, lapMat_apply_self]
     ring
@@ -10324,9 +10334,9 @@ theorem algConn_mul_card_mul_card_compl_le (G : CGraph) [Nonempty G.V]
   have hab : a + b = n := by
     rw [ha, hb, hn, ← Nat.cast_add, Finset.card_add_card_compl, G.fintypeCard]
   set x : G.V → ℝ := fun i ↦ if i ∈ S then b else -a with hx
-  have hxS : ∀ i ∈ S, x i = b := fun i hi ↦ by rw [hx]; exact if_pos hi
+  have hxS : ∀ i ∈ S, x i = b := fun i hi ↦ by rw [hx]; exact ite_eq_left hi
   have hxSc : ∀ i ∈ Sᶜ, x i = -a := fun i hi ↦ by
-    rw [hx]; exact if_neg (Finset.mem_compl.1 hi)
+    rw [hx]; exact ite_eq_right (Finset.mem_compl.1 hi)
   -- the test vector sums to zero
   have hsum : ∑ i, x i = 0 := by
     rw [← Finset.sum_add_sum_compl S, Finset.sum_congr rfl hxS, Finset.sum_congr rfl hxSc,
@@ -10601,7 +10611,7 @@ theorem lapMat_cartesianProduct (G H : CGraph) :
       degree_cartesianProduct]
     push_cast
     norm_num
-  · simp only [Matrix.diagonal_apply, if_neg hpq]
+  · simp only [Matrix.diagonal_apply, ite_eq_right hpq]
     by_cases h1 : p.1 = q.1
     · have h2 : p.2 ≠ q.2 := fun h ↦ hpq (Prod.ext h1 h)
       simp [Matrix.add_apply, Matrix.kroneckerMap_apply, Matrix.one_apply, h1, h2,

@@ -104,10 +104,10 @@ def induceSplitEquiv (G : CGraph) (s : G.V → Bool) :
       simp [hv]
 
 theorem induceSplitEquiv_apply_pos (G : CGraph) (s : G.V → Bool) (v : G.V) (h : s v) :
-    induceSplitEquiv G s v = .inl ⟨v, h⟩ := dif_pos h
+    induceSplitEquiv G s v = .inl ⟨v, h⟩ := dite_eq_left h
 
 theorem induceSplitEquiv_apply_neg (G : CGraph) (s : G.V → Bool) (v : G.V) (h : ¬s v) :
-    induceSplitEquiv G s v = .inr ⟨v, by simp [h]⟩ := dif_neg h
+    induceSplitEquiv G s v = .inr ⟨v, by simp [h]⟩ := dite_eq_right h
 
 /-- **A graph no edge of which crosses `s` is the disjoint union of its two sides.** -/
 def Iso.induceSplit (G : CGraph) (s : G.V → Bool) (h : ∀ x y, G.Adj x y → s x = s y) :
@@ -503,7 +503,7 @@ theorem branchLeft_eq_some (f : A.MinorOf (C ⊕g D)) (w : C.V) (x : (A.induce f
   rcases hb : f.branch (Sum.inl w) with _ | y
   · simp [branchLeft, hb]
   · by_cases hy : f.side y
-    · simp only [branchLeft, hb, Option.bind_some, dif_pos hy, Option.some.injEq]
+    · simp only [branchLeft, hb, Option.bind_some, dite_eq_left hy, Option.some.injEq]
       exact ⟨fun h ↦ congrArg Subtype.val h, fun h ↦ Subtype.ext h⟩
     · refine ⟨fun h ↦ by simp [branchLeft, hb, hy] at h, fun h ↦ ?_⟩
       have hxy : y = x.1 := by simpa using h
@@ -521,10 +521,10 @@ theorem branchRight_eq_some (f : A.MinorOf (C ⊕g D)) (w : D.V)
   rcases hb : f.branch (Sum.inr w) with _ | y
   · simp [branchRight, hb]
   · by_cases hy : !f.side y
-    · simp only [branchRight, hb, Option.bind_some, dif_pos hy, Option.some.injEq]
+    · simp only [branchRight, hb, Option.bind_some, dite_eq_left hy, Option.some.injEq]
       exact ⟨fun h ↦ congrArg Subtype.val h, fun h ↦ Subtype.ext h⟩
     · refine ⟨fun h ↦ by
-        simp only [branchRight, hb, Option.bind_some, dif_neg hy] at h
+        simp only [branchRight, hb, Option.bind_some, dite_eq_right hy] at h
         exact absurd h (by simp), fun h ↦ ?_⟩
       have hxy : y = x.1 := by simpa using h
       subst hxy

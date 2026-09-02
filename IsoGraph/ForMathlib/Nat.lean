@@ -85,7 +85,7 @@ theorem choose_two_mod_two_eq_zero_iff (n : ℕ) :
     omega
 
 theorem div_pred_of_not_dvd {k r : ℕ} (h : ¬ r ∣ (k + 1)) : k / r = (k + 1) / r := by
-  rw [Nat.succ_div, if_neg h, Nat.add_zero]
+  rw [Nat.succ_div, ite_eq_right h, Nat.add_zero]
 
 theorem ceilDiv_of_not_dvd {n r : ℕ} (hr : 0 < r) (h : ¬ r ∣ n) :
     (n + r - 1) / r = n / r + 1 := by
@@ -141,9 +141,9 @@ theorem succ_mod_ne {d x : ℕ} (h2 : 2 ≤ d) (hx : x < d) : (x + 1) % d ≠ x 
 
 theorem mod_succ_norm {N a : ℕ} (h : a < N) : (a + 1) % N = if a + 1 = N then 0 else a + 1 := by
   rcases Nat.lt_or_ge (a + 1) N with hq | hq
-  · rw [if_neg (by omega), Nat.mod_eq_of_lt hq]
+  · rw [ite_eq_right (by omega), Nat.mod_eq_of_lt hq]
   · have hEq : a + 1 = N := by omega
-    rw [if_pos hEq, hEq, Nat.mod_self]
+    rw [ite_eq_left hEq, hEq, Nat.mod_self]
 
 /-- With an odd modulus `2a + 3` bigger than both, `2i + 1` and `2i'` are already reduced, so
 they are congruent only if they are equal — and they have opposite parities. -/

@@ -481,11 +481,11 @@ theorem vertexConn_le_edgeConn (G : CGraph) : G.vertexConn ≤ G.edgeConn := by
       (fun x hx ↦ ?_) (fun x hx y hy hxy ↦ ?_)
     · simp only [Finset.mem_coe] at hx ⊢
       by_cases hc : x ∈ s ∧ (G.nbrs x \ s).Nonempty
-      · rw [dif_pos hc]
+      · rw [dite_eq_left hc]
         have hw := hc.2.choose_spec
         rw [Finset.mem_sdiff, G.mem_nbrs] at hw
         exact mem_crossing.2 ⟨hc.1, hw.2, hw.1⟩
-      · rw [dif_neg hc]
+      · rw [dite_eq_right hc]
         rcases (hmemT x).1 hx with ⟨hxa, hxs⟩ | ⟨hxs, -, hxn⟩
         · exact mem_crossing.2 ⟨ha, hxs, (G.mem_nbrs a x).1 hxa⟩
         · exact absurd ⟨hxs, hxn⟩ hc
@@ -493,17 +493,17 @@ theorem vertexConn_le_edgeConn (G : CGraph) : G.vertexConn ≤ G.edgeConn := by
       dsimp only at hxy
       by_cases hcx : x ∈ s ∧ (G.nbrs x \ s).Nonempty <;>
         by_cases hcy : y ∈ s ∧ (G.nbrs y \ s).Nonempty
-      · rw [dif_pos hcx, dif_pos hcy] at hxy
+      · rw [dite_eq_left hcx, dite_eq_left hcy] at hxy
         exact congrArg Prod.fst hxy
-      · rw [dif_pos hcx, dif_neg hcy] at hxy
+      · rw [dite_eq_left hcx, dite_eq_right hcy] at hxy
         rcases (hmemT x).1 hx with ⟨-, hxs⟩ | ⟨-, hne, -⟩
         · exact absurd hcx.1 hxs
         · exact absurd (congrArg Prod.fst hxy) hne
-      · rw [dif_neg hcx, dif_pos hcy] at hxy
+      · rw [dite_eq_right hcx, dite_eq_left hcy] at hxy
         rcases (hmemT y).1 hy with ⟨-, hys⟩ | ⟨-, hne, -⟩
         · exact absurd hcy.1 hys
         · exact absurd (congrArg Prod.fst hxy).symm hne
-      · rw [dif_neg hcx, dif_neg hcy] at hxy
+      · rw [dite_eq_right hcx, dite_eq_right hcy] at hxy
         exact congrArg Prod.snd hxy
   exact le_trans (G.vertexConn_le_of_isSeparator hsep) hcard
 
