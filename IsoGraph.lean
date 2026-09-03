@@ -19,3 +19,5 @@ import IsoGraph.Sat
 import IsoGraph.Fractional
 import IsoGraph.Decompose
 import IsoGraph.Moments
+import ProofWidgets.Component.HtmlDisplay
+import IsoGraph.Widget
